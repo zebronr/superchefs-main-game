@@ -1,5 +1,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
@@ -8,20 +11,20 @@ local InteractionRequest:RemoteEvent = Interactions:WaitForChild("InteractionReq
 
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Configs = Modules:WaitForChild("Configs")
-local PlayerValues = require(script.Parent:WaitForChild("PlayerValues"))
+local PlayerValues = require(Modules:WaitForChild("PlayerValues"))
 local Controls = require(Configs:WaitForChild("Controls"))
 
 local function Interact()
     InteractionRequest:FireServer("Interact", {
-        visibleObject = PlayerValues.RetrieveValue("VisibleObject"),
-        objectCarried = PlayerValues.RetrieveValue("ObjectCarried")
+        visibleObject = PlayerValues.RetrieveValue(LocalPlayer, "VisibleObject"),
+        objectCarried = PlayerValues.RetrieveValue(LocalPlayer, "ObjectCarried"),
     })
 end
 
 local function Use(state)
     InteractionRequest:FireServer("Use", {
-        visibleObject = PlayerValues.RetrieveValue("VisibleObject"),
-        objectCarried = PlayerValues.RetrieveValue("ObjectCarried"),
+        visibleObject = PlayerValues.RetrieveValue(LocalPlayer, "VisibleObject"),
+        objectCarried = PlayerValues.RetrieveValue(LocalPlayer, "ObjectCarried"),
         heldState = state
     })
 end

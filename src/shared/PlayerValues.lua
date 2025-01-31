@@ -1,18 +1,15 @@
-PlayerValues = {}
+local PlayerValues = {}
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local PlayerValuesFolder = LocalPlayer:WaitForChild("PlayerValues", 60)
-
-function PlayerValues.ChangeValues(valueName, value)
+function PlayerValues.ChangeValues(player, valueName, value)
+    local PlayerValuesFolder = player:WaitForChild("PlayerValues")
     local valueObject = PlayerValuesFolder:FindFirstChild(valueName)
     if valueObject then
         valueObject.Value = value
     end
 end
 
-function PlayerValues.RetrieveValue(valueName)
+function PlayerValues.RetrieveValue(player, valueName)
+    local PlayerValuesFolder = player:WaitForChild("PlayerValues")
     local valueObject = PlayerValuesFolder:FindFirstChild(valueName)
     if valueObject then
         return valueObject.Value

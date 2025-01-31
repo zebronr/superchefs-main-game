@@ -13,4 +13,8 @@ function Cache.ClearCache()
     end
 end
 
+function Cache.Retrieve(id)
+    return CACHES[id]
+end
+
 return Cache

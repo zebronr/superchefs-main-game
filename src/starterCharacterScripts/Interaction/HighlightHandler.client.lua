@@ -1,8 +1,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ProximityPromptService = game:GetService("ProximityPromptService")
+local Players = game:GetService("Players")
 
-local _Modules = ReplicatedStorage:WaitForChild("Modules")
-local PlayerValues = require(script.Parent:WaitForChild("PlayerValues"))
+local LocalPlayer = Players.LocalPlayer
+
+local Modules = ReplicatedStorage:WaitForChild("Modules")
+
+local PlayerValues = require(Modules:WaitForChild("PlayerValues"))
 
 local Assets = ReplicatedStorage:WaitForChild("Assets")
 local VisibilityHighlight = Assets:WaitForChild("VisibilityHighlight")
@@ -14,11 +18,11 @@ local function toggleObjectHighlight(prompt, state)
 
     local Object = prompt.Parent
     if state and not Object:FindFirstChild("VisibilityHighlight") then
-        PlayerValues.ChangeValues("VisibleObject", Object)
+        PlayerValues.ChangeValues(LocalPlayer, "VisibleObject", Object)
         local HighlightClone = VisibilityHighlight:Clone()
         HighlightClone.Parent = Object
     elseif not state then
-        PlayerValues.ChangeValues("VisibleObject", nil)
+        PlayerValues.ChangeValues(LocalPlayer, "VisibleObject", nil)
         local HighlightClone = Object:FindFirstChild("VisibilityHighlight")
         if HighlightClone then
             HighlightClone:Destroy()
