@@ -15,8 +15,8 @@ local requestCooldown = Cache.RegisterCache(`{script.Name}_requestCooldown`)
 
 local maxRequest = 10
 
-local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate"}
-local useableClasses = {"Countertop", "Tool"}
+local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard"}
+local useableClasses = {"Countertop", "Tool", "ChoppingBoard"}
 
 local ObjectsFolder = script.Parent:WaitForChild("Objects")
 
@@ -80,24 +80,13 @@ function functions.Interact(parameters)
 
     if not visibleObject and not objectCarried then return end
 
-    local objectCarried_pL
-    if objectCarried then objectCarried_pL = objectCarried:GetAttribute("interactionPriority") or 1 end
-
-    local visibleObject_pL
-    if visibleObject then visibleObject_pL = visibleObject:GetAttribute("interactionPriority") or 1 end
-                    
     local objectToInteractWith = visibleObject or objectCarried
-    local objectToUseForInteraction = objectCarried
 
-    if objectCarried and visibleObject and objectCarried_pL > visibleObject_pL then
-        objectToInteractWith = objectCarried
+    if visibleObject and objectCarried then
+        if (objectCarried:GetAttribute("interactionPriority") or 1) > (visibleObject:GetAttribute("interactionPriority") or 1) then
+            objectToInteractWith = objectCarried
+        end
     end
-
-    if objectCarried == objectToInteractWith then
-        objectToUseForInteraction = visibleObject
-    end
-
-    print(objectToInteractWith)
     
     if (not objectToInteractWith) or (useLock[objectToInteractWith]) then return end
 
@@ -108,7 +97,7 @@ function functions.Interact(parameters)
         if ObjectsFolder:FindFirstChild(objectClass) then
             local main = require(ObjectsFolder:WaitForChild(objectClass):WaitForChild(objectClass))
             if main.Interact then
-                interactionFailed = main.Interact(player, objectToUseForInteraction, objectToInteractWith)
+                interactionFailed = main.Interact(player, objectCarried, visibleObject)
             end
         end
     end
@@ -121,12 +110,14 @@ function functions.Use(parameters)
     local visibleObject = parameters.visibleObject
     local heldState = parameters.heldState
 
+    if not objectCarried and not visibleObject then return end
+
     local objectToUse = objectCarried or visibleObject
 
     if (not objectToUse) or (useLock[objectToUse] and useLock[objectToUse] ~= player) then return end
 
     if not heldState then
-        useLock[objectToUse] = false
+        useLock[objectToUse] = nil
     else
         useLock[objectToUse] = player
     end
@@ -137,7 +128,10 @@ function functions.Use(parameters)
         if ObjectsFolder:FindFirstChild(objectClass) then
             local main = require(ObjectsFolder:WaitForChild(objectClass):WaitForChild(objectClass))
             if main.Use then
-                main.Use(player, objectCarried, visibleObject, heldState)
+                local interactionFailed = main.Use(player, objectCarried, visibleObject, heldState)
+                if interactionFailed then
+                    useLock[objectToUse] = nil
+                end
             end
         end
     end

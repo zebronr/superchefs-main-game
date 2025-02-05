@@ -20,8 +20,9 @@ local function areTablesEqual(t1, t2)
     return true
 end
 
-function FoodTree.CheckCombination(passedCombination)
-    for recipeName, ingredients in pairs(foodCombinations) do
+function FoodTree.CheckCombination(passedCombination, overwriteCombinations)
+    local combinations = overwriteCombinations or foodCombinations
+    for recipeName, ingredients in pairs(combinations) do
         if areTablesEqual(ingredients, passedCombination) then
             return recipeName
         end

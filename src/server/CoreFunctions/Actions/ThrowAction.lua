@@ -18,7 +18,7 @@ end
 function ThrowAction.ThrowObject(player, localObjectCFrame)
     local objectCarried = PlayerValues.RetrieveValue(player, "ObjectCarried")
 
-    if not objectCarried then return end
+    if not objectCarried or objectCarried:GetAttribute("objectClass") ~= "Food" then return end
     if not verifyThrow(localObjectCFrame, objectCarried.CFrame) then return end
 
     local startingCF = localObjectCFrame

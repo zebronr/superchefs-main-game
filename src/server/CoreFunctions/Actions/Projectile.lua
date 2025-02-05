@@ -1,7 +1,6 @@
 local module = {}
 
 local RunService = game:GetService("RunService")
-local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 
@@ -21,7 +20,7 @@ local height = 7
 local speed = 45
 local gravity = 20
 
-local function testPart(pos, color)
+local function _testPart(pos, color)
     local testPart = Instance.new("Part")
     testPart.BrickColor = color
     testPart.Size = Vector3.new(1,1,1)
@@ -47,7 +46,7 @@ local function checkCollision(objectCFrame, player, projectile)
     local character = player.Character or player.CharacterAdded:Wait()
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {character, projectile}
+    params.FilterDescendantsInstances = {character, projectile, CollectionService:GetTagged("INTERACTIONLOCK")}
 
     local startingPoint = objectCFrame.Position
     for y = -45, 45, 45 do
@@ -151,7 +150,7 @@ function module.SimulateProjectile(Projectile, startingCF:CFrame, endPoint, play
         local floor = checkFloor(Projectile, newCFrame)
 
         if t >= 1 or collision or floor then
-            print(collision, floor)
+            --print(collision, floor)
             serverSimulation:Disconnect()
 
             local interactionFailed

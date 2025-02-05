@@ -23,7 +23,7 @@ local function plateFood(plate, food, player)
     PlateContent[plate] = PlateContent[plate] or {}
 
     if #PlateContent[plate] == 0 then
-        print(PlatedFoods:GetChildren(), "plated_"..food.Name)
+        --print(PlatedFoods:GetChildren(), "plated_"..food.Name)
         platedFood = PlatedFoods:FindFirstChild("plated_"..food.Name)
     elseif #PlateContent[plate] >= 1 then
         local cachedContent = table.clone(PlateContent[plate])
@@ -38,11 +38,25 @@ local function plateFood(plate, food, player)
         platedFood = platedFood:Clone()
         platedFood.Parent = plate
 
+        local foodImage = food:WaitForChild("FoodList")
+        foodImage:WaitForChild("ImageLabel").Parent = plate:WaitForChild("FoodList")
+
         if player then
             if ObjectAction.GetValue(player, "ObjectCarried"):GetAttribute("objectClass") == "Food" then
                 ObjectAction.DropObject(player, true)
             end
         end
+
+        for _, p in pairs(food:GetConnectedParts()) do
+            if p ~= food then
+                warn(p)
+                local w = p:FindFirstChild("objectTopWelder")
+                if w then
+                    w:Destroy()
+                end
+            end
+        end
+
         food.Parent = nil
 
         table.insert(PlateContent[plate], food.Name)
@@ -64,8 +78,10 @@ function Plate.Interact(player, objectCarried, visibleObject)
         ObjectAction.DropObject(player)
     elseif objectCarried and visibleObject then
         if objectCarried:GetAttribute("objectClass") == "Food" and visibleObject:GetAttribute("objectClass") == "Plate" then
-            print("PUTTING FOOD ON PLATE")
+            --print("PUTTING FOOD ON PLATE")
             plateFood(visibleObject, objectCarried, player)
+        elseif objectCarried:GetAttribute("objectClass") == "Plate" and visibleObject:GetAttribute("objectClass") == "Food" then
+            plateFood(objectCarried, visibleObject, player)
         end
     end
 end
