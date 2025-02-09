@@ -1,4 +1,4 @@
-local ObjectAction = {}
+local module = {}
 
 local InteractionPrompts = require(script.Parent.Parent:WaitForChild("InteractionPrompt"))
 
@@ -10,13 +10,13 @@ local function changeObjectCarried(player, value)
     objectCarried.Value = value
 end
 
-function ObjectAction.GetValue(player, valueName)
+function module.GetValue(player, valueName)
     local playerValues = player:WaitForChild("PlayerValues")
     local objectCarried = playerValues:FindFirstChild(valueName)
     return objectCarried.Value
 end
 
-function ObjectAction.PickupObject(player:Player, object:BasePart)
+function module.PickupObject(player:Player, object:BasePart)
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     
@@ -34,7 +34,7 @@ function ObjectAction.PickupObject(player:Player, object:BasePart)
     weldConstraint.Part1 = object
 end
 
-function ObjectAction.DropObject(player:Player, dontEnable)
+function module.DropObject(player:Player, dontEnable)
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
@@ -53,4 +53,4 @@ function ObjectAction.DropObject(player:Player, dontEnable)
     end
 end
 
-return ObjectAction
+return module

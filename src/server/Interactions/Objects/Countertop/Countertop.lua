@@ -1,4 +1,4 @@
-local Countertop = {}
+local module = {}
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
@@ -10,11 +10,11 @@ local Welds = require(CoreFunctions:WaitForChild("Welds"))
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
 local InteractionPrompt = require(CoreFunctions:WaitForChild("InteractionPrompt"))
 
-function Countertop.Use(player, objectCarried, countertop, heldState)
+function module.Use(player, objectCarried, countertop, heldState)
     --print("Countertop", heldState)
 end
 
-function Countertop.Interact(player, objectCarried, countertop)
+function module.Interact(player, objectCarried, countertop)
     --print("COUNTERTOP INTERACT", player, objectCarried, countertop)
     local objectOnTop = Welds.isObjectOnTop(countertop)
     if objectCarried then
@@ -58,6 +58,8 @@ function Countertop.Interact(player, objectCarried, countertop)
             return true
         end
     elseif not objectCarried then
+        if countertop:HasTag("LOCKED") then return end 
+        
         if objectOnTop then
             Welds.unweldObjectOnTop(countertop)
             if player then 
@@ -72,4 +74,4 @@ function Countertop.Interact(player, objectCarried, countertop)
     return
 end
 
-return Countertop
+return module

@@ -1,4 +1,4 @@
-local ThrowAction = {}
+local module = {}
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Modules = ReplicatedStorage:WaitForChild("Modules")
@@ -15,7 +15,7 @@ local function verifyThrow(localCFrame, serverCFrame)
     end
 end
 
-function ThrowAction.ThrowObject(player, localObjectCFrame)
+function module.ThrowObject(player, localObjectCFrame)
     local objectCarried = PlayerValues.RetrieveValue(player, "ObjectCarried")
 
     if not objectCarried or objectCarried:GetAttribute("objectClass") ~= "Food" then return end
@@ -28,4 +28,4 @@ function ThrowAction.ThrowObject(player, localObjectCFrame)
     Projectile.SimulateProjectile(objectCarried, startingCF, endPoint, player)
 end
 
-return ThrowAction
+return module

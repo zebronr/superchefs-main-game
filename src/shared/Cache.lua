@@ -1,20 +1,20 @@
-local Cache = {}
+local module = {}
 
 local CACHES = {}
 
-function Cache.RegisterCache(id)
+function module.RegisterCache(id)
     CACHES[id] = {}
     return CACHES[id]
 end
 
-function Cache.ClearCache()
+function module.ClearCache()
     for _, cache in pairs(CACHES) do
         cache = {}
     end
 end
 
-function Cache.Retrieve(id)
+function module.Retrieve(id)
     return CACHES[id]
 end
 
-return Cache
+return module

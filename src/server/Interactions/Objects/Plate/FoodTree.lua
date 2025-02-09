@@ -1,4 +1,4 @@
-local FoodTree = {}
+local module = {}
 
 local foodCombinations = {
     ["salad(tomato_lettuce)"] = {"chopped_tomato", "chopped_lettuce"}
@@ -20,7 +20,7 @@ local function areTablesEqual(t1, t2)
     return true
 end
 
-function FoodTree.CheckCombination(passedCombination, overwriteCombinations)
+function module.CheckCombination(passedCombination, overwriteCombinations)
     local combinations = overwriteCombinations or foodCombinations
     for recipeName, ingredients in pairs(combinations) do
         if areTablesEqual(ingredients, passedCombination) then
@@ -30,4 +30,4 @@ function FoodTree.CheckCombination(passedCombination, overwriteCombinations)
     return nil
 end
 
-return FoodTree
+return module

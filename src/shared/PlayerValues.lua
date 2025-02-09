@@ -1,6 +1,6 @@
-local PlayerValues = {}
+local module = {}
 
-function PlayerValues.ChangeValues(player, valueName, value)
+function module.ChangeValues(player, valueName, value)
     local PlayerValuesFolder = player:WaitForChild("PlayerValues")
     local valueObject = PlayerValuesFolder:FindFirstChild(valueName)
     if valueObject then
@@ -8,7 +8,7 @@ function PlayerValues.ChangeValues(player, valueName, value)
     end
 end
 
-function PlayerValues.RetrieveValue(player, valueName)
+function module.RetrieveValue(player, valueName)
     local PlayerValuesFolder = player:WaitForChild("PlayerValues")
     local valueObject = PlayerValuesFolder:FindFirstChild(valueName)
     if valueObject then
@@ -17,4 +17,4 @@ function PlayerValues.RetrieveValue(player, valueName)
     return
 end
 
-return PlayerValues
+return module

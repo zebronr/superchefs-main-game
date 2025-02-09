@@ -1,10 +1,12 @@
-local Plate = {}
+local module = {}
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 local Actions = CoreFunctions:WaitForChild("Actions")
-local Systems = ServerStorage:WaitForChild("Modules"):WaitForChild("Systems")
+local Shared = ReplicatedStorage:WaitForChild("Modules")
 
 local Assets = ServerStorage:WaitForChild("Assets")
 local FoodModels = Assets:WaitForChild("Foods")
@@ -12,7 +14,7 @@ local PlatedFoods = FoodModels:WaitForChild("PlatedFoods")
 
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
 local Welds = require(CoreFunctions:WaitForChild("Welds"))
-local Cache = require(Systems:WaitForChild("Cache"))
+local Cache = require(Shared:WaitForChild("Cache"))
 local FoodTree = require(script.Parent:WaitForChild("FoodTree"))
 
 local PlateContent = Cache.RegisterCache(`{script.Name}_PlateContent`)
@@ -71,7 +73,7 @@ local function plateFood(plate, food, player)
     end
 end
 
-function Plate.Interact(player, objectCarried, visibleObject)
+function module.Interact(player, objectCarried, visibleObject)
     if not objectCarried and visibleObject then
         ObjectAction.PickupObject(player, visibleObject)
     elseif objectCarried and not visibleObject then
@@ -86,4 +88,4 @@ function Plate.Interact(player, objectCarried, visibleObject)
     end
 end
 
-return Plate
+return module

@@ -1,8 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
-local Modules = ServerStorage:WaitForChild("Modules")
-local Cache = require(Modules:WaitForChild("Systems"):WaitForChild("Cache"))
+local Shared = ReplicatedStorage:WaitForChild("Modules")
+local Cache = require(Shared:WaitForChild("Cache"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
