@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
@@ -26,21 +27,27 @@ function effects.ChoppingProgress(parameters)
     local chopDelay = parameters.cD
     local progressPerChop = parameters.pPC
     local object = parameters.o
-
-    if (state and not (chopDelay and progressPerChop and object)) or (not state and not object) then return end
+    local sentTime = parameters.sT
 
     Progress[object] = Progress[object] or 0
 
     if state then
+        local travelTime = tick() - sentTime
         local objectProgressBar = object:FindFirstChild("ProgressBar") or ProgressBar:Clone()
         objectProgressBar.Parent = object
         updateProgressBar(objectProgressBar, Progress[object])
 
         isProgress[object] = true
+        local n = 0
         while isProgress[object] and not (Progress[object] >=  100) do
+            n+=1
             Progress[object] += progressPerChop
             updateProgressBar(objectProgressBar, Progress[object])
-            task.wait(chopDelay)
+            if n == 1 then --just a lazy way to take the travel time into factor lmao sorry for whoever gon read this
+                task.wait(chopDelay-travelTime)
+            else
+                task.wait(chopDelay)
+            end
         end
         if Progress[object] and Progress[object] >= 100 then
             objectProgressBar:Destroy()
@@ -49,11 +56,62 @@ function effects.ChoppingProgress(parameters)
         end
     else
         isProgress[object] = false
+        if parameters.d then
+            local objectProgressBar = object:FindFirstChild("ProgressBar")
+            if objectProgressBar then objectProgressBar:Destroy() end
+        end
     end
 end
 
 function effects.CookingProgress(parameters)
+    local state = parameters.s
+    local progressRate = parameters.pR
+    local object = parameters.o
+    local sentTime = parameters.sT
+    local progressAmount = parameters.pA
 
+    Progress[object] = progressAmount or Progress[object] or 0
+
+    if state then
+        local travelTime = tick() - sentTime
+        local objectProgressBar = object:FindFirstChild("ProgressBar") or ProgressBar:Clone()
+        objectProgressBar.Parent = object
+        updateProgressBar(objectProgressBar, Progress[object])
+
+        isProgress[object] = true
+
+        ---TAKE KNOWLEDGE OF TRAVEL TIME FOR MORE SYNCED PROGRESS
+        Progress[object] += travelTime*progressRate
+        updateProgressBar(objectProgressBar, Progress[object])
+
+        while isProgress[object] and not (Progress[object] >=  100) do
+            local dt = RunService.Heartbeat:Wait()
+            Progress[object] += dt*progressRate
+            updateProgressBar(objectProgressBar, Progress[object])
+        end
+        if Progress[object] and Progress[object] >= 100 then
+            warn("DONE ON CLIENT")
+            objectProgressBar:Destroy()
+            isProgress[object] = nil
+            Progress[object] = nil
+        end
+    else
+        isProgress[object] = false
+        if parameters.d then
+            local objectProgressBar = object:FindFirstChild("ProgressBar")
+            if objectProgressBar then objectProgressBar:Destroy() end
+        end
+    end
+end
+
+function effects.changeProgress(parameters)
+    local object = parameters.o
+    local progress = parameters.p
+    local progressRate = parameters.pR
+    local sentTime = parameters.sT
+    local travelTime = tick() - sentTime
+
+    Progress[object] = progress + (progressRate*travelTime)
 end
 
 ProgressBarRemote.OnClientEvent:Connect(function(request, parameters)

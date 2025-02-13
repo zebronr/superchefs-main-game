@@ -51,7 +51,6 @@ local function plateFood(plate, food, player)
 
         for _, p in pairs(food:GetConnectedParts()) do
             if p ~= food then
-                warn(p)
                 local w = p:FindFirstChild("objectTopWelder")
                 if w then
                     w:Destroy()
@@ -61,7 +60,7 @@ local function plateFood(plate, food, player)
 
         food.Parent = nil
 
-        table.insert(PlateContent[plate], food.Name)
+        PlateContent[plate] = {food.Name}
         local foodOnTop = Welds.isObjectOnTop(plate)
         if foodOnTop then
             Welds.unweldObjectOnTop(plate)

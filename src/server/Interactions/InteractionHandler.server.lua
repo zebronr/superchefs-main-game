@@ -1,4 +1,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Bindables = ServerStorage:WaitForChild("Bindables")
+local ToggleUseLock = Bindables:WaitForChild("ToggleUseLock")
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
@@ -14,7 +18,7 @@ local requestCooldown = Cache.RegisterCache(`{script.Name}_requestCooldown`)
 
 local maxRequest = 10
 
-local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard"}
+local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard", "Stove"}
 local useableClasses = {"Countertop", "Tool", "ChoppingBoard"}
 
 local ObjectsFolder = script.Parent:WaitForChild("Objects")
@@ -170,3 +174,7 @@ InteractionRequestFunction.OnInvoke = function(player, request, parameters)
     local interactionFailed = requestInteraction(player, request, parameters, true)
     return interactionFailed
 end
+
+ToggleUseLock.Event:Connect(function(object, state)
+    useLock[object] = state
+end)

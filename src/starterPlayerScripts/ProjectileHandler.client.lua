@@ -17,11 +17,13 @@ function requestTypes.simulate(parameters)
     local height = parameters.h
     local midPosition = startingPosition:Lerp(endPosition, .5) + Vector3.new(0,height,0)
     local speed = parameters.s
+    local sentTime = parameters.sT
+    local travelTime = tick() - sentTime
 
     local totalDistance = (startingPosition - midPosition).Magnitude + (midPosition - endPosition).Magnitude
     local totalTime = totalDistance / speed
 
-    local t = 0
+    local t = 0 + travelTime
 
     simulation[Projectile] = RunService.Heartbeat:Connect(function(deltaTime)
         t += deltaTime / totalTime
@@ -46,9 +48,11 @@ function requestTypes.fall(parameters)
     local startingCF = parameters.sCF
     local gravity = parameters.g
     local collisionPoint = parameters.cP
+    local sentTime = parameters.sT
 
     if State then
-        local f = 0
+        local travelTime = tick() - sentTime
+        local f = 0 + travelTime
 
         local totalDistance = (Projectile.Position-FloorPosition).Magnitude
         local totalTime = totalDistance / gravity

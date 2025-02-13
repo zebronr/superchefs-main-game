@@ -21,7 +21,7 @@ function module.PlaceObjectOnTop(object, surface, increment)
     objectTopWelder.Name = "objectTopWelder"
     objectTopWelder.Parent = surface
     
-    object.CFrame = CFrame.new(surface.Position + Vector3.new(0,(surface.Size.Y/2)+(object.Size.Y/2), 0))
+    object.CFrame = CFrame.new(surface.Position + Vector3.new(0,(surface.Size.Y/2)+(object.Size.Y/2)+increment, 0))
     objectTopWelder.Part0 = surface
     objectTopWelder.Part1 = object
 end

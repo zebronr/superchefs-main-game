@@ -4,6 +4,9 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Bindables = ServerStorage:WaitForChild("Bindables")
+local ToggleUseLock = Bindables:WaitForChild("ToggleUseLock")
+
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
 
@@ -37,13 +40,14 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
         if heldState then
             if Debounce[objectOnTop] then return end
             Debounce[objectOnTop] = true
+            choppingBoard:AddTag("LOCKED")
 
             local chopped = ChoppedFoods:FindFirstChild(`chopped_{(objectOnTop.Name)}`)
             if chopped then
                 isBeingChopped[objectOnTop] = true
                 ChoppingProgress[objectOnTop] = ChoppingProgress[objectOnTop] or 0
                 ProgressBarRemote:FireAllClients("ChoppingProgress", {
-                    s = true, cD = ChopDelay, pPC = ProgressAmount, o = objectOnTop
+                    s = true, cD = ChopDelay, pPC = ProgressAmount, o = objectOnTop, sT = tick()
                 })
                 while ChoppingProgress[objectOnTop] and isBeingChopped[objectOnTop] and ChoppingProgress[objectOnTop] < 100 do
                     ChoppingProgress[objectOnTop] += ProgressAmount
@@ -51,17 +55,24 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                     task.wait(ChopDelay)
                 end
                 if ChoppingProgress[objectOnTop] and ChoppingProgress[objectOnTop] >= 100 then
+                    ProgressBarRemote:FireAllClients("ChoppingProgress", {
+                        s = false, o = objectOnTop, d = true
+                    })
+                    ToggleUseLock:Fire(choppingBoard, nil)
                     ChoppingProgress[objectOnTop] = nil
+                    isBeingChopped[objectOnTop] = nil
                     Welds.unweldObjectOnTop(choppingBoard)
                     objectOnTop:Destroy()
                     chopped = chopped:Clone()
                     chopped:WaitForChild("InteractionPrompt").Enabled = false
                     chopped.Parent = workspace:FindFirstChild("$FoodContainers")
                     Welds.PlaceObjectOnTop(chopped, choppingBoard)
+                    choppingBoard:RemoveTag("LOCKED")
                 end
                 Debounce[objectOnTop] = nil
             end
         else
+            choppingBoard:RemoveTag("LOCKED")
             ProgressBarRemote:FireAllClients("ChoppingProgress", {
                 s = false, o = objectOnTop
             })

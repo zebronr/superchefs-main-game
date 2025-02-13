@@ -129,7 +129,8 @@ function module.SimulateProjectile(Projectile, startingCF:CFrame, endPoint, play
         eP = endPosition,
         s = speed,
         h = height,
-        p = Projectile
+        p = Projectile,
+        sT = tick()
     })
 
     EffectsRemote:FireAllClients("ProjectileTrail", {
@@ -177,7 +178,8 @@ function module.SimulateProjectile(Projectile, startingCF:CFrame, endPoint, play
                         sCF = startingCF,
                         g = gravity,
                         t = true,
-                        cP = collisionPoint
+                        cP = collisionPoint,
+                        sT = tick()
                     })
                     local fallSimulation 
     
