@@ -8,12 +8,15 @@ local Cache = require(Shared:WaitForChild("Cache"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
 
+local Bindables = ReplicatedStorage:WaitForChild("Bindables")
+local EffectsBindable = Bindables:WaitForChild("Effects")
+
 local LocalPlayer = Players.LocalPlayer
 
 local Assets = ReplicatedStorage:WaitForChild("Assets")
 local ProgressBar = Assets:WaitForChild("ProgressBar")
 
-local effects = {}
+local functions = {}
 local isProgress = Cache.RegisterCache(`{script.Name}_isProgress`)
 local Progress = Cache.RegisterCache(`{script.Name}_Progress`)
 
@@ -22,7 +25,7 @@ local function updateProgressBar(progressBar, progress)
     bar.Size = UDim2.new((progress/100)*2, bar.Size.X.Offset, bar.Size.Y.Scale, bar.Size.Y.Offset)
 end
 
-function effects.ChoppingProgress(parameters)
+function functions.ChoppingProgress(parameters)
     local state = parameters.s
     local chopDelay = parameters.cD
     local progressPerChop = parameters.pPC
@@ -63,17 +66,18 @@ function effects.ChoppingProgress(parameters)
     end
 end
 
-function effects.CookingProgress(parameters)
+function functions.CookingProgress(parameters)
     local state = parameters.s
     local progressRate = parameters.pR
     local object = parameters.o
     local sentTime = parameters.sT
     local progressAmount = parameters.pA
+    local safeIntervalTime = parameters.sIT
+    local alertDuration = parameters.aD
 
     Progress[object] = progressAmount or Progress[object] or 0
 
     if state then
-        local travelTime = tick() - sentTime
         local objectProgressBar = object:FindFirstChild("ProgressBar") or ProgressBar:Clone()
         objectProgressBar.Parent = object
         updateProgressBar(objectProgressBar, Progress[object])
@@ -81,6 +85,7 @@ function effects.CookingProgress(parameters)
         isProgress[object] = true
 
         ---TAKE KNOWLEDGE OF TRAVEL TIME FOR MORE SYNCED PROGRESS
+        local travelTime = tick() - sentTime
         Progress[object] += travelTime*progressRate
         updateProgressBar(objectProgressBar, Progress[object])
 
@@ -94,6 +99,13 @@ function effects.CookingProgress(parameters)
             objectProgressBar:Destroy()
             isProgress[object] = nil
             Progress[object] = nil
+
+            EffectsBindable:Fire("cookingFinished", {
+                s = true,
+                o = object,
+                sIT = safeIntervalTime,
+                aD = alertDuration
+            })
         end
     else
         isProgress[object] = false
@@ -104,7 +116,7 @@ function effects.CookingProgress(parameters)
     end
 end
 
-function effects.changeProgress(parameters)
+function functions.changeProgress(parameters)
     local object = parameters.o
     local progress = parameters.p
     local progressRate = parameters.pR
@@ -115,7 +127,7 @@ function effects.changeProgress(parameters)
 end
 
 ProgressBarRemote.OnClientEvent:Connect(function(request, parameters)
-    if effects[request] then
-        effects[request](parameters)
+    if functions[request] then
+        functions[request](parameters)
     end
 end)

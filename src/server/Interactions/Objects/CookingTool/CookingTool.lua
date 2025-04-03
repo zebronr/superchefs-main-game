@@ -24,7 +24,7 @@ local BurningDelayThreads = Cache.RegisterCache(`{script.Name}_BurningDelayThrea
 module.ToolEnabled = Cache.RegisterCache(`{script.Name}_ToolEnabled`)
 
 local ProgressRate = 20 -- per second
-local SafeTime = 3
+local SafeTime = 5  
 local AlertDuration = 5
 local progressDeduction = 50
 
@@ -44,7 +44,9 @@ function module.startCooking(cookingTool)
         s = true,
         o = cookingTool,
         sT = tick(),
-        pA = CookingProgress[cookingTool]
+        pA = CookingProgress[cookingTool],
+        sIT = SafeTime,
+        aD = AlertDuration
     })
     while not (CookingProgress[cookingTool] >= 100) and CookingState[cookingTool] do
         local dt = RunService.Heartbeat:Wait()

@@ -1,6 +1,11 @@
 local module = {}
 
 local ServerScriptService = game:GetService("ServerScriptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local EffectsRemote = Remotes:WaitForChild("Effects")
+
 local InteractionModules = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions")
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 
@@ -21,6 +26,7 @@ function module.Interact(player, objectCarried, stove)
         CookingToolModule.startCooking(objectOnTopF)
     elseif not objectOnTopF and objectOnTopI and objectOnTopI:GetAttribute("objectClass") == "CookingTool" and objectOnTopI:GetAttribute("cookingToolClass") and table.find(cookingToolClassesAllowed, objectOnTopI:GetAttribute("cookingToolClass")) then
         CookingToolModule.stopCooking(objectOnTopI)
+        EffectsRemote:FireAllClients("cancel", {o = objectOnTopI})
         CookingToolModule.ToolEnabled[objectOnTopI] = nil
     end
 end
