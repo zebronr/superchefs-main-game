@@ -16,16 +16,14 @@ local Controls = require(Configs:WaitForChild("Controls"))
 
 local function Interact()
     InteractionRequest:FireServer("Interact", {
-        visibleObject = PlayerValues.RetrieveValue(LocalPlayer, "VisibleObject"),
-        objectCarried = PlayerValues.RetrieveValue(LocalPlayer, "ObjectCarried"),
+        vO = PlayerValues.RetrieveValue(LocalPlayer, "VisibleObject")
     })
 end
 
 local function Use(state)
     InteractionRequest:FireServer("Use", {
-        visibleObject = PlayerValues.RetrieveValue(LocalPlayer, "VisibleObject"),
-        objectCarried = PlayerValues.RetrieveValue(LocalPlayer, "ObjectCarried"),
-        heldState = state
+        vO = PlayerValues.RetrieveValue(LocalPlayer, "VisibleObject"),
+        hS = state
     })
 end
 

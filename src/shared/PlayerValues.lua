@@ -9,6 +9,7 @@ function module.ChangeValues(player, valueName, value)
 end
 
 function module.RetrieveValue(player, valueName)
+    if not player then return end
     local PlayerValuesFolder = player:WaitForChild("PlayerValues")
     local valueObject = PlayerValuesFolder:FindFirstChild(valueName)
     if valueObject then

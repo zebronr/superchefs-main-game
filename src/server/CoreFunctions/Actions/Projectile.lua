@@ -201,8 +201,8 @@ function module.SimulateProjectile(Projectile, startingCF:CFrame, endPoint, play
                             stopProjectile(Projectile, newCFrame)
                             if interactionObject then
                                 interactionFailed = InteractionRequestFunction:Invoke(nil, "Interact", {
-                                    objectCarried = Projectile,
-                                    visibleObject = interactionObject
+                                    oC = Projectile,
+                                    vO = interactionObject
                                 })
                                 if not interactionFailed then
                                     return

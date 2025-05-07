@@ -1,11 +1,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local RunService = game:GetService("RunService")
 
 local Bindables = ServerStorage:WaitForChild("Bindables")
 local ToggleUseLock = Bindables:WaitForChild("ToggleUseLock")
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
+local PlayerValues = require(Shared:WaitForChild("PlayerValues"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
@@ -18,8 +20,8 @@ local requestCooldown = Cache.RegisterCache(`{script.Name}_requestCooldown`)
 
 local maxRequest = 10
 
-local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard", "Stove"}
-local useableClasses = {"Countertop", "Tool", "ChoppingBoard"}
+local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard", "Stove", "FireExtinguisher"}
+local useableClasses = {"Countertop", "Tool", "ChoppingBoard", "FireExtinguisher"}
 
 local ObjectsFolder = script.Parent:WaitForChild("Objects")
 
@@ -27,7 +29,12 @@ local ObjectsFolder = script.Parent:WaitForChild("Objects")
 
 local positionMarginOfError = 10
 
+local timeoutMOE = .2
+
 --
+
+local useProximityWatch = {}
+local useTimeoutWatch = {}
 
 local functions = {}
 
@@ -52,13 +59,13 @@ local function verifyRequest(parameters)
         end
     end)
 
-    local objectCarried = parameters.objectCarried
-    local visibleObject = parameters.visibleObject
+    local visibleObject = parameters.vO
+    local objectCarried = PlayerValues.RetrieveValue(player, "ObjectCarried")
     local interactionPrompt
     
     if visibleObject then
         interactionPrompt = visibleObject:FindFirstChild("InteractionPrompt")
-        if not interactionPrompt.Enabled then
+        if (not interactionPrompt) or (not interactionPrompt.Enabled) then
             return false
         end
     end
@@ -68,18 +75,22 @@ local function verifyRequest(parameters)
 
     if (visibleObject and interactionPrompt) and ((humanoidRootPart.Position - visibleObject.Position).Magnitude <= interactionPrompt.MaxActivationDistance+positionMarginOfError) then
         return true
-    elseif (objectCarried and not visibleObject) and (objectCarried == player:WaitForChild("PlayerValues"):WaitForChild("ObjectCarried").Value) then
-        print("interacting with an objectCarried")
+    elseif objectCarried then
         return true
     end
-
+    
     return false
 end
 
-function functions.Interact(parameters)
+function functions.Interact(parameters, serverRequest)
     local player = parameters.requestOrigin
-    local objectCarried = parameters.objectCarried
-    local visibleObject = parameters.visibleObject
+    local visibleObject = parameters.vO
+    local objectCarried
+    if serverRequest then
+        objectCarried = parameters.oC or PlayerValues.RetrieveValue(player, "ObjectCarried")
+    else
+        objectCarried = PlayerValues.RetrieveValue(player, "ObjectCarried")
+    end
 
     if not visibleObject and not objectCarried then return end
 
@@ -107,11 +118,16 @@ function functions.Interact(parameters)
     return interactionFailed
 end
 
-function functions.Use(parameters)
+function functions.Use(parameters, serverRequest)
     local player = parameters.requestOrigin
-    local objectCarried = parameters.objectCarried
-    local visibleObject = parameters.visibleObject
-    local heldState = parameters.heldState
+    local visibleObject = parameters.vO
+    local heldState = parameters.hS
+    local objectCarried
+    if serverRequest then
+        objectCarried = parameters.oC or PlayerValues.RetrieveValue(player, "ObjectCarried")
+    else
+        objectCarried = PlayerValues.RetrieveValue(player, "ObjectCarried")
+    end
 
     if not objectCarried and not visibleObject then return end
 
@@ -121,6 +137,12 @@ function functions.Use(parameters)
 
     if not heldState then
         useLock[objectToUse] = nil
+        if useProximityWatch[objectToUse] then
+            useProximityWatch[objectToUse]:Disconnect()
+        end
+        if useTimeoutWatch[objectToUse] then
+            task.cancel(useTimeoutWatch[objectToUse])
+        end
     else
         useLock[objectToUse] = player
     end
@@ -131,6 +153,32 @@ function functions.Use(parameters)
         if ObjectsFolder:FindFirstChild(objectClass) then
             local main = require(ObjectsFolder:WaitForChild(objectClass):WaitForChild(objectClass))
             if main.Use then
+                if heldState then
+                    if main.ProximitySensitive then
+                        local character = player.Character or player.CharacterAdded:Wait()
+                        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+                        local objectHolder = humanoidRootPart:FindFirstChild("ObjectHolder")
+    
+                        if objectHolder then
+                            useProximityWatch[objectToUse] = RunService.Heartbeat:Connect(function(dt)
+                                objectHolder = humanoidRootPart:FindFirstChild("ObjectHolder")
+                                if objectHolder and objectHolder.Part1 == objectToUse and objectToUse then
+                                    return
+                                end
+                                useProximityWatch[objectToUse]:Disconnect()
+                                main.Use(player, objectCarried, visibleObject, false)
+                            end)
+                        else
+                            useLock[objectToUse] = nil
+                            return
+                        end
+                    elseif main.UseTimeout then
+                        useTimeoutWatch[objectToUse] = task.delay(main.UseTimeout+timeoutMOE, function()
+                            main.Use(player, objectCarried, visibleObject, false)
+                        end)
+                    end
+                end
+
                 local interactionFailed = main.Use(player, objectCarried, visibleObject, heldState)
                 if interactionFailed then
                     useLock[objectToUse] = nil
@@ -141,7 +189,13 @@ function functions.Use(parameters)
 end
 
 local function requestInteraction(player, request, parameters, serverRequest)
-    local _success, error = pcall(function()
+    parameters = parameters or {}
+    parameters.requestOrigin = player
+
+    if functions[request] and (serverRequest or verifyRequest(parameters)) then
+        functions[request](parameters, serverRequest)
+    end
+    --[[local _success, error = pcall(function()
         parameters = parameters or {}
         parameters.requestOrigin = player
 
@@ -163,7 +217,7 @@ local function requestInteraction(player, request, parameters, serverRequest)
         warn("---------------")
         warn(`ERROR INFO: {error}`)
         warn("=====================================================================")
-    end
+    end]]--
 end
 
 InteractionRequest.OnServerEvent:Connect(function(player, request, parameters)

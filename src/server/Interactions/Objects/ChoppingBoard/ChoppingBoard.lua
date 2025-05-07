@@ -29,6 +29,8 @@ local Debounce = Cache.RegisterCache(`{script.Name}_Debounce`)
 local ProgressAmount = 20
 local ChopDelay = .3    
 
+module.UseTimeout = (100/ProgressAmount)*ChopDelay
+
 function module.Interact(player, objectCarried, choppingBoard)
     CountertopModule.Interact(player, objectCarried, choppingBoard)
 end

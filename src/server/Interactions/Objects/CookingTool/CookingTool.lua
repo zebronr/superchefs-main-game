@@ -11,10 +11,12 @@ local InteractionModules = ServerScriptService:WaitForChild("Server"):WaitForChi
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 local Actions = CoreFunctions:WaitForChild("Actions")
+local Utilities = CoreFunctions:WaitForChild("Utilities")
 
 local Cache = require(Shared:WaitForChild("Cache"))
 local FoodTreeModule = require(InteractionModules:WaitForChild("Objects"):WaitForChild("Plate"):WaitForChild("FoodTree"))
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
+local FireHandler = require(Utilities:WaitForChild("FireHandler"))
 
 local FoodContent = Cache.RegisterCache(`{script.Name}_FoodContent`)
 local CookingProgress = Cache.RegisterCache(`{script.Name}_FoodContent`)
@@ -29,7 +31,7 @@ local AlertDuration = 5
 local progressDeduction = 50
 
 function module.startCooking(cookingTool)
-    if not (FoodContent[cookingTool] and #FoodContent[cookingTool] >= 1) or CookingState[cookingTool] or not module.ToolEnabled[cookingTool] then return end
+    if not (FoodContent[cookingTool] and #FoodContent[cookingTool] >= 1) or CookingState[cookingTool] or (not cookingTool:HasTag("defaultEnabled") and not module.ToolEnabled[cookingTool]) then return end
 
     if BurningDelayThreads[cookingTool] then
         task.cancel(BurningDelayThreads[cookingTool])
@@ -51,12 +53,15 @@ function module.startCooking(cookingTool)
     while not (CookingProgress[cookingTool] >= 100) and CookingState[cookingTool] do
         local dt = RunService.Heartbeat:Wait()
         CookingProgress[cookingTool] += dt*ProgressRate
+
+        cookingTool:AddTag("LOCKED")
     end
     if CookingProgress[cookingTool] >= 100 then
         warn("DONE ON SERVER!")
         CookedState[cookingTool] = true
         BurningDelayThreads[cookingTool] = task.delay(SafeTime+AlertDuration, function()
             warn("BURNING")
+            FireHandler.BurnObject(cookingTool)
         end)
     end
 end 

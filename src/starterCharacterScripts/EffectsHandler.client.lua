@@ -1,6 +1,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local _LocalPlayer = Players.LocalPlayer
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local EffectsRemote = Remotes:WaitForChild("Effects")
@@ -12,10 +15,12 @@ local Assets = ReplicatedStorage:WaitForChild("Assets")
 local ProjectileTrail = Assets:WaitForChild("ProjectileTrail")
 local CookingFinished = Assets:WaitForChild("CookingFinished")
 local BurningWarning = Assets:WaitForChild("BurningWarning")
+local FireEmitter = Assets:WaitForChild("FireEmitter")
 
 local effects = {}
 
 local effectThreads = {}
+local effectDelays = {}
 
 local debris = {}
 
@@ -97,20 +102,19 @@ function effects.cookingFinished(parameters)
         local in1 = TweenService:Create(image, TweenInfo.new(.3), {TextTransparency = 0})
         local out1 = TweenService:Create(image, TweenInfo.new(.3), {TextTransparency = 1})
 
-        local start1 = tick()
+        effectDelays[object] = task.delay(.1+2.5+safeIntervalTime-(.3+.1+2.5), function()
+            effects.burningWarning({
+                s = true,
+                o = object,
+                aD = alertDuration
+            })
+        end)
 
         task.wait(.1)
         in1:Play()
         in1.Completed:Wait()
         task.wait(2.5)
         out1:Play()
-        task.wait(safeIntervalTime-(.3+.1+2.5))
-
-        effects.burningWarning({
-            s = true,
-            o = object,
-            aD = alertDuration
-        })
     else
         local uiClone = object:FindFirstChild("CookingFinished")
         if uiClone then
@@ -130,6 +134,78 @@ function effects.cancel(parameters)
 
     for _, t in pairs(effectThreads) do
         task.cancel(t)
+    end
+
+    if effectDelays[parameters.o] then
+        task.cancel(effectDelays[parameters.o])
+    end
+end
+
+function effects.fire(parameters)
+    local fireValue = parameters.fV
+    local object = parameters.o
+
+    local FireEmitterClone = FireEmitter:Clone()
+    FireEmitterClone.Parent = object
+
+    local Weld = Instance.new("Weld")
+    Weld.Parent = FireEmitterClone
+    Weld.Part0 = object
+    Weld.Part1 = FireEmitterClone
+
+    local Emitter:ParticleEmitter = FireEmitterClone:WaitForChild("ParticleEmitter")
+
+    local particleAccumulator = 0 
+
+    local particleSimulation
+    particleSimulation = RunService.Heartbeat:Connect(function(dt)
+        if not fireValue or not fireValue.Parent then
+            particleSimulation:Disconnect()
+            FireEmitterClone:Destroy()
+            return
+        end
+
+        local rate = (fireValue.Value / 100) * Emitter.Rate
+        local particlesToEmit = rate * dt
+        particleAccumulator += particlesToEmit
+
+        local emitCount = math.floor(particleAccumulator)
+        if emitCount > 0 then
+            Emitter:Emit(emitCount)
+            particleAccumulator -= emitCount
+        end
+    end)
+end
+
+local FEFoamThreads = {}
+
+function effects.FEFoam(parameters)
+    local fireExtinguisher = parameters.fe
+    local state = parameters.s
+
+    local Emitter = fireExtinguisher:WaitForChild("Emitter"):WaitForChild("ParticleEmitter")
+
+    if state then
+        if FEFoamThreads[fireExtinguisher] then
+            FEFoamThreads[fireExtinguisher]:Disconnect()
+        end
+
+        local particleAccumulator = 0 
+        FEFoamThreads[fireExtinguisher] = RunService.Heartbeat:Connect(function(dt)
+            local rate = Emitter.Rate
+            local particlesToEmit = rate * dt
+            particleAccumulator += particlesToEmit
+    
+            local emitCount = math.floor(particleAccumulator)
+            if emitCount > 0 then
+                Emitter:Emit(emitCount)
+                particleAccumulator -= emitCount
+            end
+        end)
+    else
+        if FEFoamThreads[fireExtinguisher] then
+            FEFoamThreads[fireExtinguisher]:Disconnect()
+        end
     end
 end
 

@@ -10,13 +10,12 @@ local Welds = require(CoreFunctions:WaitForChild("Welds"))
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
 local InteractionPrompt = require(CoreFunctions:WaitForChild("InteractionPrompt"))
 
-function module.Use(player, objectCarried, countertop, heldState)
-    --print("Countertop", heldState)
-end
-
 function module.Interact(player, objectCarried, countertop)
     --print("COUNTERTOP INTERACT", player, objectCarried, countertop)
     local objectOnTop = Welds.isObjectOnTop(countertop)
+
+    if (objectOnTop and objectOnTop:HasTag("LOCKED")) or countertop:HasTag("LOCKED") then return end
+
     if objectCarried then
         if not objectOnTop then
             if player then
@@ -51,15 +50,16 @@ function module.Interact(player, objectCarried, countertop)
                 local subInteraction = InteractionsModules:WaitForChild("Objects"):FindFirstChild(objectToInteractWith:GetAttribute("objectClass"))
                 subInteraction = require(subInteraction:FindFirstChild(subInteraction.Name))
 
-                subInteraction.Interact(player, objectToUseForInteraction, objectToInteractWith)
+                local error = subInteraction.Interact(player, objectToUseForInteraction, objectToInteractWith)
+                if not error then
+                    Welds.unweldObjectOnTop(countertop)
+                end
                 return
             end
         else
             return true
         end
     elseif not objectCarried then
-        if countertop:HasTag("LOCKED") then return end 
-        
         if objectOnTop then
             Welds.unweldObjectOnTop(countertop)
             if player then 
