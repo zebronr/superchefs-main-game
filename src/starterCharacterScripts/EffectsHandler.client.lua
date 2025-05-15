@@ -115,6 +115,9 @@ function effects.cookingFinished(parameters)
         in1.Completed:Wait()
         task.wait(2.5)
         out1:Play()
+        out1.Completed:Connect(function()
+            uiClone:Destroy()
+        end)
     else
         local uiClone = object:FindFirstChild("CookingFinished")
         if uiClone then

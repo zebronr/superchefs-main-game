@@ -17,6 +17,9 @@ local function toggleObjectHighlight(prompt, state)
     end
 
     local Object = prompt.Parent
+
+    if not Object then return end
+    
     if state and not Object:FindFirstChild("VisibilityHighlight") then
         PlayerValues.ChangeValues(LocalPlayer, "VisibleObject", Object)
         local HighlightClone = VisibilityHighlight:Clone()
