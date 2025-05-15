@@ -53,8 +53,6 @@ function module.startCooking(cookingTool)
     while not (CookingProgress[cookingTool] >= 100) and CookingState[cookingTool] do
         local dt = RunService.Heartbeat:Wait()
         CookingProgress[cookingTool] += dt*ProgressRate
-
-        cookingTool:AddTag("LOCKED")
     end
     if CookingProgress[cookingTool] >= 100 then
         warn("DONE ON SERVER!")

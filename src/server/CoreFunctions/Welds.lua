@@ -6,9 +6,9 @@ function module.isObjectOnTop(surface)
     end
 end
 
-function module.unweldObjectOnTop(surface)
+function module.unweldObjectOnTop(surface, source)
     local objectOnTop = module.isObjectOnTop(surface)
-
+    print(source)
     if objectOnTop then
         surface:WaitForChild("objectTopWelder"):Destroy()
     end

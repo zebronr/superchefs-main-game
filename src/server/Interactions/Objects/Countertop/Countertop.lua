@@ -49,11 +49,8 @@ function module.Interact(player, objectCarried, countertop)
                 --print(objectToInteractWith:GetAttribute("objectClass"))
                 local subInteraction = InteractionsModules:WaitForChild("Objects"):FindFirstChild(objectToInteractWith:GetAttribute("objectClass"))
                 subInteraction = require(subInteraction:FindFirstChild(subInteraction.Name))
-
-                local error = subInteraction.Interact(player, objectToUseForInteraction, objectToInteractWith)
-                if not error then
-                    Welds.unweldObjectOnTop(countertop)
-                end
+                print(objectToInteractWith)
+                subInteraction.Interact(player, objectToUseForInteraction, objectToInteractWith)
                 return
             end
         else
