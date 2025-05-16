@@ -74,11 +74,13 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                 Debounce[objectOnTop] = nil
             end
         else
-            choppingBoard:RemoveTag("LOCKED")
-            ProgressBarRemote:FireAllClients("ChoppingProgress", {
-                s = false, o = objectOnTop
-            })
-            isBeingChopped[objectOnTop] = nil
+            if (not ChoppingProgress[objectOnTop]) or ChoppingProgress[objectOnTop] < 100 then
+                choppingBoard:RemoveTag("LOCKED")
+                ProgressBarRemote:FireAllClients("ChoppingProgress", {
+                    s = false, o = objectOnTop
+                })
+                isBeingChopped[objectOnTop] = nil
+            end
         end
     end
 end

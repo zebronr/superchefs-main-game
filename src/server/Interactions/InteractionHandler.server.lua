@@ -16,6 +16,8 @@ local InteractionRequest:RemoteEvent = InteractionRemotes:WaitForChild("Interact
 local InteractionRequestFunction:BindableFunction = InteractionRemotes:WaitForChild("InteractionRequestFunction")
 
 local useLock = Cache.RegisterCache(`{script.Name}_useLock`)
+local interactLock = Cache.RegisterCache(`{script.Name}_interactLock`)
+local playerLock = Cache.RegisterCache(`{script.Name}_playerLock`)
 local requestCooldown = Cache.RegisterCache(`{script.Name}_requestCooldown`)
 
 local maxRequest = 10
@@ -45,6 +47,10 @@ local function verifyRequest(parameters)
 
     if requestCooldown[player] >= maxRequest then
         warn("SENT TOO MUCH REQUEST! RETURNING")
+        return
+    end
+
+    if playerLock[player] and not parameters.bypassPlayerLock then
         return
     end
     
@@ -102,7 +108,9 @@ function functions.Interact(parameters, serverRequest)
         end
     end
     
-    if (not objectToInteractWith) or (useLock[objectToInteractWith]) then return end
+    if (not objectToInteractWith) or (useLock[objectToInteractWith]) or interactLock[objectToInteractWith] then return end
+
+    interactLock[objectToInteractWith] = true
 
     local objectClass = objectToInteractWith:GetAttribute("objectClass")
 
@@ -115,6 +123,9 @@ function functions.Interact(parameters, serverRequest)
             end
         end
     end
+
+    interactLock[objectToInteractWith] = nil
+
     return interactionFailed
 end
 
@@ -136,6 +147,7 @@ function functions.Use(parameters, serverRequest)
     if (not objectToUse) or (useLock[objectToUse] and useLock[objectToUse] ~= player) then return end
 
     if not heldState then
+        playerLock[player] = nil
         useLock[objectToUse] = nil
         if useProximityWatch[objectToUse] then
             useProximityWatch[objectToUse]:Disconnect()
@@ -144,6 +156,7 @@ function functions.Use(parameters, serverRequest)
             task.cancel(useTimeoutWatch[objectToUse])
         end
     else
+        playerLock[player] = true
         useLock[objectToUse] = player
     end
 
@@ -192,7 +205,12 @@ local function requestInteraction(player, request, parameters, serverRequest)
     parameters = parameters or {}
     parameters.requestOrigin = player
 
+    if request == "Use" and not parameters.hS then
+        parameters.bypassPlayerLock = true
+    end 
+
     if functions[request] and (serverRequest or verifyRequest(parameters)) then
+
         functions[request](parameters, serverRequest)
     end
     --[[local _success, error = pcall(function()

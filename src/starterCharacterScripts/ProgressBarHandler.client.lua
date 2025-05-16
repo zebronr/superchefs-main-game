@@ -52,13 +52,8 @@ function functions.ChoppingProgress(parameters)
                 task.wait(chopDelay)
             end
         end
-        if Progress[object] and Progress[object] >= 100 then
-            objectProgressBar:Destroy()
-            isProgress[object] = nil
-            Progress[object] = nil
-        end
     else
-        isProgress[object] = false
+        isProgress[object] = nil
         if parameters.d then
             local objectProgressBar = object:FindFirstChild("ProgressBar")
             if objectProgressBar then objectProgressBar:Destroy() end
@@ -108,7 +103,7 @@ function functions.CookingProgress(parameters)
             })
         end
     else
-        isProgress[object] = false
+        isProgress[object] = nil
         if parameters.d then
             local objectProgressBar = object:FindFirstChild("ProgressBar")
             if objectProgressBar then objectProgressBar:Destroy() end
@@ -124,6 +119,40 @@ function functions.changeProgress(parameters)
     local travelTime = tick() - sentTime
 
     Progress[object] = progress + (progressRate*travelTime)
+end
+
+function functions.washingProgress(parameters)
+    local state = parameters.s
+    local progressRate = parameters.pR
+    local object = parameters.o
+    local sentTime = parameters.sT
+    local progressAmount = parameters.pA
+
+    Progress[object] = progressAmount or Progress[object] or 0
+
+    if state then
+        local objectProgressBar = object:FindFirstChild("ProgressBar") or ProgressBar:Clone()
+        objectProgressBar.Parent = object
+        updateProgressBar(objectProgressBar, Progress[object])
+
+        isProgress[object] = true
+
+        local travelTime = tick() - sentTime
+        Progress[object] += travelTime*progressRate
+        updateProgressBar(objectProgressBar, Progress[object])
+
+        while isProgress[object] and Progress[object] < 100 do
+            local dt = RunService.Heartbeat:Wait()
+            Progress[object] += dt*progressRate
+            updateProgressBar(objectProgressBar, Progress[object])
+        end
+    else
+        isProgress[object] = nil
+        if parameters.d then
+            local objectProgressBar = object:FindFirstChild("ProgressBar")
+            if objectProgressBar then objectProgressBar:Destroy() end
+        end
+    end
 end
 
 ProgressBarRemote.OnClientEvent:Connect(function(request, parameters)
