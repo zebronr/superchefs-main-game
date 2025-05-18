@@ -13,6 +13,7 @@ local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("C
 local Actions = CoreFunctions:WaitForChild("Actions")
 local Utilities = CoreFunctions:WaitForChild("Utilities")
 
+local Welds = require(CoreFunctions:WaitForChild("Welds"))
 local Cache = require(Shared:WaitForChild("Cache"))
 local FoodTreeModule = require(InteractionModules:WaitForChild("Objects"):WaitForChild("Plate"):WaitForChild("FoodTree"))
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
@@ -111,14 +112,8 @@ local function PutFoodInTool(cookingTool, food, player)
                 toolClass.Display(cookingTool, FoodContent[cookingTool])
             end
     
-            for _, p in pairs(food:GetConnectedParts()) do
-                if p ~= food then
-                    local w = p:FindFirstChild("objectTopWelder")
-                    if w then
-                        w:Destroy()
-                    end
-                end
-            end
+            Welds.unweldFromSurface(food)
+
             food:Destroy()
 
             if CookingProgress[cookingTool] then

@@ -43,11 +43,21 @@ function module.countStack(origin)
     return count
 end
 
+function module.takeHighestPlate(origin, unweld)
+    local highest, _ = module.findHighestStack(origin)
+
+    if unweld then
+        Welds.unweldFromSurface(highest)
+        origin.Parent = workspace:WaitForChild("$GAME")
+    end
+
+    return highest
+end
+
 function module.stackPlates(origin, newPlate)
     local highestStack = module.findHighestStack(origin)
 
     Prompts.TogglePrompt(newPlate, false)
-    newPlate:SetAttribute("objectClass", nil)
 
     newPlate.Parent = origin
 

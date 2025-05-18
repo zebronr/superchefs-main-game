@@ -6,9 +6,8 @@ function module.isObjectOnTop(surface)
     end
 end
 
-function module.unweldObjectOnTop(surface, source)
+function module.unweldObjectOnTop(surface)
     local objectOnTop = module.isObjectOnTop(surface)
-    print(source)
     if objectOnTop then
         surface:WaitForChild("objectTopWelder"):Destroy()
     end
@@ -24,6 +23,17 @@ function module.PlaceObjectOnTop(object, surface, increment)
     object.CFrame = CFrame.new(surface.Position + Vector3.new(0,(surface.Size.Y/2)+(object.Size.Y/2)+increment, 0))
     objectTopWelder.Part0 = surface
     objectTopWelder.Part1 = object
+end
+
+function module.unweldFromSurface(object)
+    for _, p in pairs(object:GetConnectedParts()) do
+        if p ~= object then
+            local w = p:FindFirstChild("objectTopWelder")
+            if w and w.Part1 == object then
+                w:Destroy()
+            end
+        end
+    end
 end
 
 return module

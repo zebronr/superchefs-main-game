@@ -46,7 +46,7 @@ local function checkCollision(objectCFrame, player, projectile)
     local character = player.Character or player.CharacterAdded:Wait()
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {character, projectile, CollectionService:GetTagged("INTERACTIONLOCK")}
+    params.FilterDescendantsInstances = {character, projectile, CollectionService:GetTagged("projectileInteractionLock")}
 
     local startingPoint = objectCFrame.Position
     for y = -45, 45, 45 do

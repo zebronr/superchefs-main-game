@@ -24,7 +24,7 @@ function module.Interact(player, objectCarried, countertop)
                 InteractionPrompt.TogglePrompt(objectCarried, false)
             end
             Welds.PlaceObjectOnTop(objectCarried, countertop)
-            CollectionService:AddTag(objectCarried, "INTERACTIONLOCK")
+            CollectionService:AddTag(objectCarried, "projectileInteractionLock")
             return
         elseif objectOnTop then
             if objectCarried:GetAttribute("objectClass") == objectOnTop:GetAttribute("objectClass") then
@@ -61,7 +61,7 @@ function module.Interact(player, objectCarried, countertop)
             Welds.unweldObjectOnTop(countertop)
             if player then 
                 ObjectAction.PickupObject(player, objectOnTop)
-                CollectionService:RemoveTag(objectOnTop, "INTERACTIONLOCK")
+                CollectionService:RemoveTag(objectOnTop, "projectileInteractionLock")
                 return
             end
             return
