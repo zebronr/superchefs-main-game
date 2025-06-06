@@ -3,7 +3,13 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
-local _LocalPlayer = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local GameInfo = PlayerGui:WaitForChild("GameInfo")
+local InfoFrame = GameInfo:WaitForChild("InfoFrame")
+local CoinsFrame = InfoFrame:WaitForChild("CoinsFrame")
+local CoinSprite = CoinsFrame:WaitForChild("CoinSprite")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local EffectsRemote = Remotes:WaitForChild("Effects")
@@ -16,6 +22,10 @@ local ProjectileTrail = Assets:WaitForChild("ProjectileTrail")
 local CookingFinished = Assets:WaitForChild("CookingFinished")
 local BurningWarning = Assets:WaitForChild("BurningWarning")
 local FireEmitter = Assets:WaitForChild("FireEmitter")
+local DashTrail = Assets:WaitForChild("DashTrail")
+
+local EffectsModules = script.Parent:WaitForChild("EffectsModules")
+local GIFModule = require(EffectsModules:WaitForChild("GIFModule"))
 
 local effects = {}
 
@@ -210,6 +220,54 @@ function effects.FEFoam(parameters)
             FEFoamThreads[fireExtinguisher]:Disconnect()
         end
     end
+end
+
+GIFModule.load(CoinSprite, 40, 6, 7, 24)
+GIFModule.loadFrame(CoinSprite, 1)
+
+function effects.spinCoin(parameters)
+    GIFModule.playGIF(CoinSprite)
+end
+
+local dashTrailLength = 7
+local trailMinSize = Vector3.new(1.94, 0.9, 1.675)
+local trailMaxSize = Vector3.new(9.054, 4.201, 7.815)
+
+function effects.dash(parameters)
+	local ROOT = parameters.pc -- player character
+	local state = parameters.s
+
+    ROOT = ROOT:WaitForChild("HumanoidRootPart")
+	
+	if state then
+		local trailCache = {}
+		local finalTween
+		for i=1, dashTrailLength do
+			local trail = DashTrail:Clone()
+			trail.Size = Vector3.new(0,0,0)
+			trail.Orientation += Vector3.new(0,math.random(0,360), 0)
+			trail.Position = ROOT.Position - Vector3.new(0,1,0)
+			table.insert(trailCache, trail)
+			
+			local TSize = trailMaxSize:Lerp(trailMinSize, ((i-1) / (dashTrailLength-1)))
+			local inAnimation = TweenService:Create(trail, TweenInfo.new(.2), {Size = TSize})
+			local outAnimation = TweenService:Create(trail, TweenInfo.new(.8, Enum.EasingStyle.Exponential), {Size = Vector3.new(0,0,0)})
+
+			trail.Parent = workspace["$Temp"]
+			inAnimation:Play()
+			local thread = coroutine.wrap(function()
+				inAnimation.Completed:Wait()
+				outAnimation:Play()
+			end)
+			finalTween = outAnimation
+			thread()
+			task.wait(.05)
+		end
+		finalTween.Completed:Wait()
+		for _, cachedTrail in pairs(trailCache) do
+			cachedTrail:Destroy()
+		end
+	end
 end
 
 EffectsRemote.OnClientEvent:Connect(function(effectType, parameters)

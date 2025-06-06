@@ -4,9 +4,12 @@ local Players = game:GetService("Players")
 
 local LocalPlayer = Players.LocalPlayer
 
+local Bindables = ReplicatedStorage:WaitForChild("Bindables")
+local PlayerMobilityBE = Bindables:WaitForChild("PlayerMobility")
+
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Actions = Remotes:WaitForChild("Actions")
-local ActionRequest = Actions:WaitForChild("ActionRequest")
+local ActionRequestRE = Actions:WaitForChild("ActionRequest")
 
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Configs = Modules:WaitForChild("Configs")
@@ -19,6 +22,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     local objectCarried = PlayerValues.RetrieveValue(LocalPlayer, "ObjectCarried")
      
     if objectCarried and input.KeyCode == Controls.Throw then
-        ActionRequest:FireServer("throw", {localCFrame = objectCarried.CFrame})
+        ActionRequestRE:FireServer("throw", {localCFrame = objectCarried.CFrame})
+    end
+
+    if input.KeyCode == Controls.Dash then
+        PlayerMobilityBE:Fire("dash")
     end
 end)
