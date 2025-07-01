@@ -66,7 +66,7 @@ local function plateFood(plate, food, player)
             Welds.unweldObjectOnTop(plate)
             foodOnTop:Destroy()
         end
-        Welds.PlaceObjectOnTop(platedFood, plate)
+        Welds.PlaceObjectOnTop(platedFood, plate, platedFood:GetAttribute("yOffset"))
 
         food:Destroy()
     end

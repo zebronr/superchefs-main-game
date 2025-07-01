@@ -19,6 +19,8 @@ end
 function module.PickupObject(player:Player, object:BasePart)
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+    local objectOffset = object:GetAttribute("holdingOffset") or Vector3.new(0,0,0)
     
     InteractionPrompts.TogglePrompt(object, false)
     changeObjectCarried(player, object)
@@ -29,7 +31,7 @@ function module.PickupObject(player:Player, object:BasePart)
     weldConstraint.Part0 = humanoidRootPart
 
     object.CanCollide = false
-    object.CFrame = humanoidRootPart.CFrame * CFrame.new(0,0,-pickupZSpace)
+    object.CFrame = humanoidRootPart.CFrame * CFrame.new(0,0,-pickupZSpace) * CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))
 
     weldConstraint.Part1 = object
 end

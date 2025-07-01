@@ -1,7 +1,8 @@
 local module = {}
 
 local foodCombinations = {
-    ["salad(tomato_lettuce)"] = {"chopped_tomato", "chopped_lettuce"}
+    ["salad(tomato_lettuce)"] = {"chopped_tomato", "chopped_lettuce"},
+    ["salad(mango_cucumber)"] = {"chopped_cucumber", "chopped_mango"}
 }
 
 local function areTablesEqual(t1, t2)

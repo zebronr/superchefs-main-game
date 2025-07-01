@@ -47,7 +47,10 @@ local function checkCollision(objectCFrame, player, projectile)
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.FilterDescendantsInstances = {character, projectile, CollectionService:GetTagged("projectileInteractionLock")}
-
+    
+    local objectOffset = -(projectile:GetAttribute("holdingOffset") or Vector3.new(0,0,0))
+    objectCFrame *= CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))
+    
     local startingPoint = objectCFrame.Position
     for y = -45, 45, 45 do
         local endPoint = (objectCFrame * CFrame.new(0,y,-100)).Position
@@ -62,7 +65,9 @@ local function checkCollision(objectCFrame, player, projectile)
 end
 
 local function checkFloor(projectile, objectCFrame)
-    --[[local startingPoint = objectCFrame.Position
+    --[[
+
+    local startingPoint = objectCFrame.Position
     local endPoint = (objectCFrame * CFrame.new(0,-100,0)).Position
     local direction = endPoint - startingPoint
     local raycast = workspace:Raycast(startingPoint, direction)
@@ -70,10 +75,15 @@ local function checkFloor(projectile, objectCFrame)
         if (raycast.Position-objectCFrame.Position).Magnitude <= projectile.Size.Y/2 + .05 then
             return true
         end
-    end]]--
+    end
+    
+    ]]--
 end
 
-local function getSurface(objectCFrame)
+local function getSurface(objectCFrame, projectile)
+    local objectOffset = -(projectile:GetAttribute("holdingOffset") or Vector3.new(0,0,0))
+    objectCFrame *= CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))
+   
     local startingPoint = objectCFrame.Position
     local endPoint = (objectCFrame * CFrame.new(0,-100,0)).Position
     local direction = endPoint - startingPoint
@@ -83,7 +93,10 @@ local function getSurface(objectCFrame)
     end
 end
 
-local function checkInteraction(objectCFrame)
+local function checkInteraction(objectCFrame, projectile)
+    local objectOffset = -(projectile:GetAttribute("holdingOffset") or Vector3.new(0,0,0))
+    objectCFrame *= CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))
+    
     local startingPoint = objectCFrame.Position
     local endPoint = (objectCFrame * CFrame.new(0,-100,0)).Position
     local direction = endPoint - startingPoint
@@ -105,8 +118,12 @@ function module.CalculateEndpoint(projectile, startingCF)
 
     local floorRaycast = workspace:Raycast(origin, raycastDirection)
     
+    local projectileCf = projectile.CFrame
+    local projectileSize = projectile.Size
+    local projectileGlobalY = math.abs(projectileCf.UpVector.X * projectileSize.X) + math.abs(projectileCf.UpVector.Y * projectileSize.Y) + math.abs(projectileCf.UpVector.Z * projectileSize.Z)
+
     if floorRaycast then
-        endPoint = CFrame.new(floorRaycast.Position + Vector3.new(0,projectile.Size.Y/2,0))
+        endPoint = CFrame.new(floorRaycast.Position + Vector3.new(0,projectileGlobalY/2,0))
     end
 
     return endPoint
@@ -158,7 +175,7 @@ function module.SimulateProjectile(Projectile, startingCF:CFrame, endPoint, play
             local interactionObject
 
             if collision or floor then
-                interactionObject = checkInteraction(newCFrame)
+                interactionObject = checkInteraction(newCFrame, Projectile)
             end
 
             SimulateProjectileClient:FireAllClients("stop", {
@@ -166,9 +183,13 @@ function module.SimulateProjectile(Projectile, startingCF:CFrame, endPoint, play
             })
 
             if collision then
-                local surface = getSurface(newCFrame)
+                local surface = getSurface(newCFrame, Projectile)
                 if surface then
-                    local floorPosition = surface + Vector3.new(0,Projectile.Size.Y/2,0)
+                    local projectileCf = Projectile.CFrame
+                    local projectileSize = Projectile.Size
+                    local projectileGlobalY = math.abs(projectileCf.UpVector.X * projectileSize.X) + math.abs(projectileCf.UpVector.Y * projectileSize.Y) + math.abs(projectileCf.UpVector.Z * projectileSize.Z)
+
+                    local floorPosition = surface + Vector3.new(0,projectileGlobalY/2,0)
 
                     local collisionPoint = newCFrame
     

@@ -24,14 +24,10 @@
 
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "Client": {
-          "$path": "src/starterPlayerScripts"
-        }
+        "$path": "src/starterPlayerScripts"
       },
       "StarterCharacterScripts": {
-        "Client": {
-          "$path": "src/starterCharacterScripts"
-        }
+        "$path": "src/starterCharacterScripts"
       }
     },
 
