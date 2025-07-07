@@ -53,7 +53,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                 })
                 while ChoppingProgress[objectOnTop] and isBeingChopped[objectOnTop] and ChoppingProgress[objectOnTop] < 100 do
                     ChoppingProgress[objectOnTop] += ProgressAmount
-                    print(ChoppingProgress[objectOnTop])
+                    --print(ChoppingProgress[objectOnTop])
                     task.wait(ChopDelay)
                 end
                 if ChoppingProgress[objectOnTop] and ChoppingProgress[objectOnTop] >= 100 then

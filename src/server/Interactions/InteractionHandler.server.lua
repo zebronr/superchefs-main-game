@@ -212,7 +212,7 @@ local function requestInteraction(player, request, parameters, serverRequest)
     if functions[request] and (serverRequest or verifyRequest(parameters)) then
 
         functions[request](parameters, serverRequest)
-    end
+    end--replace this with the commented snippet below on launch
     --[[local _success, error = pcall(function()
         parameters = parameters or {}
         parameters.requestOrigin = player

@@ -46,7 +46,7 @@ local function checkCollision(objectCFrame, player, projectile)
     local character = player.Character or player.CharacterAdded:Wait()
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {character, projectile, CollectionService:GetTagged("projectileInteractionLock")}
+    params.FilterDescendantsInstances = {character, projectile, CollectionService:GetTagged("projectileInteractionLock"), CollectionService:GetTagged("IGNORE")}
     
     local objectOffset = -(projectile:GetAttribute("holdingOffset") or Vector3.new(0,0,0))
     objectCFrame *= CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))

@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -16,6 +17,15 @@ local noprocess1slot = OrdersUIs:WaitForChild("noprocess1slot")
 local process1slot = OrdersUIs:WaitForChild("process1slot")
 local process2slot = OrdersUIs:WaitForChild("process2slot")
 local process3slot = OrdersUIs:WaitForChild("process3slot")
+
+local Shared = ReplicatedStorage:WaitForChild("Modules")
+local Cache = require(Shared:WaitForChild("Cache"))
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local OrderRemotes = Remotes:WaitForChild("OrderRemotes")
+local ClearOrderRE = OrderRemotes:WaitForChild("ClearOrder")
+local CacheOrdersRE = OrderRemotes:WaitForChild("CacheOrders")
+local AddOrderRE = OrderRemotes:WaitForChild("AddOrder")
 
 local positionList = {
     noprocess1slot = {
@@ -50,12 +60,63 @@ local smallSizing = {
     process2slot = UDim2.new(0.81, 0,1.01, 0)
 }
 
+local CachedOrders = Cache.RegisterCache(`{script.Name}_CachedImages`)
+
+---
+local shakeTimes = 5
+local shakeMagnitude = 0.03
+local shakeSpeed = 0.05
+
+local function removeOrder(ui)
+	local mainFrame = ui:WaitForChild("Frame")
+	local defaultPosition = mainFrame.Position
+
+	for i = 1, shakeTimes do
+        for _, f:Frame in pairs(mainFrame:GetDescendants()) do
+            if f:IsA("ImageLabel") then
+                if i % 2 == 0 then
+                    f.ImageColor3 = Color3.fromRGB(255,124,124)
+                else
+                    f.ImageColor3 = Color3.fromRGB(255, 255, 255)
+                end
+            end
+        end
+
+        local tweenInfo = TweenInfo.new(shakeSpeed, Enum.EasingStyle.Linear)
+
+        local tweenRight = TweenService:Create(mainFrame, tweenInfo, {
+            Position = defaultPosition + UDim2.new(shakeMagnitude, 0, 0, 0)
+        })
+        tweenRight:Play()
+        tweenRight.Completed:Wait()
+
+        local tweenLeft = TweenService:Create(mainFrame, tweenInfo, {
+            Position = defaultPosition - UDim2.new(shakeMagnitude, 0, 0, 0)
+        })
+        tweenLeft:Play()
+        tweenLeft.Completed:Wait()
+    end
+
+    local tweenReset = TweenService:Create(mainFrame, TweenInfo.new(shakeSpeed, Enum.EasingStyle.Linear), {
+        Position = defaultPosition
+    })
+    tweenReset:Play()
+
+    local frameOut = TweenService:Create(mainFrame, TweenInfo.new(.4, Enum.EasingStyle.Linear), {Position = UDim2.new(.5,0,-.7,0)})
+    frameOut:Play()
+    frameOut.Completed:Wait()
+    ui:Destroy()
+end
+---
+
 local function addOrder(data)
     local stepsWeight = 0
 
     for _, step in pairs(data.steps) do
         stepsWeight += #step.ingredient_images
     end
+
+    local delay = 0
     
     local frame
     local frameSize
@@ -73,7 +134,8 @@ local function addOrder(data)
 
     local mainFrame = frame:WaitForChild("Frame")
 
-    local frameIn = TweenService:Create(mainFrame, TweenInfo.new(.3, Enum.EasingStyle.Back), {Position = mainFrame.Position})
+    local frameIn = TweenService:Create(mainFrame, TweenInfo.new(.4, Enum.EasingStyle.Back), {Position = mainFrame.Position})
+    delay += .4
 
     mainFrame.Position = UDim2.new(0.5,0,-.1,0)
     frame.Visible = true  
@@ -106,7 +168,7 @@ local function addOrder(data)
 
         local position = `{frameSize}_pos{i}`
 
-        if frameSize == "big" and stepsWeight == 3 then --this is only possible if the step list is made of one 1slot and one 2slot 
+        if frameSize == "big" and stepsWeight == 2 and ui.Name == "noprocess1slot" then --this is only possible if the step list is made of one 1slot and one 2slot 
             position ..= "_2"
         end
 
@@ -123,20 +185,47 @@ local function addOrder(data)
         end
         ui.Visible = true
 
-        local in2 = TweenService:Create(ui, TweenInfo.new(.25), {Position = position})
+        local in2 = TweenService:Create(ui, TweenInfo.new(.25, Enum.EasingStyle.Linear), {Position = position})
+        delay += .25
         in2:Play()
     end
+
+    --
+    local totalTime = data.time - delay
+    local halfway = totalTime / 2
+
+    local timerFill = mainFrame:WaitForChild("timer"):WaitForChild("fill")
+    local tweenToHalf = TweenService:Create(timerFill, TweenInfo.new(halfway, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(184, 180, 46)
+    })
+
+    local tweenToEnd = TweenService:Create(timerFill, TweenInfo.new(halfway, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(121, 42, 47)
+    })
+
+    tweenToHalf:Play()
+    tweenToHalf.Completed:Wait()
+    tweenToEnd:Play()
+    tweenToEnd.Completed:Wait()
+    removeOrder(frame)
 end
 
-local orderData = {
-    orderNum = 1,
-    time = 30,
-    steps = {
-        [1] = {ingredient_images = {[1] = ""}, processImage = ""},
-        [2] = {ingredient_images = {[1] = ""}}
-    },
-    foodImage = ""
-}
+CacheOrdersRE.OnClientEvent:Connect(function(data)
+    CachedOrders = data
+end)
 
-task.wait(5)
-addOrder(orderData)
+AddOrderRE.OnClientEvent:Connect(function(id, changedParameters, timeSent)
+    local data = CachedOrders[id]
+
+    if changedParameters then
+        for i, v in pairs(changedParameters) do
+            data[i] = v
+        end
+    end
+
+    data.time -= tick() + ReplicatedStorage:GetAttribute("timeOffset") - timeSent -- sync the timer more accurately to the server
+    
+    addOrder(data)
+end)

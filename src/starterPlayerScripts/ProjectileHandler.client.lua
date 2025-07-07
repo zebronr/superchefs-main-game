@@ -18,7 +18,7 @@ function requestTypes.simulate(parameters)
     local midPosition = startingPosition:Lerp(endPosition, .5) + Vector3.new(0,height,0)
     local speed = parameters.s
     local sentTime = parameters.sT
-    local travelTime = tick() - sentTime
+    local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime
 
     local totalDistance = (startingPosition - midPosition).Magnitude + (midPosition - endPosition).Magnitude
     local totalTime = totalDistance / speed
@@ -51,7 +51,7 @@ function requestTypes.fall(parameters)
     local sentTime = parameters.sT
 
     if State then
-        local travelTime = tick() - sentTime
+        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime
         local f = 0 + travelTime
 
         local totalDistance = (Projectile.Position-FloorPosition).Magnitude

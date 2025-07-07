@@ -107,7 +107,7 @@ function module.Use(player, objectCarried, sink, heldState)
                 washingProgress[sink] += dt * progressRate
             end
             if washingProgress[sink] >= 100 then
-                print("done on server")
+                --print("done on server")
                 ProgressBarRemote:FireAllClients("washingProgress", {
                     s = false,
                     o = washPartMarker,

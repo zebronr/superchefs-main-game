@@ -94,7 +94,7 @@ end)
 end)]]--
 
 PlayerMobility.Event:Connect(function(mobType)
-	print(mobType)
+	--print(mobType)
 	if mobType == "dash" then
 		playAnimation("dash", true)
 	end

@@ -255,12 +255,11 @@ function effects.dash(parameters)
 
 			trail.Parent = workspace["$Temp"]
 			inAnimation:Play()
-			local thread = coroutine.wrap(function()
+			task.spawn(function()
 				inAnimation.Completed:Wait()
 				outAnimation:Play()
 			end)
 			finalTween = outAnimation
-			thread()
 			task.wait(.05)
 		end
 		finalTween.Completed:Wait()

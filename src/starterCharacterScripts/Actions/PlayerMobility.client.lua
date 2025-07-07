@@ -17,7 +17,16 @@ local actions = {}
 local dashLength = .33
 local dashStrength = 70
 
+local dashCooldown = dashLength + .1
+local onCooldown = false
+
 function actions.dash(parameters)
+	if onCooldown then return end
+	onCooldown = true
+	task.delay(dashCooldown, function()
+		onCooldown = false
+	end)
+
     local dashParams = {
         s = true,
         pc = Character

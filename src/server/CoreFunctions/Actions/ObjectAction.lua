@@ -46,12 +46,12 @@ function module.DropObject(player:Player, dontEnable)
         changeObjectCarried(player, nil)
         objectHolder:Destroy()
         object.CanCollide = true
-        coroutine.wrap(function() 
+        task.spawn(function() 
             if not dontEnable then
                 task.wait(.5)
                 InteractionPrompts.TogglePrompt(object, true)
             end
-        end)()
+        end)
     end
 end
 
