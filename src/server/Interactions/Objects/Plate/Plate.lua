@@ -17,21 +17,22 @@ local Welds = require(CoreFunctions:WaitForChild("Welds"))
 local Cache = require(Shared:WaitForChild("Cache"))
 local FoodTree = require(script.Parent:WaitForChild("FoodTree"))
 
-local PlateContent = Cache.RegisterCache(`{script.Name}_PlateContent`)
+module.PlateContent = Cache.RegisterCache(`{script.Name}_module.PlateContent`)
 
 local function plateFood(plate, food, player)
     local platedFood
+    local combination
+    
+    module.PlateContent[plate] = module.PlateContent[plate] or {}
 
-    PlateContent[plate] = PlateContent[plate] or {}
-
-    if #PlateContent[plate] == 0 then
+    if #module.PlateContent[plate] == 0 then
         --print(PlatedFoods:GetChildren(), "plated_"..food.Name)
         platedFood = PlatedFoods:FindFirstChild("plated_"..food.Name)
-    elseif #PlateContent[plate] >= 1 then
-        local cachedContent = table.clone(PlateContent[plate])
+    elseif #module.PlateContent[plate] >= 1 then
+        local cachedContent = table.clone(module.PlateContent[plate])
         table.insert(cachedContent, food.Name)
 
-        local combination = FoodTree.CheckCombination(cachedContent)
+        combination = FoodTree.CheckCombination(cachedContent)
         if combination then
             platedFood = PlatedFoods:FindFirstChild("plated_"..combination)
         end
@@ -60,7 +61,7 @@ local function plateFood(plate, food, player)
 
         food.Parent = nil
 
-        PlateContent[plate] = {food.Name}
+        module.PlateContent[plate] = {combination or food.Name}
         local foodOnTop = Welds.isObjectOnTop(plate)
         if foodOnTop then
             Welds.unweldObjectOnTop(plate)

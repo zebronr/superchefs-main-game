@@ -1,6 +1,13 @@
 local module = {}
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Modules")
+
 local InteractionPrompts = require(script.Parent.Parent:WaitForChild("InteractionPrompt"))
+local Cache = require(Shared:WaitForChild("Cache"))
+
+local networkshipResetDelay = Cache.RegisterCache(`{script.Name}_networkshipResetDelay`)
 
 local pickupZSpace = 2
 
@@ -17,15 +24,23 @@ function module.GetValue(player, valueName)
 end
 
 function module.PickupObject(player:Player, object:BasePart)
+    if networkshipResetDelay[object] then
+        task.cancel(networkshipResetDelay[object])
+    end
+
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+    object.Massless = true
+
+    object:SetNetworkOwner(player)
 
     local objectOffset = object:GetAttribute("holdingOffset") or Vector3.new(0,0,0)
     
     InteractionPrompts.TogglePrompt(object, false)
     changeObjectCarried(player, object)
 
-    local weldConstraint = Instance.new("WeldConstraint")
+    local weldConstraint:WeldConstraint = Instance.new("WeldConstraint")
     weldConstraint.Name = "ObjectHolder"
     weldConstraint.Parent = humanoidRootPart
     weldConstraint.Part0 = humanoidRootPart
@@ -42,15 +57,28 @@ function module.DropObject(player:Player, dontEnable)
 
     local objectHolder = humanoidRootPart:FindFirstChild("ObjectHolder")
     if objectHolder then
-        local object = objectHolder.Part1
+        local object:BasePart = objectHolder.Part1
         changeObjectCarried(player, nil)
         objectHolder:Destroy()
+
+        object.Massless = false
+        object:SetNetworkOwner(player)
+
         object.CanCollide = true
         task.spawn(function() 
             if not dontEnable then
                 task.wait(.5)
                 InteractionPrompts.TogglePrompt(object, true)
             end
+        end)
+        networkshipResetDelay[object] = task.delay(.5, function()
+            local _, _ = pcall(function()
+                if object:GetNetworkOwner() == player then
+                    object:SetNetworkOwner(nil)
+                end
+                
+                object.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            end)
         end)
     end
 end

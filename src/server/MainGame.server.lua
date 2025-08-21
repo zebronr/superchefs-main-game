@@ -1,14 +1,19 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
 
+local Bindables = ServerStorage:WaitForChild("Bindables")
+local CompleteOrderBE = Bindables:WaitForChild("CompleteOrder")
+
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local OrderRemotes = Remotes:WaitForChild("OrderRemotes")
-local ClearOrderRE = OrderRemotes:WaitForChild("ClearOrder")
+local ClearOrdersRE = OrderRemotes:WaitForChild("ClearOrders")
 local CacheOrdersRE = OrderRemotes:WaitForChild("CacheOrders")
 local AddOrderRE = OrderRemotes:WaitForChild("AddOrder")
+local CompleteOrderRE = OrderRemotes:WaitForChild("CompleteOrder")
 
 local CameraRemote = Remotes:WaitForChild("CameraRemote")
 
@@ -17,6 +22,8 @@ local LevelsData = script.Parent:WaitForChild("LevelsData")
 local teams
 local teamHandlingThreads = Cache.RegisterCache(`{script.Name}_teamHandlingThreads`)
 local orderThreads = Cache.RegisterCache(`{script.Name}_orderThreads`)
+local orderLock = Cache.RegisterCache(`{script.Name}_orderLock`)
+local orderNumber = Cache.RegisterCache(`{script.Name}_orderNumber`)
 
 local function setTeams(teamCount, teamOverwrite)
     teams = {} or teamOverwrite
@@ -48,63 +55,79 @@ local function setTeams(teamCount, teamOverwrite)
     --print(teams)
 end
 
+local function findPlayerTeam(player)
+    for i, team in pairs(teams) do
+        if table.find(team, player) then
+            return i
+        end
+    end
+end
+
 ---
+local loadedLevelData
 
-local orderLock = false
-local orderNumber = 1
-
-local function orderSequence(team_i, sequence, levelData)
+local function orderSequence(team_i, sequence)
     for i=1, #sequence do
         local l = sequence:sub(i,i)
         if l == "-" then
             print("locking")
-            orderLock = true
-            while orderLock do task.wait() end
+            orderLock[team_i] = true
+            while orderLock[team_i] do task.wait() end
         elseif l == "*" then
-            levelData.orderDelay *= 2
+            loadedLevelData.orderDelay *= 2
         elseif l == "/" then
-            levelData.orderDelay /= 2
+            loadedLevelData.orderDelay /= 2
         else
             for _, player in pairs(teams[team_i]) do
-                AddOrderRE:FireClient(player, tonumber(l), {orderNum = orderNumber}, tick())
+                AddOrderRE:FireClient(player, tonumber(l), {orderNum = orderNumber[team_i]}, tick())
             end
-            local cachedOrderNumber = orderNumber
-            orderThreads[team_i][orderNumber] = task.delay(levelData.recipes[tonumber(l)].time, function()
+            local cachedOrderNumber = orderNumber[team_i]
+
+            orderThreads[team_i][cachedOrderNumber] = {}
+            orderThreads[team_i][cachedOrderNumber].orderId = tonumber(l)
+            orderThreads[team_i][cachedOrderNumber].orderNum = orderNumber[team_i]
+
+            orderThreads[team_i][cachedOrderNumber].thread = task.delay(loadedLevelData.recipes[tonumber(l)].time, function()
                 print("failed!!", cachedOrderNumber)
                 orderThreads[team_i][cachedOrderNumber] = nil
-                if #orderThreads[team_i] <= 0 then
+
+                if not next(orderThreads[team_i]) then
+                    orderLock[team_i] = false
                     print("unlocking")
-                    orderLock = false
                 end
             end)
-            orderNumber += 1
+
+            orderNumber[team_i] += 1
+            task.wait(loadedLevelData.orderDelay)
         end
-        task.wait(levelData.orderDelay)
     end
 end
 
-local function startOrders(team_i, levelData)
+local function startOrders(team_i)
+    orderNumber[team_i] = 1
+    orderLock[team_i] = nil
+
     teamHandlingThreads[team_i] = task.spawn(function()
         orderThreads[team_i] = {}
 
-        orderSequence(team_i, levelData.sequence, levelData)
+        orderSequence(team_i, loadedLevelData.sequence)
 
         while true do
-            orderSequence(team_i, levelData.loopSequence, levelData)
+            orderSequence(team_i, loadedLevelData.loopSequence)
         end
     end)
 end
 
 local function startGame(level, teamOverwrite)
-    local levelData = require(level:WaitForChild("LevelData"))
+    loadedLevelData = require(level:WaitForChild("LevelData"))
 
-    local map:Folder = (levelData.map):Clone()
+    local map:Folder = (loadedLevelData.map):Clone()
     map.Parent = workspace:WaitForChild("$GAME")
 
-    CacheOrdersRE:FireAllClients(levelData.recipes)
+    CacheOrdersRE:FireAllClients(loadedLevelData.recipes)
     print("CACHED")
 
-    setTeams(levelData.teams, teamOverwrite)
+    setTeams(loadedLevelData.teams, teamOverwrite)
     for team_i, team in pairs(teams) do
         for i, player in pairs(team) do
             local character = player.Character or player.CharacterAdded:Wait()
@@ -115,10 +138,52 @@ local function startGame(level, teamOverwrite)
     ---
 
     for i, team in pairs(teams) do
-        startOrders(i, levelData)
+        startOrders(i)
     end
 end
 
+local function completeOrder(team_i, food)
+    --re arrange orders list
+    local orders = orderThreads[team_i]
+    local arrangedList = {}
+    for _, order in pairs(orders) do
+        table.insert(arrangedList, order)
+    end
+    table.sort(arrangedList, function(a, b)
+        return a.orderNum < b.orderNum
+    end)
+    --
+
+    for _, order in ipairs(arrangedList) do
+        print(loadedLevelData.recipes[order.orderId].food_name  , food)
+        if loadedLevelData.recipes[order.orderId].food_name == food then
+            warn("FOUND EARLIEST OCCURENCE OF ", food, "IN", order.orderNum)
+
+            task.cancel(orderThreads[team_i][order.orderNum].thread)
+            orderThreads[team_i][order.orderNum] = nil
+
+            for _, player in pairs(teams[team_i]) do
+                CompleteOrderRE:FireClient(player, order.orderNum)
+            end
+
+            if not next(orderThreads[team_i]) then
+                orderLock[team_i] = false
+                print("unlocking because completed")
+            end
+            return
+        end
+    end
+    warn("NO ORDER OF THE GIVEN FOOD YET")
+end
+
+CompleteOrderBE.Event:Connect(function(player, plateContent)
+    local team_i = findPlayerTeam(player)
+
+    completeOrder(team_i, plateContent)
+end)
+
 task.wait(5)
+
+--testing phase
 CameraRemote:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
 startGame(LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1"))

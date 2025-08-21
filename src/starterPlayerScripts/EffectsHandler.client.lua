@@ -246,7 +246,7 @@ function effects.dash(parameters)
 			local trail = DashTrail:Clone()
 			trail.Size = Vector3.new(0,0,0)
 			trail.Orientation += Vector3.new(0,math.random(0,360), 0)
-			trail.Position = ROOT.Position - Vector3.new(0,1,0)
+			trail.Position = ROOT.Position - Vector3.new(0,3,0)
 			table.insert(trailCache, trail)
 			
 			local TSize = trailMaxSize:Lerp(trailMinSize, ((i-1) / (dashTrailLength-1)))

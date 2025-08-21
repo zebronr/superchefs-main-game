@@ -22,7 +22,7 @@ local requestCooldown = Cache.RegisterCache(`{script.Name}_requestCooldown`)
 
 local maxRequest = 10
 
-local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard", "Stove", "FireExtinguisher", "DirtyPlate", "Sink", "FoodContainer"}
+local interactableClasses = {"Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard", "Stove", "FireExtinguisher", "DirtyPlate", "Sink", "FoodContainer", "ServingCounter"}
 local useableClasses = {"Countertop", "Tool", "ChoppingBoard", "FireExtinguisher", "Sink"}
 
 local ObjectsFolder = script.Parent:WaitForChild("Objects")

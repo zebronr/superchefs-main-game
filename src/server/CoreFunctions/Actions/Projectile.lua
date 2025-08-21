@@ -23,11 +23,13 @@ local gravity = 20
 local function _testPart(pos, color)
     local testPart = Instance.new("Part")
     testPart.BrickColor = color
+    testPart.Material = Enum.Material.Neon
     testPart.Size = Vector3.new(1,1,1)
     testPart.Position = pos
     testPart.CanCollide = false
     testPart.CanTouch = false
     testPart.CanQuery = false
+    testPart.Anchored = true
     testPart.Parent = workspace
 end
 
@@ -51,7 +53,7 @@ local function checkCollision(objectCFrame, player, projectile)
     local objectOffset = -(projectile:GetAttribute("holdingOffset") or Vector3.new(0,0,0))
     objectCFrame *= CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))
     
-    local startingPoint = objectCFrame.Position
+    local startingPoint = objectCFrame.Position+Vector3.new(0,.25,0)
     for y = -45, 45, 45 do
         local endPoint = (objectCFrame * CFrame.new(0,y,-100)).Position
         local direction = endPoint - startingPoint
@@ -68,7 +70,7 @@ local function checkFloor(projectile, objectCFrame)
     --[[
 
     local startingPoint = objectCFrame.Position
-    local endPoint = (objectCFrame * CFrame.new(0,-100,0)).Position
+    local endPoint = objectCFrame.Position + Vector3.new(0,-100,0)
     local direction = endPoint - startingPoint
     local raycast = workspace:Raycast(startingPoint, direction)
     if raycast then
@@ -85,7 +87,7 @@ local function getSurface(objectCFrame, projectile)
     objectCFrame *= CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))
    
     local startingPoint = objectCFrame.Position
-    local endPoint = (objectCFrame * CFrame.new(0,-100,0)).Position
+    local endPoint = objectCFrame.Position + Vector3.new(0,-100,0)
     local direction = endPoint - startingPoint
     local raycast = workspace:Raycast(startingPoint, direction)
     if raycast then
@@ -98,7 +100,7 @@ local function checkInteraction(objectCFrame, projectile)
     objectCFrame *= CFrame.Angles(math.rad(objectOffset.X), math.rad(objectOffset.Y), math.rad(objectOffset.Z))
     
     local startingPoint = objectCFrame.Position
-    local endPoint = (objectCFrame * CFrame.new(0,-100,0)).Position
+    local endPoint = objectCFrame.Position + Vector3.new(0,-100,0)
     local direction = endPoint - startingPoint
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Include
@@ -110,8 +112,9 @@ local function checkInteraction(objectCFrame, projectile)
 end
 
 function module.CalculateEndpoint(projectile, startingCF)
-    local endPoint = startingCF * CFrame.new(0,0, -distance)
-
+    local holdingOffset = projectile:GetAttribute("holdingOffset")
+    startingCF *= CFrame.Angles(-math.rad(holdingOffset.X),-math.rad(holdingOffset.Y),-math.rad(holdingOffset.Z))
+    local endPoint = startingCF * CFrame.new(0,0, -distance) 
     local origin = endPoint.Position
     local raycastEndpoint = origin - Vector3.new(0,100,0)
     local raycastDirection = raycastEndpoint - origin
@@ -125,6 +128,8 @@ function module.CalculateEndpoint(projectile, startingCF)
     if floorRaycast then
         endPoint = CFrame.new(floorRaycast.Position + Vector3.new(0,projectileGlobalY/2,0))
     end
+
+    --_testPart(endPoint.Position, BrickColor.new("Really red"))
 
     return endPoint
 end
