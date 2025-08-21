@@ -185,5 +185,5 @@ end)
 task.wait(5)
 
 --testing phase
-CameraRemote:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
-startGame(LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1"))
+--[[CameraRemote:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
+startGame(LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1"))]]--

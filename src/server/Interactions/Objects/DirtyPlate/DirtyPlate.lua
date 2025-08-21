@@ -7,7 +7,7 @@ local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("C
 local Actions = CoreFunctions:WaitForChild("Actions")
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 
-local Prompts = require(Shared:WaitForChild("Prompts"))
+local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 local Welds = require(CoreFunctions:WaitForChild("Welds"))
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
 
@@ -57,7 +57,7 @@ end
 function module.stackPlates(origin, newPlate)
     local highestStack = module.findHighestStack(origin)
 
-    Prompts.TogglePrompt(newPlate, false)
+    ToggleInteraction.Set(newPlate, false)
 
     newPlate.Parent = origin
 

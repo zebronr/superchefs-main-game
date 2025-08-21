@@ -13,6 +13,7 @@ local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("C
 local Actions = CoreFunctions:WaitForChild("Actions")
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 
+local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 local PlayerValues = require(Shared:WaitForChild("PlayerValues"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
@@ -122,7 +123,7 @@ function module.Use(player, objectCarried, sink, heldState)
                 local PlateClone = Plate:Clone()
 
                 PlateClone.Parent = workspace:WaitForChild("$GAME")
-                PlateClone:WaitForChild("InteractionPrompt").Enabled = false
+                ToggleInteraction.Set(Plate, false)
 
                 local originPlate = Welds.isObjectOnTop(drainBoard)
                 if originPlate then

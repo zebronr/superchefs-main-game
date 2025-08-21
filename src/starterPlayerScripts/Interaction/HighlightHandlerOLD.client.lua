@@ -1,4 +1,4 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+--[[local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local Players = game:GetService("Players")
 
@@ -55,4 +55,4 @@ end)
 
 ProximityPromptService.PromptHidden:Connect(function(prompt)
     toggleObjectHighlight(prompt, false)
-end)
+end)]]--

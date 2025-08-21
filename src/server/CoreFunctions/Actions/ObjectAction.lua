@@ -4,7 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 
-local InteractionPrompts = require(script.Parent.Parent:WaitForChild("InteractionPrompt"))
+local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 local Cache = require(Shared:WaitForChild("Cache"))
 
 local networkshipResetDelay = Cache.RegisterCache(`{script.Name}_networkshipResetDelay`)
@@ -37,7 +37,7 @@ function module.PickupObject(player:Player, object:BasePart)
 
     local objectOffset = object:GetAttribute("holdingOffset") or Vector3.new(0,0,0)
     
-    InteractionPrompts.TogglePrompt(object, false)
+    ToggleInteraction.Set(object, false)
     changeObjectCarried(player, object)
 
     local weldConstraint:WeldConstraint = Instance.new("WeldConstraint")
@@ -68,7 +68,7 @@ function module.DropObject(player:Player, dontEnable)
         task.spawn(function() 
             if not dontEnable then
                 task.wait(.5)
-                InteractionPrompts.TogglePrompt(object, true)
+                ToggleInteraction.Set(object, true)
             end
         end)
         networkshipResetDelay[object] = task.delay(.5, function()

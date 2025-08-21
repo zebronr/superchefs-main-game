@@ -9,6 +9,10 @@ local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
 local PlayerValues = require(Shared:WaitForChild("PlayerValues"))
 
+local Configs = Shared:WaitForChild("Configs")
+local InteractionConfigs = require(Configs:WaitForChild("InteractionConfigs"))
+local VisibilityConfigs = require(Configs:WaitForChild("VisibilityConfigs"))
+
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local InteractionRemotes = Remotes:WaitForChild("Interactions")
@@ -67,11 +71,10 @@ local function verifyRequest(parameters)
 
     local visibleObject = parameters.vO
     local objectCarried = PlayerValues.RetrieveValue(player, "ObjectCarried")
-    local interactionPrompt
     
     if visibleObject then
-        interactionPrompt = visibleObject:FindFirstChild("InteractionPrompt")
-        if (not interactionPrompt) or (not interactionPrompt.Enabled) then
+        local isInteractionDisabled = visibleObject:GetAttribute("interactionDisabled")
+        if (isInteractionDisabled) then
             return false
         end
     end
@@ -79,7 +82,10 @@ local function verifyRequest(parameters)
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-    if (visibleObject and interactionPrompt) and ((humanoidRootPart.Position - visibleObject.Position).Magnitude <= interactionPrompt.MaxActivationDistance+positionMarginOfError) then
+    if (visibleObject) and ((humanoidRootPart.Position - visibleObject.Position).Magnitude <= 
+        (VisibilityConfigs.MinimumDistance[visibleObject:GetAttribute("objectClass") or 
+        VisibilityConfigs.DefaultMinimumDistance])+positionMarginOfError) 
+    then
         return true
     elseif objectCarried then
         return true
@@ -103,7 +109,9 @@ function functions.Interact(parameters, serverRequest)
     local objectToInteractWith = visibleObject or objectCarried
 
     if visibleObject and objectCarried then
-        if (objectCarried:GetAttribute("interactionPriority") or 1) > (visibleObject:GetAttribute("interactionPriority") or 1) then
+        if (InteractionConfigs.PriorityLevel[objectCarried:GetAttribute("objectClass")] or 1) > 
+            (InteractionConfigs.PriorityLevel[visibleObject:GetAttribute("objectClass")] or 1) 
+        then
             objectToInteractWith = objectCarried
         end
     end

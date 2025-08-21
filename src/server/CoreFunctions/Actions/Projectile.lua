@@ -4,8 +4,8 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 
-local Modules = ReplicatedStorage:WaitForChild("Modules")
-local Prompts = require(Modules:WaitForChild("Prompts"))
+local Shared = ReplicatedStorage:WaitForChild("Modules")
+local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProjectileRemotes = Remotes:WaitForChild("Projectile")
@@ -37,7 +37,7 @@ local function stopProjectile(Projectile, newCFrame)
     Projectile.CFrame = newCFrame
     Projectile.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     Projectile.Anchored = false
-    Prompts.TogglePrompt(Projectile, true)
+    ToggleInteraction.Set(Projectile, true)
     EffectsRemote:FireAllClients("ProjectileTrail", {
         s = false,
         r = Projectile

@@ -1,14 +1,21 @@
 local module = {}
 
 local ServerScriptService = game:GetService("ServerScriptService")
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 local Actions = CoreFunctions:WaitForChild("Actions")
 local InteractionsModules  = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions")
-local CollectionService = game:GetService("CollectionService")
+
+local Shared = ReplicatedStorage:WaitForChild("Modules")
+
+local Configs = Shared:WaitForChild("Configs")
+local InteractionConfigs = require(Configs:WaitForChild("InteractionConfigs"))
 
 local Welds = require(CoreFunctions:WaitForChild("Welds"))
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
-local InteractionPrompt = require(CoreFunctions:WaitForChild("InteractionPrompt"))
+local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 
 function module.Interact(player, objectCarried, countertop)
     --print("COUNTERTOP INTERACT", player, objectCarried, countertop)
@@ -21,7 +28,7 @@ function module.Interact(player, objectCarried, countertop)
             if player then
                 ObjectAction.DropObject(player, true)
             else
-                InteractionPrompt.TogglePrompt(objectCarried, false)
+                ToggleInteraction.Set(objectCarried, false)
             end
             Welds.PlaceObjectOnTop(objectCarried, countertop)
             CollectionService:AddTag(objectCarried, "projectileInteractionLock")
@@ -36,8 +43,8 @@ function module.Interact(player, objectCarried, countertop)
                 end
                 return
             else
-                local objectCarried_pL = objectCarried:GetAttribute("interactionPriority") or 1
-                local objectOnTop_pL = objectOnTop:GetAttribute("interactionPriority") or 1
+                local objectCarried_pL = InteractionConfigs.PriorityLevel[objectCarried:GetAttribute("objectClass")] or 1
+                local objectOnTop_pL = InteractionConfigs.PriorityLevel[objectOnTop:GetAttribute("objectClass")] or 1
                     
                 local objectToInteractWith = objectOnTop
                 local objectToUseForInteraction = objectCarried
