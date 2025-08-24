@@ -15,8 +15,10 @@ local Shared = ReplicatedStorage:WaitForChild("Modules")
 
 local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 local PlayerValues = require(Shared:WaitForChild("PlayerValues"))
+
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
+local UpdateVisibilityParameters = Remotes:WaitForChild("UpdateVisibilityParameters")
 
 local ObjectsFolder = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions"):WaitForChild("Objects")
 
@@ -123,6 +125,8 @@ function module.Use(player, objectCarried, sink, heldState)
                 local PlateClone = Plate:Clone()
 
                 PlateClone.Parent = workspace:WaitForChild("$GAME")
+                UpdateVisibilityParameters:FireAllClients()
+
                 ToggleInteraction.Set(Plate, false)
 
                 local originPlate = Welds.isObjectOnTop(drainBoard)

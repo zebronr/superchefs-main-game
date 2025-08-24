@@ -83,8 +83,8 @@ local function verifyRequest(parameters)
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
     if (visibleObject) and ((humanoidRootPart.Position - visibleObject.Position).Magnitude <= 
-        (VisibilityConfigs.MinimumDistance[visibleObject:GetAttribute("objectClass") or 
-        VisibilityConfigs.DefaultMinimumDistance])+positionMarginOfError) 
+        (VisibilityConfigs.MinimumDistance[visibleObject:GetAttribute("objectClass")] or 
+        VisibilityConfigs.DefaultMinimumDistance)+positionMarginOfError) 
     then
         return true
     elseif objectCarried then

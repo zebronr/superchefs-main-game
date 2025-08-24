@@ -1,10 +1,9 @@
 local module = {}
 
-module.DefaultMinimumDistance = 5
+module.DefaultMinimumDistance = 6
 
 module.MinimumDistance = {
-    Countertop = 5,
-    Food = 4
+    
 }
 
 module.PriorityLevel = {

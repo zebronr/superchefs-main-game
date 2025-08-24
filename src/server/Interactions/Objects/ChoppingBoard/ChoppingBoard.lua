@@ -9,6 +9,7 @@ local ToggleUseLock = Bindables:WaitForChild("ToggleUseLock")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
+local UpdateVisibilityParameters = Remotes:WaitForChild("UpdateVisibilityParameters")
 
 local Assets = ServerStorage:WaitForChild("Assets")
 local Foods = Assets:WaitForChild("Foods")
@@ -69,6 +70,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                     chopped = chopped:Clone()
                     ToggleInteraction.Set(chopped, false)
                     chopped.Parent = workspace:FindFirstChild("$FoodContainers")
+                    UpdateVisibilityParameters:FireAllClients()
                     Welds.PlaceObjectOnTop(chopped, choppingBoard)
                     choppingBoard:RemoveTag("LOCKED")
                 end

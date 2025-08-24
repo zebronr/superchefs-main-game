@@ -3,6 +3,9 @@ local module = {}
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local UpdateVisibilityParameters = Remotes:WaitForChild("UpdateVisibilityParameters")
+
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
@@ -18,6 +21,7 @@ function module.Interact(player, objectCarried, visibleObject)
         local foodClone = foodValue:Clone()
         ToggleInteraction.Set(foodClone, false)
         foodClone.Parent = workspace:WaitForChild("$GAME")
+        UpdateVisibilityParameters:FireAllClients()
 
         ObjectAction.PickupObject(player, foodClone)
     end 

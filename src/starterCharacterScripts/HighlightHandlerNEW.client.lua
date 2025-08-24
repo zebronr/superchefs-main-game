@@ -71,6 +71,12 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
     for _, part in ipairs(nearby) do
         if part:GetAttribute("interactionDisabled") then continue end
+        if (part.Position - HRP.Position).Magnitude >= (
+            VisibilityConfigs.MinimumDistance[part:GetAttribute("objectClass")] 
+            or VisibilityConfigs.DefaultMinimumDistance)
+        then
+            continue
+        end
 
 		local priority = VisibilityConfigs.PriorityLevel[part:GetAttribute("objectClass")] or 1
 		local dist = (part.Position - HRP.Position).Magnitude
@@ -85,13 +91,10 @@ RunService.Heartbeat:Connect(function(deltaTime)
     lastClosest = closestObject
     closestObject = bestPart
     
-    if closestObject and (closestObject.Position - HRP.Position).Magnitude <= (
-        VisibilityConfigs.MinimumDistance[closestObject:GetAttribute("objectClass")] 
-        or VisibilityConfigs.DefaultMinimumDistance
-    ) then
+    if closestObject then
         toggleObjectHighlight(closestObject, true)
         PlayerValues.ChangeValues(LocalPlayer, "VisibleObject", closestObject)
-    elseif closestObject then
+    elseif not closestObject then
         PlayerValues.ChangeValues(LocalPlayer, "VisibleObject", nil)
         toggleObjectHighlight(closestObject, false)
     end
