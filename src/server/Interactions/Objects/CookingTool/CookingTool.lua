@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local ProgressBarRE = EffectsRemotes:WaitForChild("ProgressBar")
 
 local InteractionModules = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions")
 local Shared = ReplicatedStorage:WaitForChild("Modules")
@@ -42,7 +43,7 @@ function module.startCooking(cookingTool)
     CookingProgress[cookingTool] = CookingProgress[cookingTool] or 0
     CookingState[cookingTool] = true
 
-    ProgressBarRemote:FireAllClients("CookingProgress", {
+    ProgressBarRE:FireAllClients("CookingProgress", {
         pR = ProgressRate,
         s = true,
         o = cookingTool,
@@ -72,7 +73,7 @@ function module.stopCooking(cookingTool)
     local delete
     if CookingProgress[cookingTool] >= 100 then delete = true end
 
-    ProgressBarRemote:FireAllClients("CookingProgress", {
+    ProgressBarRE:FireAllClients("CookingProgress", {
         s = false,
         o = cookingTool,
         d = delete
@@ -122,7 +123,7 @@ local function PutFoodInTool(cookingTool, food, player)
                 else
                     CookingProgress[cookingTool] = 0
                 end
-                ProgressBarRemote:FireAllClients("changeProgress", {
+                ProgressBarRE:FireAllClients("changeProgress", {
                     p = CookingProgress[cookingTool],
                     o = cookingTool,
                     sT = tick(),

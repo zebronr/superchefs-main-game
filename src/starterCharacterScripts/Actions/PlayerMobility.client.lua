@@ -11,7 +11,8 @@ local PlayerMobility = Bindables:WaitForChild("PlayerMobility")
 local EffectsBE = Bindables:WaitForChild("Effects")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local EffectsRequestRE = Remotes:WaitForChild("EffectsRequest")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local RequestEffectToServerRE = EffectsRemotes:WaitForChild("RequestEffectToServer")
 
 local actions = {}
 local dashLength = .33
@@ -31,7 +32,7 @@ function actions.dash(parameters)
         s = true,
         pc = Character
     }
-    EffectsRequestRE:FireServer("dash")
+    RequestEffectToServerRE:FireServer("dash")
     EffectsBE:Fire("dash", dashParams)
 
 	local LinearVelocity = Instance.new("LinearVelocity")

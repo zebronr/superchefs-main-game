@@ -15,7 +15,7 @@ local CacheOrdersRE = OrderRemotes:WaitForChild("CacheOrders")
 local AddOrderRE = OrderRemotes:WaitForChild("AddOrder")
 local CompleteOrderRE = OrderRemotes:WaitForChild("CompleteOrder")
 
-local CameraRemote = Remotes:WaitForChild("CameraRemote")
+local SetCameraRE = Remotes:WaitForChild("Camera"):WaitForChild("SetCamera")
 
 local LevelsData = script.Parent:WaitForChild("LevelsData")
 
@@ -185,5 +185,5 @@ end)
 task.wait(5)
 
 --testing phase
---[[CameraRemote:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
+--[[SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
 startGame(LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1"))]]--

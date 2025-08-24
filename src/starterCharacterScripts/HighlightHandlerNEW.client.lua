@@ -7,21 +7,22 @@ local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
 
-local Modules = ReplicatedStorage:WaitForChild("Modules")
-local PlayerValues = require(Modules:WaitForChild("PlayerValues"))
+local Shared = ReplicatedStorage:WaitForChild("Modules")
+local PlayerValues = require(Shared:WaitForChild("PlayerValues"))
 
-local Configs = Modules:WaitForChild("Configs")
+local Configs = Shared:WaitForChild("Configs")
 local VisibilityConfigs = require(Configs:WaitForChild("VisibilityConfigs"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local UpdateVisibilityParameters = Remotes:WaitForChild("UpdateVisibilityParameters")
+local InteractionRemotes = Remotes:WaitForChild("Interactions")
+local UpdateVisibilityParametersRE = InteractionRemotes:WaitForChild("UpdateVisibilityParameters")
 
 local Assets = ReplicatedStorage:WaitForChild("Assets")
 local VisibilityHighlight = Assets:WaitForChild("VisibilityHighlight")
 
 local interactableParameters = OverlapParams.new()
 interactableParameters.FilterType = Enum.RaycastFilterType.Include
-interactableParameters.FilterDescendantsInstances = CollectionService:GetTagged("VISIBLE")
+interactableParameters.FilterDescendantsInstances = {CollectionService:GetTagged("VISIBLE"), CollectionService:GetTagged("ProximityNode")}
 
 local ProximityRadius = 8
 local PriorityWeight = 100
@@ -29,8 +30,8 @@ local PriorityWeight = 100
 local lastClosest = nil
 local closestObject = nil
 
-UpdateVisibilityParameters.OnClientEvent:Connect(function()
-    interactableParameters.FilterDescendantsInstances = CollectionService:GetTagged("VISIBLE")
+UpdateVisibilityParametersRE.OnClientEvent:Connect(function()
+    interactableParameters.FilterDescendantsInstances = {CollectionService:GetTagged("VISIBLE"), CollectionService:GetTagged("ProximityNode")}
 end)
 
 local function toggleObjectHighlight(object, state)
@@ -71,7 +72,9 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
     for _, part in ipairs(nearby) do
         if part:GetAttribute("interactionDisabled") then continue end
-        if (part.Position - HRP.Position).Magnitude >= (
+        
+        local distance = (part.Position - HRP.Position).Magnitude
+        if distance >= (
             VisibilityConfigs.MinimumDistance[part:GetAttribute("objectClass")] 
             or VisibilityConfigs.DefaultMinimumDistance)
         then
@@ -79,12 +82,16 @@ RunService.Heartbeat:Connect(function(deltaTime)
         end
 
 		local priority = VisibilityConfigs.PriorityLevel[part:GetAttribute("objectClass")] or 1
-		local dist = (part.Position - HRP.Position).Magnitude
-		local score = priority * PriorityWeight - dist
+		local score = priority * PriorityWeight - distance
 
 		if score > bestScore then
 			bestScore = score
-			bestPart = part
+			if part:HasTag("ProximityNode") then
+                bestPart = part.Parent.Parent
+                PlayerValues.ChangeValues(LocalPlayer, "VisibleObjectNode", part)
+            else
+                bestPart = part
+            end
 		end
 	end
 
@@ -95,6 +102,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
         toggleObjectHighlight(closestObject, true)
         PlayerValues.ChangeValues(LocalPlayer, "VisibleObject", closestObject)
     elseif not closestObject then
+        PlayerValues.ChangeValues(LocalPlayer, "VisibleObjectNode", nil)
         PlayerValues.ChangeValues(LocalPlayer, "VisibleObject", nil)
         toggleObjectHighlight(closestObject, false)
     end

@@ -11,7 +11,8 @@ local Cache = require(Shared:WaitForChild("Cache"))
 local Welds = require(CoreFunctions:WaitForChild("Welds"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local EffectsRemote = Remotes:WaitForChild("Effects")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local EffectsRE = EffectsRemotes:WaitForChild("Effects")
 
 local spreadRate = 8
 local spreadDistance = 5
@@ -33,7 +34,7 @@ function module.BurnObject(object)
 
     object:AddTag("LOCKED")
 
-    EffectsRemote:FireAllClients("fire", {
+    EffectsRE:FireAllClients("fire", {
         fV = fireValue,
         o = object
     })

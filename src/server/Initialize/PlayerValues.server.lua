@@ -12,4 +12,8 @@ Players.PlayerAdded:Connect(function(player)
     local objectCarried = Instance.new("ObjectValue")
     objectCarried.Name = "ObjectCarried"
     objectCarried.Parent = PlayerValuesFolder
+
+    local visibleObjectNode = Instance.new("ObjectValue")
+    visibleObjectNode.Name = "VisibleObjectNode"
+    visibleObjectNode.Parent = PlayerValuesFolder
 end)

@@ -6,7 +6,8 @@ local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local ProgressBarRE = EffectsRemotes:WaitForChild("ProgressBar")
 
 local Bindables = ReplicatedStorage:WaitForChild("Bindables")
 local EffectsBindable = Bindables:WaitForChild("Effects")
@@ -155,7 +156,7 @@ function functions.washingProgress(parameters)
     end
 end
 
-ProgressBarRemote.OnClientEvent:Connect(function(request, parameters)
+ProgressBarRE.OnClientEvent:Connect(function(request, parameters)
     if functions[request] then
         functions[request](parameters)
     end

@@ -8,8 +8,10 @@ local Bindables = ServerStorage:WaitForChild("Bindables")
 local ToggleUseLock = Bindables:WaitForChild("ToggleUseLock")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
-local UpdateVisibilityParameters = Remotes:WaitForChild("UpdateVisibilityParameters")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local ProgressBarRE = EffectsRemotes:WaitForChild("ProgressBar")
+local InteractionRemotes = Remotes:WaitForChild("Interactions")
+local UpdateVisibilityParametersRE = InteractionRemotes:WaitForChild("UpdateVisibilityParameters")
 
 local Assets = ServerStorage:WaitForChild("Assets")
 local Foods = Assets:WaitForChild("Foods")
@@ -50,7 +52,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
             if chopped then
                 isBeingChopped[objectOnTop] = true
                 ChoppingProgress[objectOnTop] = ChoppingProgress[objectOnTop] or 0
-                ProgressBarRemote:FireAllClients("ChoppingProgress", {
+                ProgressBarRE:FireAllClients("ChoppingProgress", {
                     s = true, cD = ChopDelay, pPC = ProgressAmount, o = objectOnTop, sT = tick()
                 })
                 while ChoppingProgress[objectOnTop] and isBeingChopped[objectOnTop] and ChoppingProgress[objectOnTop] < 100 do
@@ -59,7 +61,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                     task.wait(ChopDelay)
                 end
                 if ChoppingProgress[objectOnTop] and ChoppingProgress[objectOnTop] >= 100 then
-                    ProgressBarRemote:FireAllClients("ChoppingProgress", {
+                    ProgressBarRE:FireAllClients("ChoppingProgress", {
                         s = false, o = objectOnTop, d = true
                     })
                     ToggleUseLock:Fire(choppingBoard, nil)
@@ -70,7 +72,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                     chopped = chopped:Clone()
                     ToggleInteraction.Set(chopped, false)
                     chopped.Parent = workspace:FindFirstChild("$FoodContainers")
-                    UpdateVisibilityParameters:FireAllClients()
+                    UpdateVisibilityParametersRE:FireAllClients()
                     Welds.PlaceObjectOnTop(chopped, choppingBoard)
                     choppingBoard:RemoveTag("LOCKED")
                 end
@@ -79,7 +81,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
         else
             if (not ChoppingProgress[objectOnTop]) or ChoppingProgress[objectOnTop] < 100 then
                 choppingBoard:RemoveTag("LOCKED")
-                ProgressBarRemote:FireAllClients("ChoppingProgress", {
+                ProgressBarRE:FireAllClients("ChoppingProgress", {
                     s = false, o = objectOnTop
                 })
                 isBeingChopped[objectOnTop] = nil

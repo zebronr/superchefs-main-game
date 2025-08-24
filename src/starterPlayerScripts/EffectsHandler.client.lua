@@ -12,7 +12,8 @@ local CoinsFrame = InfoFrame:WaitForChild("CoinsFrame")
 local CoinSprite = CoinsFrame:WaitForChild("CoinSprite")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local EffectsRemote = Remotes:WaitForChild("Effects")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local EffectsRE = EffectsRemotes:WaitForChild("Effects")
 
 local Bindables = ReplicatedStorage:WaitForChild("Bindables")
 local EffectsBindable = Bindables:WaitForChild("Effects")
@@ -269,7 +270,7 @@ function effects.dash(parameters)
 	end
 end
 
-EffectsRemote.OnClientEvent:Connect(function(effectType, parameters)
+EffectsRE.OnClientEvent:Connect(function(effectType, parameters)
     if effects[effectType] then
         effects[effectType](parameters)
     end

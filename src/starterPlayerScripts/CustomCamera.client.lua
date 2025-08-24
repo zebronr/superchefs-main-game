@@ -1,7 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
-local CameraRemote = Remotes:WaitForChild("CameraRemote")
+local SetCameraRE = Remotes:WaitForChild("Camera"):WaitForChild("SetCamera")
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -73,7 +73,7 @@ local function DisableAllCameras()
 	camera.CameraType = Enum.CameraType.Follow
 end
 
-CameraRemote.OnClientEvent:Connect(function(cameraType, CameraCFrame)
+SetCameraRE.OnClientEvent:Connect(function(cameraType, CameraCFrame)
 	if cameraType == "coOp" then
 		CoopCamera(CameraCFrame)
 	elseif cameraType == "FollowUp" then

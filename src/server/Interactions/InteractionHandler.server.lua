@@ -82,12 +82,16 @@ local function verifyRequest(parameters)
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-    if (visibleObject) and ((humanoidRootPart.Position - visibleObject.Position).Magnitude <= 
-        (VisibilityConfigs.MinimumDistance[visibleObject:GetAttribute("objectClass")] or 
-        VisibilityConfigs.DefaultMinimumDistance)+positionMarginOfError) 
-    then
-        return true
-    elseif objectCarried then
+    if (visibleObject) then
+        local requiredDistance = (VisibilityConfigs.MinimumDistance[visibleObject:GetAttribute("objectClass")] or VisibilityConfigs.DefaultMinimumDistance)+positionMarginOfError
+        local node = parameters.vON 
+        if (node and typeof(node) == "Instance" and node:IsA("BasePart") and (humanoidRootPart.Position - node.Position).Magnitude <= requiredDistance)
+            or
+            ((humanoidRootPart.Position - visibleObject.Position).Magnitude <= requiredDistance)
+        then
+            return true
+        end
+    elseif objectCarried and not visibleObject then
         return true
     end
     

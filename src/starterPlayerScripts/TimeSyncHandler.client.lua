@@ -1,7 +1,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local TimeSync = Remotes:WaitForChild("TimeSync")
+local NetworkRemotes = Remotes:WaitForChild("Network")
+local TimeSync = NetworkRemotes:WaitForChild("TimeSync")
 
 local function sync()
     local bestOffsetThisRound = math.huge

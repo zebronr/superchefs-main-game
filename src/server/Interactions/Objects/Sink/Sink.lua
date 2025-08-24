@@ -17,8 +17,10 @@ local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 local PlayerValues = require(Shared:WaitForChild("PlayerValues"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local ProgressBarRemote = Remotes:WaitForChild("ProgressBar")
-local UpdateVisibilityParameters = Remotes:WaitForChild("UpdateVisibilityParameters")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local ProgressBarRE = EffectsRemotes:WaitForChild("ProgressBar")
+local InteractionRemotes = Remotes:WaitForChild("Interactions")
+local UpdateVisibilityParametersRE = InteractionRemotes:WaitForChild("UpdateVisibilityParameters")
 
 local ObjectsFolder = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions"):WaitForChild("Objects")
 
@@ -97,7 +99,7 @@ function module.Use(player, objectCarried, sink, heldState)
             washState[sink] = true
             washingProgress[sink] = washingProgress[sink] or 0
 
-            ProgressBarRemote:FireAllClients("washingProgress", {
+            ProgressBarRE:FireAllClients("washingProgress", {
                 s = true,
                 pR = progressRate,
                 o = washPartMarker,
@@ -111,7 +113,7 @@ function module.Use(player, objectCarried, sink, heldState)
             end
             if washingProgress[sink] >= 100 then
                 --print("done on server")
-                ProgressBarRemote:FireAllClients("washingProgress", {
+                ProgressBarRE:FireAllClients("washingProgress", {
                     s = false,
                     o = washPartMarker,
                     d = true
@@ -125,7 +127,7 @@ function module.Use(player, objectCarried, sink, heldState)
                 local PlateClone = Plate:Clone()
 
                 PlateClone.Parent = workspace:WaitForChild("$GAME")
-                UpdateVisibilityParameters:FireAllClients()
+                UpdateVisibilityParametersRE:FireAllClients()
 
                 ToggleInteraction.Set(Plate, false)
 
@@ -140,7 +142,7 @@ function module.Use(player, objectCarried, sink, heldState)
             if (not washingProgress[sink]) or washingProgress[sink] < 100 then
                 washState[sink] = nil
 
-                ProgressBarRemote:FireAllClients("washingProgress", {
+                ProgressBarRE:FireAllClients("washingProgress", {
                     s = false,
                     o = washPartMarker
                 })

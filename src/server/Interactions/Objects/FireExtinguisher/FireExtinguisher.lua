@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local EffectsRemote = Remotes:WaitForChild("Effects")
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local EffectsRE = EffectsRemotes:WaitForChild("Effects")
 
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 local Actions = CoreFunctions:WaitForChild("Actions")
@@ -37,7 +38,7 @@ function module.Use(player, objectCarried, visibleObject, heldState)
         local emitter = extinguisher:WaitForChild("Emitter")
         
         if heldState then
-            EffectsRemote:FireAllClients("FEFoam", {fe = objectCarried, s = true})
+            EffectsRE:FireAllClients("FEFoam", {fe = objectCarried, s = true})
 
             local raycastParams = RaycastParams.new()
             raycastParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -70,7 +71,7 @@ function module.Use(player, objectCarried, visibleObject, heldState)
         else
             
             toolState[extinguisher] = nil
-            EffectsRemote:FireAllClients("FEFoam", {fe = objectCarried, s = false})
+            EffectsRE:FireAllClients("FEFoam", {fe = objectCarried, s = false})
         end
 
     end

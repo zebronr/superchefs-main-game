@@ -10,7 +10,9 @@ local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProjectileRemotes = Remotes:WaitForChild("Projectile")
 local SimulateProjectileClient = ProjectileRemotes:WaitForChild("SimulateProjectile")
-local EffectsRemote = Remotes:WaitForChild("Effects")
+
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local EffectsRE = EffectsRemotes:WaitForChild("Effects")
 
 local InteractionRemotes = Remotes:WaitForChild("Interactions")
 local InteractionRequestFunction = InteractionRemotes:WaitForChild("InteractionRequestFunction")
@@ -38,7 +40,7 @@ local function stopProjectile(Projectile, newCFrame)
     Projectile.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     Projectile.Anchored = false
     ToggleInteraction.Set(Projectile, true)
-    EffectsRemote:FireAllClients("ProjectileTrail", {
+    EffectsRE:FireAllClients("ProjectileTrail", {
         s = false,
         r = Projectile
     })
@@ -155,7 +157,7 @@ function module.SimulateProjectile(Projectile, startingCF:CFrame, endPoint, play
         sT = tick()
     })
 
-    EffectsRemote:FireAllClients("ProjectileTrail", {
+    EffectsRE:FireAllClients("ProjectileTrail", {
         s = true,
         r = Projectile
     })
