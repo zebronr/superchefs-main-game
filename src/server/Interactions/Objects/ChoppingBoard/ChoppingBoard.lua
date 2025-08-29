@@ -8,10 +8,16 @@ local Bindables = ServerStorage:WaitForChild("Bindables")
 local ToggleUseLock = Bindables:WaitForChild("ToggleUseLock")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
 local EffectsRemotes = Remotes:WaitForChild("Effects")
 local ProgressBarRE = EffectsRemotes:WaitForChild("ProgressBar")
+
 local InteractionRemotes = Remotes:WaitForChild("Interactions")
 local UpdateVisibilityParametersRE = InteractionRemotes:WaitForChild("UpdateVisibilityParameters")
+
+local CharacterRemotes = Remotes:WaitForChild("Character")
+local PlayAnimationRE = CharacterRemotes:WaitForChild("PlayAnimation")
+local StopAnimationRE = CharacterRemotes:WaitForChild("StopAnimation")
 
 local Assets = ServerStorage:WaitForChild("Assets")
 local Foods = Assets:WaitForChild("Foods")
@@ -47,6 +53,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
             if Debounce[objectOnTop] then return end
             Debounce[objectOnTop] = true
             choppingBoard:AddTag("LOCKED")
+            PlayAnimationRE:FireClient(player, "Chop", true)
 
             local chopped = ChoppedFoods:FindFirstChild(`chopped_{(objectOnTop.Name)}`)
             if chopped then
@@ -61,6 +68,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                     task.wait(ChopDelay)
                 end
                 if ChoppingProgress[objectOnTop] and ChoppingProgress[objectOnTop] >= 100 then
+                    StopAnimationRE:FireClient(player, "Chop")
                     ProgressBarRE:FireAllClients("ChoppingProgress", {
                         s = false, o = objectOnTop, d = true
                     })
@@ -79,6 +87,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                 Debounce[objectOnTop] = nil
             end
         else
+            StopAnimationRE:FireClient(player, "Chop")
             if (not ChoppingProgress[objectOnTop]) or ChoppingProgress[objectOnTop] < 100 then
                 choppingBoard:RemoveTag("LOCKED")
                 ProgressBarRE:FireAllClients("ChoppingProgress", {

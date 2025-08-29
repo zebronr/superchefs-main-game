@@ -71,7 +71,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
     local bestPart, bestScore = nil, -math.huge
 
     for _, part in ipairs(nearby) do
-        if part:GetAttribute("interactionDisabled") then continue end
+        if part:GetAttribute("interactionDisabled") or not part:GetAttribute("objectClass") then continue end
         
         local distance = (part.Position - HRP.Position).Magnitude
         if distance >= (

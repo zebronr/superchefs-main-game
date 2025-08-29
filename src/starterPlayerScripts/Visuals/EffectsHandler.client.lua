@@ -25,7 +25,7 @@ local BurningWarning = Assets:WaitForChild("BurningWarning")
 local FireEmitter = Assets:WaitForChild("FireEmitter")
 local DashTrail = Assets:WaitForChild("DashTrail")
 
-local EffectsModules = script.Parent:WaitForChild("EffectsModules")
+local EffectsModules = script.Parent.Parent:WaitForChild("EffectsModules")
 local GIFModule = require(EffectsModules:WaitForChild("GIFModule"))
 
 local effects = {}

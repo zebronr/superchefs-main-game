@@ -9,13 +9,30 @@ local Bindables = ServerStorage:WaitForChild("Bindables")
 local CompleteOrderBE = Bindables:WaitForChild("CompleteOrder")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local ReadySetGoRE = EffectsRemotes:WaitForChild("ReadySetGo")
+
 local OrderRemotes = Remotes:WaitForChild("OrderRemotes")
 local ClearOrdersRE = OrderRemotes:WaitForChild("ClearOrders")
 local CacheOrdersRE = OrderRemotes:WaitForChild("CacheOrders")
 local AddOrderRE = OrderRemotes:WaitForChild("AddOrder")
 local CompleteOrderRE = OrderRemotes:WaitForChild("CompleteOrder")
 
-local SetCameraRE = Remotes:WaitForChild("Camera"):WaitForChild("SetCamera")
+local CharacterRemotes = Remotes:WaitForChild("Character")
+local LoadAnimationRE = CharacterRemotes:WaitForChild("LoadAnimations")
+
+local CameraRemotes = Remotes:WaitForChild("Camera")
+local SetCameraRE = CameraRemotes:WaitForChild("SetCamera")
+
+local GameRemotes = Remotes:WaitForChild("Game")
+local SetGameUIRE = GameRemotes:WaitForChild("SetGameUI")
+
+local GameInfoRemotes = Remotes:WaitForChild("GameInfo")
+local UpdateCoinRE = GameInfoRemotes:WaitForChild("UpdateCoin")
+
+local InteractionsRemotes = Remotes:WaitForChild("Interactions")
+local UpdateVisibilityParametersRE = InteractionsRemotes:WaitForChild("UpdateVisibilityParameters")
 
 local LevelsData = script.Parent:WaitForChild("LevelsData")
 
@@ -25,6 +42,11 @@ local orderThreads = Cache.RegisterCache(`{script.Name}_orderThreads`)
 local orderLock = Cache.RegisterCache(`{script.Name}_orderLock`)
 local orderNumber = Cache.RegisterCache(`{script.Name}_orderNumber`)
 
+local teamCoins = Cache.RegisterCache(`{script.Name}_teamCoins`)
+
+local loadedMap
+local loadedLevelData
+
 local function setTeams(teamCount, teamOverwrite)
     teams = {} or teamOverwrite
 
@@ -32,6 +54,8 @@ local function setTeams(teamCount, teamOverwrite)
         for i=1, teamCount do
             teams[i] = {}
         end
+    else
+        return
     end
     
     if teamCount == 1 then
@@ -64,7 +88,6 @@ local function findPlayerTeam(player)
 end
 
 ---
-local loadedLevelData
 
 local function orderSequence(team_i, sequence)
     for i=1, #sequence do
@@ -118,11 +141,18 @@ local function startOrders(team_i)
     end)
 end
 
-local function startGame(level, teamOverwrite)
+local function loadMap(level)
     loadedLevelData = require(level:WaitForChild("LevelData"))
 
-    local map:Folder = (loadedLevelData.map):Clone()
-    map.Parent = workspace:WaitForChild("$GAME")
+    loadedMap = (loadedLevelData.map):Clone()
+    loadedMap.Parent = workspace:WaitForChild("$GAME")
+
+    task.wait(3)
+    UpdateVisibilityParametersRE:FireAllClients()
+end
+
+local function startGame(level, teamOverwrite)
+    loadedLevelData = require(level:WaitForChild("LevelData"))
 
     CacheOrdersRE:FireAllClients(loadedLevelData.recipes)
     print("CACHED")
@@ -131,14 +161,26 @@ local function startGame(level, teamOverwrite)
     for team_i, team in pairs(teams) do
         for i, player in pairs(team) do
             local character = player.Character or player.CharacterAdded:Wait()
-            local spawner = map:WaitForChild(`{team_i}_spawn{i}`)
+            local spawner = loadedMap:WaitForChild(`{team_i}_spawn{i}`)
             character:MoveTo(spawner.Position)
         end
     end
     ---
+    ReadySetGoRE:FireAllClients()
+    task.wait(3)
 
     for i, team in pairs(teams) do
         startOrders(i)
+    end
+end
+
+local function grantCoins(team_i, value)
+    teamCoins[team_i] = teamCoins[team_i] or 0
+
+    teamCoins[team_i] += value
+
+    for _, player in pairs(teams[team_i]) do
+        UpdateCoinRE:FireClient(player, teamCoins[team_i])
     end
 end
 
@@ -166,6 +208,8 @@ local function completeOrder(team_i, food)
                 CompleteOrderRE:FireClient(player, order.orderNum)
             end
 
+            grantCoins(team_i, 10)
+
             if not next(orderThreads[team_i]) then
                 orderLock[team_i] = false
                 print("unlocking because completed")
@@ -185,5 +229,11 @@ end)
 task.wait(5)
 
 --testing phase
---[[SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
-startGame(LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1"))]]--
+local selectedLevel = LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1")
+
+loadMap(selectedLevel)
+LoadAnimationRE:FireAllClients()
+
+SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
+SetGameUIRE:FireAllClients(true)
+startGame(selectedLevel)

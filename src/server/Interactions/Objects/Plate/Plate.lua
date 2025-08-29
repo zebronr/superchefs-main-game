@@ -40,6 +40,7 @@ local function plateFood(plate, food, player)
     if platedFood then
         platedFood = platedFood:Clone()
         platedFood.Parent = plate
+        platedFood.CanCollide = false
 
         local foodImage = food:WaitForChild("FoodList")
         foodImage:WaitForChild("ImageLabel").Parent = plate:WaitForChild("FoodList")
