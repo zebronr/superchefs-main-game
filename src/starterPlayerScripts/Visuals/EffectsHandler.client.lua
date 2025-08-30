@@ -24,6 +24,7 @@ local CookingFinished = Assets:WaitForChild("CookingFinished")
 local BurningWarning = Assets:WaitForChild("BurningWarning")
 local FireEmitter = Assets:WaitForChild("FireEmitter")
 local DashTrail = Assets:WaitForChild("DashTrail")
+local ObjectNotification = Assets:WaitForChild("ObjectNotification")
 
 local EffectsModules = script.Parent.Parent:WaitForChild("EffectsModules")
 local GIFModule = require(EffectsModules:WaitForChild("GIFModule"))
@@ -268,6 +269,62 @@ function effects.dash(parameters)
 			cachedTrail:Destroy()
 		end
 	end
+end
+
+function effects.objectNotif(parameters)
+    local object = parameters.o
+    local text = parameters.t
+
+    local ui = ObjectNotification:Clone()
+    local textLabel = ui:WaitForChild("TextLabel")
+
+    textLabel.Text = text
+    ui.Parent = object
+    ui.Enabled = true
+
+    local tweenUp = TweenService:Create(textLabel, TweenInfo.new(1.3, Enum.EasingStyle.Linear), {
+        Position = UDim2.new(0.5,0,0,0)
+    })
+    local tweenFade = TweenService:Create(textLabel, TweenInfo.new(.5, Enum.EasingStyle.Linear), {
+        TextTransparency = 1
+    })
+
+    tweenUp:Play()
+    task.wait(.8)
+    tweenFade:Play()
+
+    tweenFade.Completed:Wait()
+    ui:Destroy()
+end
+
+local popUpDebounce = {}
+
+function effects.popUpText(parameters)
+    local scale = parameters.sc
+    local color = parameters.c
+    local speed = parameters.s
+    local text = parameters.l
+
+    if popUpDebounce[text] then return end
+    popUpDebounce[text] = true
+
+    local originalColor = text.TextColor3
+    local originalSize = text.Size
+
+    local enlarge = TweenService:Create(text, TweenInfo.new(speed/2), {
+        Size = UDim2.new(text.Size.X.Scale*scale,0,text.Size.Y.Scale*scale,0), 
+        TextColor3 = color or originalColor
+    })
+    local shrink = TweenService:Create(text, TweenInfo.new(speed/2), {
+        Size = originalSize, 
+        TextColor3 = originalColor
+    })
+
+    enlarge:Play()
+    enlarge.Completed:Wait()
+    shrink:Play()
+    shrink.Completed:Wait()
+    popUpDebounce[text] = nil
 end
 
 EffectsRE.OnClientEvent:Connect(function(effectType, parameters)

@@ -17,6 +17,7 @@ function module.findHighestStack(origin)
 
     while true do
         local above = Welds.isObjectOnTop(current)
+        if above and not (above:GetAttribute("objectClass") == "Plate" or above:GetAttribute("objectClass") == "DirtyPlate") then break end
         if not above then
             break
         end
@@ -58,8 +59,6 @@ function module.stackPlates(origin, newPlate)
     local highestStack = module.findHighestStack(origin)
 
     ToggleInteraction.Set(newPlate, false)
-
-    newPlate.Parent = origin
 
     Welds.PlaceObjectOnTop(newPlate, highestStack)
 end

@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
@@ -30,9 +31,15 @@ local SetGameUIRE = GameRemotes:WaitForChild("SetGameUI")
 
 local GameInfoRemotes = Remotes:WaitForChild("GameInfo")
 local UpdateCoinRE = GameInfoRemotes:WaitForChild("UpdateCoin")
+local ResetGameInfoUIRE = GameInfoRemotes:WaitForChild("Reset")
+local StartTimerRE = GameInfoRemotes:WaitForChild("StartTimer")
+local EndTimerRE = GameInfoRemotes:WaitForChild("EndTimer")
 
 local InteractionsRemotes = Remotes:WaitForChild("Interactions")
 local UpdateVisibilityParametersRE = InteractionsRemotes:WaitForChild("UpdateVisibilityParameters")
+
+local Objects = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions"):WaitForChild("Objects")
+local PlateTableModule = require(Objects:WaitForChild("PlateTable"):WaitForChild("PlateTable"))
 
 local LevelsData = script.Parent:WaitForChild("LevelsData")
 
@@ -43,6 +50,7 @@ local orderLock = Cache.RegisterCache(`{script.Name}_orderLock`)
 local orderNumber = Cache.RegisterCache(`{script.Name}_orderNumber`)
 
 local teamCoins = Cache.RegisterCache(`{script.Name}_teamCoins`)
+local teamPoints = Cache.RegisterCache(`{script.Name}_teamPoints`)
 
 local loadedMap
 local loadedLevelData
@@ -168,6 +176,10 @@ local function startGame(level, teamOverwrite)
     ---
     ReadySetGoRE:FireAllClients()
     task.wait(3)
+    StartTimerRE:FireAllClients({
+        s = loadedLevelData.levelDuration,
+        sT = tick()
+    })
 
     for i, team in pairs(teams) do
         startOrders(i)
@@ -223,6 +235,12 @@ end
 CompleteOrderBE.Event:Connect(function(player, plateContent)
     local team_i = findPlayerTeam(player)
 
+    PlateTableModule.AddPlate(
+        loadedMap:WaitForChild("Objects"):WaitForChild("PlateTable"),
+        1.5,
+        loadedLevelData.enableDirtyPlates
+    )
+
     completeOrder(team_i, plateContent)
 end)
 
@@ -233,6 +251,7 @@ local selectedLevel = LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1")
 
 loadMap(selectedLevel)
 LoadAnimationRE:FireAllClients()
+ResetGameInfoUIRE:FireAllClients(loadedLevelData.levelDuration)
 
 SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
 SetGameUIRE:FireAllClients(true)

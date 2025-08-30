@@ -6,7 +6,8 @@ module.PriorityLevel = {
     Plate = 2,
     CookingTool = 2.5,
     Food = 1,
-    ServingCounter = 3
+    ServingCounter = 3,
+    PlateTable = 3
 }
 
 return module

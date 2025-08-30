@@ -51,7 +51,7 @@ function requestTypes.fall(parameters)
     local sentTime = parameters.sT
 
     if State then
-        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime
+        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime ----
         local f = 0 + travelTime
 
         local totalDistance = (Projectile.Position-FloorPosition).Magnitude

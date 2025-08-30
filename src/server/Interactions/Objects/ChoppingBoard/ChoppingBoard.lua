@@ -50,13 +50,13 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
 
     if objectOnTop then
         if heldState then
-            if Debounce[objectOnTop] then return end
+            if Debounce[objectOnTop] then return end -- added to prevent doubling of loops
             Debounce[objectOnTop] = true
             choppingBoard:AddTag("LOCKED")
-            PlayAnimationRE:FireClient(player, "Chop", true)
 
             local chopped = ChoppedFoods:FindFirstChild(`chopped_{(objectOnTop.Name)}`)
             if chopped then
+                PlayAnimationRE:FireClient(player, "Chop", true)
                 isBeingChopped[objectOnTop] = true
                 ChoppingProgress[objectOnTop] = ChoppingProgress[objectOnTop] or 0
                 ProgressBarRE:FireAllClients("ChoppingProgress", {

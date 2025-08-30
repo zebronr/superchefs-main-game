@@ -21,4 +21,11 @@ local CoinsLabel = CoinsFrame:WaitForChild("TextLabel")
 UpdateCoinRE.OnClientEvent:Connect(function(amount)
     CoinsLabel.Text = amount
     EffectsBE:Fire("spinCoin")
+
+    EffectsBE:Fire("popUpText", {
+        sc = 1.3,
+        c = Color3.fromRGB(14, 255, 14),
+        s = 1,
+        l = CoinsLabel
+    })
 end)

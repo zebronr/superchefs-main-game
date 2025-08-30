@@ -22,7 +22,7 @@ local function sync()
     
         task.wait(0.1)
     end
-
+    --print(bestOffsetThisRound)
     ReplicatedStorage:SetAttribute("timeOffset", bestOffsetThisRound)
 end
 

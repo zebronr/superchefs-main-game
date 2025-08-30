@@ -36,7 +36,7 @@ function functions.ChoppingProgress(parameters)
     Progress[object] = Progress[object] or 0
 
     if state then
-        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime
+        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime ---
         local objectProgressBar = object:FindFirstChild("ProgressBar") or ProgressBar:Clone()
         objectProgressBar.Parent = object
         updateProgressBar(objectProgressBar, Progress[object])
@@ -81,7 +81,7 @@ function functions.CookingProgress(parameters)
         isProgress[object] = true
 
         ---TAKE KNOWLEDGE OF TRAVEL TIME FOR MORE SYNCED PROGRESS
-        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime
+        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime ---
         Progress[object] += travelTime*progressRate
         updateProgressBar(objectProgressBar, Progress[object])
 
@@ -117,7 +117,7 @@ function functions.changeProgress(parameters)
     local progress = parameters.p
     local progressRate = parameters.pR
     local sentTime = parameters.sT
-    local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime
+    local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime ----
 
     Progress[object] = progress + (progressRate*travelTime)
 end
@@ -138,7 +138,7 @@ function functions.washingProgress(parameters)
 
         isProgress[object] = true
 
-        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime
+        local travelTime = tick() + ReplicatedStorage:GetAttribute("timeOffset") - sentTime ---
         Progress[object] += travelTime*progressRate
         updateProgressBar(objectProgressBar, Progress[object])
 

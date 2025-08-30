@@ -32,7 +32,7 @@ function module.BurnObject(object)
     fireValue.Parent = object
     fireValue.Value = 100
 
-    object:AddTag("LOCKED")
+    object:AddTag("FIRELOCKED")
 
     EffectsRE:FireAllClients("fire", {
         fV = fireValue,

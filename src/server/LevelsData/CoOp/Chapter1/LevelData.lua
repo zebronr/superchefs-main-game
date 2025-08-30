@@ -17,7 +17,7 @@ module.recipes = {
         food_name = "chopped_cucumber",
         time = 40,
         steps = {
-            [1] = {ingredient_images = {[1] = ""}}
+            [1] = {ingredient_images = {[1] = "rbxassetid://93289946475863"}}
         },
         foodImage = ""
     },
@@ -25,7 +25,7 @@ module.recipes = {
         food_name = "chopped_mango",
         time = 40,
         steps = {
-            [1] = {ingredient_images = {[1] = ""}}
+            [1] = {ingredient_images = {[1] = "rbxassetid://98776364547107"}}
         },
         foodImage = ""
     },
@@ -33,8 +33,8 @@ module.recipes = {
         food_name = "salad(mango_cucumber)",
         time = 60,
         steps = {
-            [1] = {ingredient_images = {[1] = ""}},
-            [2] = {ingredient_images = {[1] = ""}}
+            [1] = {ingredient_images = {[1] = "rbxassetid://93289946475863"}},
+            [2] = {ingredient_images = {[1] = "rbxassetid://98776364547107"}}
         },
         foodImage = ""
     }

@@ -2,9 +2,15 @@ local module = {}
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Bindables = ServerStorage:WaitForChild("Bindables")
 local CompleteOrderBE = Bindables:WaitForChild("CompleteOrder")
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local EffectsRemotes = Remotes:WaitForChild("Effects")
+local EffectsRE = EffectsRemotes:WaitForChild("Effects")
 
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 local Objectaction = require(CoreFunctions:WaitForChild("Actions"):WaitForChild("ObjectAction"))
@@ -20,6 +26,11 @@ function module.Interact(player, objectCarried, servingCounter)
             Objectaction.DropObject(player, true)
             objectCarried:Destroy()
         end
+    elseif objectCarried and objectCarried:GetAttribute("objectClass") == "Food" and string.find(objectCarried.Name, "chopped_") then
+        EffectsRE:FireClient(player, "objectNotif", {
+            t = "NEEDS PLATE!",
+            o = servingCounter
+        })
     end
 end
 

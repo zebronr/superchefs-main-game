@@ -21,7 +21,7 @@ function module.Interact(player, objectCarried, countertop)
     --print("COUNTERTOP INTERACT", player, objectCarried, countertop)
     local objectOnTop = Welds.isObjectOnTop(countertop)
 
-    if (objectOnTop and objectOnTop:HasTag("LOCKED")) or countertop:HasTag("LOCKED") then return end
+    if (objectOnTop and objectOnTop:HasTag("LOCKED")) or countertop:HasTag("LOCKED") or countertop:HasTag("FIRELOCKED") then return end
 
     if objectCarried then
         if not objectOnTop then

@@ -60,7 +60,7 @@ function module.Use(player, objectCarried, visibleObject, heldState)
                                 fire.Value -= deductFire
                                 if fire.Value <= 0 then
                                     fire:Destroy()
-                                    ray.Instance:RemoveTag("LOCKED")
+                                    ray.Instance:RemoveTag("FIRELOCKED")
                                 end
                             end
                         end

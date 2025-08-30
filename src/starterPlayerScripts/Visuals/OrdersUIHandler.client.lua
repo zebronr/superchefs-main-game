@@ -179,6 +179,13 @@ local function addOrder(data)
                 ui = process3slot
             end
 
+            for i, image in pairs(step.ingredient_images) do
+                local label = ui:FindFirstChild(`ingredient{i}`)
+                if label then
+                    label.Image = image
+                end
+            end
+
             ui = ui:Clone()
             ui.Visible = false
 
@@ -249,7 +256,7 @@ AddOrderRE.OnClientEvent:Connect(function(id, changedParameters, timeSent)
         end
     end
 
-    data.time -= tick() + ReplicatedStorage:GetAttribute("timeOffset") - timeSent -- sync the timer more accurately to the server
+    data.time -= tick() + ReplicatedStorage:GetAttribute("timeOffset") - timeSent-- sync the timer more accurately to the server
     
     addOrder(data)
 end)
