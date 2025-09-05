@@ -10,6 +10,7 @@ local GameInfo = PlayerGui:WaitForChild("GameInfo")
 local InfoFrame = GameInfo:WaitForChild("InfoFrame")
 local CoinsFrame = InfoFrame:WaitForChild("CoinsFrame")
 local CoinSprite = CoinsFrame:WaitForChild("CoinSprite")
+local CoinNotification = GameInfo:WaitForChild("CoinNotification")
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local EffectsRemotes = Remotes:WaitForChild("Effects")
@@ -25,6 +26,7 @@ local BurningWarning = Assets:WaitForChild("BurningWarning")
 local FireEmitter = Assets:WaitForChild("FireEmitter")
 local DashTrail = Assets:WaitForChild("DashTrail")
 local ObjectNotification = Assets:WaitForChild("ObjectNotification")
+local ErrorHighlight = Assets:WaitForChild("ErrorHighlight")
 
 local EffectsModules = script.Parent.Parent:WaitForChild("EffectsModules")
 local GIFModule = require(EffectsModules:WaitForChild("GIFModule"))
@@ -325,6 +327,101 @@ function effects.popUpText(parameters)
     shrink:Play()
     shrink.Completed:Wait()
     popUpDebounce[text] = nil
+end
+
+function effects.coinNotif(parameters)
+    local notifType = parameters.nT
+    local coin_amount = parameters.cA
+    local tip_amount = parameters.tA
+
+    local ui = CoinNotification:Clone()
+    ui.Parent = CoinNotification.Parent
+    if notifType == 1 then --coin
+        ui.TextColor3 = Color3.fromRGB(47,255,10)
+        ui.Text = `+{coin_amount}`
+    elseif notifType == 2 then
+        ui.TextColor3 = Color3.fromRGB(255,207,15)
+        ui.Text = `+{tip_amount} TIP!`
+    end
+
+    local raiseUp = TweenService:Create(ui, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {
+        Position = UDim2.new(0.5, 0,0.624, 0)
+    })
+    local fadeOut = TweenService:Create(ui, TweenInfo.new(.7, Enum.EasingStyle.Linear), {TextTransparency = 1})
+    ui.Visible = true
+    raiseUp:Play()
+    task.wait(.8)
+    fadeOut:Play()
+    fadeOut.Completed:Wait()
+    ui:Destroy()
+end
+
+local spreadPos = {
+    [1] = Vector3.new(1,0,1),
+    [2] = Vector3.new(-1,0,1),
+    [3] = Vector3.new(1,0,-1),
+    [4] = Vector3.new(-1,0,-1),
+
+    [5] = Vector3.new(0,0,-1),
+    [6] = Vector3.new(0,0,1),
+    [7] = Vector3.new(-1,0,0),
+    [8] = Vector3.new(1,0,0),
+}
+local spreadAmountMin = 2.2
+local spreadAmountMax = 2.7
+local sizeMultiplierMin = 1.7
+local sizeMultiplierMax = 2.5
+
+function effects.orderFinish(parameters)
+    local servingCounter = parameters.o
+    
+    local spreadtweens = {}
+    local fadeouttweens = {}
+    local smokes = {}
+
+    for i=1,#spreadPos do
+        smokes[i] = DashTrail:Clone()
+        local smoke = smokes[i]
+
+        smoke.Size = Vector3.new(0.974, 0.452, 0.841)
+        smoke.Position = servingCounter.Position
+        smoke.Transparency = 0 
+        smoke.Material = Enum.Material.Neon
+        smoke.BrickColor = BrickColor.new("Fossil")
+
+        smokes[i].Parent = workspace["$Temp"]
+
+        spreadtweens[i] = TweenService:Create(smoke, TweenInfo.new(1, Enum.EasingStyle.Circular), {
+            Position = smoke.Position + (spreadPos[i]*math.random(spreadAmountMin,spreadAmountMax)),
+            Size = smoke.Size*math.random(sizeMultiplierMin,sizeMultiplierMax)
+        })
+        fadeouttweens[i] = TweenService:Create(smoke, TweenInfo.new(.5, Enum.EasingStyle.Cubic), {
+            Transparency = 1
+        })
+    end
+
+    for i=1,#spreadPos do
+        spreadtweens[i]:Play()
+        task.delay(.5, function()
+            fadeouttweens[i]:Play()
+            fadeouttweens[i].Completed:Wait()
+            smokes[i]:Destroy()
+        end)
+    end
+end
+
+function effects.objError(parameters)
+    local object = parameters.o
+
+    local highlight = ErrorHighlight:Clone()
+    highlight.Parent = object
+
+    for i = 1, 6 do
+        highlight.Enabled = not highlight.Enabled
+        task.wait(.05)
+    end
+
+    highlight:Destroy()
 end
 
 EffectsRE.OnClientEvent:Connect(function(effectType, parameters)

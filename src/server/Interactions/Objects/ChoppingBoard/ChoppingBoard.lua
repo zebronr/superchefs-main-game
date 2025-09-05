@@ -62,12 +62,14 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                 ProgressBarRE:FireAllClients("ChoppingProgress", {
                     s = true, cD = ChopDelay, pPC = ProgressAmount, o = objectOnTop, sT = tick()
                 })
-                while ChoppingProgress[objectOnTop] and isBeingChopped[objectOnTop] and ChoppingProgress[objectOnTop] < 100 do
+                while ChoppingProgress[objectOnTop] and isBeingChopped[objectOnTop] and ChoppingProgress[objectOnTop] <= 100 do
                     ChoppingProgress[objectOnTop] += ProgressAmount
                     --print(ChoppingProgress[objectOnTop])
-                    task.wait(ChopDelay)
+                    if ChoppingProgress[objectOnTop] <= 100 then
+                        task.wait(ChopDelay)
+                    end
                 end
-                if ChoppingProgress[objectOnTop] and ChoppingProgress[objectOnTop] >= 100 then
+                if ChoppingProgress[objectOnTop] and ChoppingProgress[objectOnTop] > 100 then
                     StopAnimationRE:FireClient(player, "Chop")
                     ProgressBarRE:FireAllClients("ChoppingProgress", {
                         s = false, o = objectOnTop, d = true
@@ -79,7 +81,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
                     objectOnTop:Destroy()
                     chopped = chopped:Clone()
                     ToggleInteraction.Set(chopped, false)
-                    chopped.Parent = workspace:FindFirstChild("$FoodContainers")
+                    chopped.Parent = workspace:FindFirstChild("$GAME")
                     UpdateVisibilityParametersRE:FireAllClients()
                     Welds.PlaceObjectOnTop(chopped, choppingBoard)
                     choppingBoard:RemoveTag("LOCKED")
@@ -88,7 +90,7 @@ function module.Use(player, objectCarried, choppingBoard, heldState)
             end
         else
             StopAnimationRE:FireClient(player, "Chop")
-            if (not ChoppingProgress[objectOnTop]) or ChoppingProgress[objectOnTop] < 100 then
+            if (not ChoppingProgress[objectOnTop]) or ChoppingProgress[objectOnTop] <= 100 then
                 choppingBoard:RemoveTag("LOCKED")
                 ProgressBarRE:FireAllClients("ChoppingProgress", {
                     s = false, o = objectOnTop

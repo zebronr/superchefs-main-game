@@ -7,8 +7,8 @@ module.MinimumDistance = {
 }
 
 module.PriorityLevel = {
-    Food = 1.4,
-    ServingCounter = 1.5
+    Food = 1.15,
+    ServingCounter = 1.3
 }
 
 return module

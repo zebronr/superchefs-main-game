@@ -34,6 +34,7 @@ function module.countStack(origin)
 
     while true do
         local above = Welds.isObjectOnTop(current)
+        if above and not (above:GetAttribute("objectClass") == "Plate" or above:GetAttribute("objectClass") == "DirtyPlate") then break end
         if not above then
             break
         end
@@ -64,11 +65,13 @@ function module.stackPlates(origin, newPlate)
 end
 
 function module.Interact(player, objectCarried, visibleObject)
+    print(objectCarried, visibleObject)
     if not objectCarried and visibleObject then
         ObjectAction.PickupObject(player, visibleObject)
     elseif objectCarried and not visibleObject then
         ObjectAction.DropObject(player)
     elseif objectCarried and objectCarried:GetAttribute("objectClass") == "DirtyPlate" and visibleObject and visibleObject:GetAttribute("objectClass") == "DirtyPlate" then
+        Welds.unweldFromSurface(visibleObject)
         module.stackPlates(objectCarried, visibleObject)
     end
 end

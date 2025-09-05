@@ -32,7 +32,7 @@ function module.PickupObject(player:Player, object:BasePart)
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
     object.Massless = true
-
+    object.Anchored = false
     object:SetNetworkOwner(player)
 
     local objectOffset = object:GetAttribute("holdingOffset") or Vector3.new(0,0,0)
@@ -62,6 +62,7 @@ function module.DropObject(player:Player, dontEnable)
         objectHolder:Destroy()
 
         object.Massless = false
+        object.Anchored = false
         object:SetNetworkOwner(player)
 
         object.CanCollide = true

@@ -2,6 +2,12 @@ local module = {}
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local InteractionsRemotes = Remotes:WaitForChild("Interactions")
+local UpdateVisibilityParametersRE = InteractionsRemotes:WaitForChild("UpdateVisibilityParameters")
 
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 local Interactions = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions")
@@ -28,11 +34,22 @@ function module.AddPlate(plateTable, delay, dirty)
         end
 
         clonePlate.Parent = workspace["$GAME"]
+        clonePlate:SetAttribute("interactionDisabled", true)
+        UpdateVisibilityParametersRE:FireAllClients()
         
         local objectOnTop = Welds.isObjectOnTop(plateTable)
 
         if objectOnTop then
-            DirtyPlateModule.stackPlates(objectOnTop, clonePlate)
+            local stackCount = DirtyPlateModule.countStack(objectOnTop)
+            if stackCount >= 2 then
+                local lastHighestStack = DirtyPlateModule.takeHighestPlate(objectOnTop, true)
+                DirtyPlateModule.stackPlates(objectOnTop, clonePlate)
+                DirtyPlateModule.stackPlates(objectOnTop, lastHighestStack)
+            else
+                Welds.unweldObjectOnTop(plateTable)
+                Welds.PlaceObjectOnTop(clonePlate, plateTable)
+                DirtyPlateModule.stackPlates(clonePlate, objectOnTop)
+            end
         else
             Welds.PlaceObjectOnTop(clonePlate, plateTable)
         end
@@ -51,8 +68,13 @@ function module.Interact(player, objectCarried, plateTable)
             ObjectAction.PickupObject(player, highestStack)
         end
     elseif objectOnTop and objectOnTop:GetAttribute("objectClass") == "DirtyPlate" then
-        Welds.unweldObjectOnTop(plateTable)
-        ObjectAction.PickupObject(player, objectOnTop)
+        if not objectCarried then
+            Welds.unweldObjectOnTop(plateTable)
+            ObjectAction.PickupObject(player, objectOnTop)
+        elseif objectCarried:GetAttribute("objectClass") == "DirtyPlate" then
+            Welds.unweldObjectOnTop(plateTable)
+            DirtyPlateModule.stackPlates(objectCarried, objectOnTop)
+        end
     end
 end
 

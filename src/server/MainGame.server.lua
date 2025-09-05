@@ -13,6 +13,7 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local EffectsRemotes = Remotes:WaitForChild("Effects")
 local ReadySetGoRE = EffectsRemotes:WaitForChild("ReadySetGo")
+local EffectsRE = EffectsRemotes:WaitForChild("Effects")
 
 local OrderRemotes = Remotes:WaitForChild("OrderRemotes")
 local ClearOrdersRE = OrderRemotes:WaitForChild("ClearOrders")
@@ -35,6 +36,11 @@ local ResetGameInfoUIRE = GameInfoRemotes:WaitForChild("Reset")
 local StartTimerRE = GameInfoRemotes:WaitForChild("StartTimer")
 local EndTimerRE = GameInfoRemotes:WaitForChild("EndTimer")
 
+local NPCsRemotes = Remotes:WaitForChild("NPCs")
+local LoadPathsRE = NPCsRemotes:WaitForChild("LoadPaths")
+local SpawnNPCRE = NPCsRemotes:WaitForChild("SpawnNPC")
+local ClearRE = NPCsRemotes:WaitForChild("Clear")
+
 local InteractionsRemotes = Remotes:WaitForChild("Interactions")
 local UpdateVisibilityParametersRE = InteractionsRemotes:WaitForChild("UpdateVisibilityParameters")
 
@@ -48,6 +54,7 @@ local teamHandlingThreads = Cache.RegisterCache(`{script.Name}_teamHandlingThrea
 local orderThreads = Cache.RegisterCache(`{script.Name}_orderThreads`)
 local orderLock = Cache.RegisterCache(`{script.Name}_orderLock`)
 local orderNumber = Cache.RegisterCache(`{script.Name}_orderNumber`)
+local comboMultiplier = Cache.RegisterCache(`{script.Name}_comboMultiplier`)
 
 local teamCoins = Cache.RegisterCache(`{script.Name}_teamCoins`)
 local teamPoints = Cache.RegisterCache(`{script.Name}_teamPoints`)
@@ -169,7 +176,7 @@ local function startGame(level, teamOverwrite)
     for team_i, team in pairs(teams) do
         for i, player in pairs(team) do
             local character = player.Character or player.CharacterAdded:Wait()
-            local spawner = loadedMap:WaitForChild(`{team_i}_spawn{i}`)
+            local spawner = loadedMap:WaitForChild("SpawnPoints"):WaitForChild(`{team_i}_spawn{i}`)
             character:MoveTo(spawner.Position)
         end
     end
@@ -193,10 +200,14 @@ local function grantCoins(team_i, value)
 
     for _, player in pairs(teams[team_i]) do
         UpdateCoinRE:FireClient(player, teamCoins[team_i])
+        EffectsRE:FireClient(player, "coinNotif", {
+            nT = 1,
+            cA = value
+        })
     end
 end
 
-local function completeOrder(team_i, food)
+local function completeOrder(team_i, food, parameters)
     --re arrange orders list
     local orders = orderThreads[team_i]
     local arrangedList = {}
@@ -212,6 +223,10 @@ local function completeOrder(team_i, food)
         print(loadedLevelData.recipes[order.orderId].food_name  , food)
         if loadedLevelData.recipes[order.orderId].food_name == food then
             warn("FOUND EARLIEST OCCURENCE OF ", food, "IN", order.orderNum)
+            
+            EffectsRE:FireAllClients("orderFinish", {
+                o = parameters.servingCounter
+            })
 
             task.cancel(orderThreads[team_i][order.orderNum].thread)
             orderThreads[team_i][order.orderNum] = nil
@@ -229,19 +244,45 @@ local function completeOrder(team_i, food)
             return
         end
     end
+
+    EffectsRE:FireAllClients("objError", {
+        o = parameters.servingCounter
+    })
+    EffectsRE:FireClient(parameters.player, "objectNotif", {
+        t = "NO ORDER YET!",
+        o = parameters.servingCounter
+    })
     warn("NO ORDER OF THE GIVEN FOOD YET")
 end
 
-CompleteOrderBE.Event:Connect(function(player, plateContent)
+local npcsRunning = false
+
+local function NPCLoop(state)
+    if state then
+        npcsRunning = true
+        task.spawn(function()
+            while npcsRunning do
+                task.wait(2)
+                local starters = loadedMap:WaitForChild("NPCWaypoints"):WaitForChild("Starters")
+                SpawnNPCRE:FireAllClients(starters:GetChildren()[math.random(1,#starters:GetChildren())])
+            end
+        end)
+    else
+        npcsRunning = state
+    end
+end
+
+CompleteOrderBE.Event:Connect(function(player, plateContent, parameters)
     local team_i = findPlayerTeam(player)
 
     PlateTableModule.AddPlate(
-        loadedMap:WaitForChild("Objects"):WaitForChild("PlateTable"),
+        loadedMap:WaitForChild("Objects"):WaitForChild(`PlateTable_{team_i}`),
         1.5,
         loadedLevelData.enableDirtyPlates
     )
 
-    completeOrder(team_i, plateContent)
+    parameters.player = player
+    completeOrder(team_i, plateContent, parameters)
 end)
 
 task.wait(5)
@@ -250,9 +291,11 @@ task.wait(5)
 local selectedLevel = LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1")
 
 loadMap(selectedLevel)
+LoadPathsRE:FireAllClients(loadedMap:WaitForChild("NPCWaypoints")) -- NPCS
 LoadAnimationRE:FireAllClients()
 ResetGameInfoUIRE:FireAllClients(loadedLevelData.levelDuration)
+NPCLoop(true) -- test
 
-SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd").CFrame)
+SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd3").CFrame)
 SetGameUIRE:FireAllClients(true)
 startGame(selectedLevel)

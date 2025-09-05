@@ -22,7 +22,9 @@ function module.Interact(player, objectCarried, servingCounter)
     if objectCarried and objectCarried:GetAttribute("objectClass") == "Plate" then
         if PlateModule.PlateContent[objectCarried] and PlateModule.PlateContent[objectCarried][1] then
             local plateContent = PlateModule.PlateContent[objectCarried][1]
-            CompleteOrderBE:Fire(player, plateContent)
+            CompleteOrderBE:Fire(player, plateContent, {
+                servingCounter = servingCounter
+            })
             Objectaction.DropObject(player, true)
             objectCarried:Destroy()
         end

@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 local Cache = require(Shared:WaitForChild("Cache"))
@@ -46,6 +47,7 @@ function functions.ChoppingProgress(parameters)
         while isProgress[object] and not (Progress[object] >=  100) do
             n+=1
             Progress[object] += progressPerChop
+            SoundService:WaitForChild("Chop"):Play()
             updateProgressBar(objectProgressBar, Progress[object])
             if n == 1 then --just a lazy way to take the travel time into factor lmao sorry for whoever gon read this
                 task.wait(chopDelay-travelTime)
@@ -90,7 +92,7 @@ function functions.CookingProgress(parameters)
             Progress[object] += dt*progressRate
             updateProgressBar(objectProgressBar, Progress[object])
         end
-        if Progress[object] and Progress[object] >= 100 then
+        if Progress[object] and Progress[object] >= 100 then -- change this btw
             warn("DONE ON CLIENT")
             objectProgressBar:Destroy()
             isProgress[object] = nil

@@ -19,6 +19,20 @@ local FoodTree = require(script.Parent:WaitForChild("FoodTree"))
 
 module.PlateContent = Cache.RegisterCache(`{script.Name}_module.PlateContent`)
 
+local function clearPlate(plate)
+    module.PlateContent[plate] = nil
+
+    local food = Welds.isObjectOnTop(plate)
+    Welds.unweldObjectOnTop(plate)
+    food:Destroy()
+
+    for _, foodImage in pairs(plate:WaitForChild("FoodList"):GetChildren()) do
+        if foodImage:IsA("ImageLabel") then
+            foodImage:Destroy()
+        end
+    end
+end
+
 local function plateFood(plate, food, player)
     local platedFood
     local combination
@@ -74,17 +88,63 @@ local function plateFood(plate, food, player)
     end
 end
 
+local function mixFood(sourcePlate, targetPlate, player)
+    local platedFood
+    local combination
+
+    local cachedContent = table.clone(module.PlateContent[sourcePlate])
+    for _, f in pairs(module.PlateContent[targetPlate]) do
+        table.insert(cachedContent, f)
+    end
+
+    combination = FoodTree.CheckCombination(cachedContent)
+    if combination then
+        platedFood = PlatedFoods:FindFirstChild("plated_"..combination)
+    end
+    if platedFood then
+        platedFood = platedFood:Clone()
+        platedFood.Parent = targetPlate
+        platedFood.CanCollide = false
+
+        local FoodList = sourcePlate:WaitForChild("FoodList")
+        for _, foodImage in pairs(FoodList:GetChildren()) do
+            if foodImage:IsA("ImageLabel") then
+                foodImage.Parent = targetPlate:WaitForChild("FoodList")
+            end
+        end
+
+        clearPlate(sourcePlate)
+
+        module.PlateContent[targetPlate] = {combination}
+
+        Welds.PlaceObjectOnTop(platedFood, targetPlate, platedFood:GetAttribute("yOffset"))
+    end
+end
+
 function module.Interact(player, objectCarried, visibleObject)
+    print("REACHING HERE")
     if not objectCarried and visibleObject then
         ObjectAction.PickupObject(player, visibleObject)
     elseif objectCarried and not visibleObject then
         ObjectAction.DropObject(player)
     elseif objectCarried and visibleObject then
-        if objectCarried:GetAttribute("objectClass") == "Food" and visibleObject:GetAttribute("objectClass") == "Plate" then
+        local objectCarriedClass = objectCarried:GetAttribute("objectClass")
+        local visibleObjectClass = visibleObject:GetAttribute("objectClass")
+
+        if objectCarriedClass == "Food" and visibleObjectClass == "Plate" then
             --print("PUTTING FOOD ON PLATE")
             plateFood(visibleObject, objectCarried, player)
         elseif objectCarried:GetAttribute("objectClass") == "Plate" and visibleObject:GetAttribute("objectClass") == "Food" then
             plateFood(objectCarried, visibleObject, player)
+        elseif objectCarriedClass == "Plate" and visibleObjectClass == "Plate" then
+            local oCPlateContent = module.PlateContent[objectCarried]
+            local vOPlateContent = module.PlateContent[visibleObject]
+            if (oCPlateContent and not vOPlateContent) or (vOPlateContent and not oCPlateContent) then
+                ObjectAction.DropObject(player)
+                ObjectAction.PickupObject(player, visibleObject)
+            elseif oCPlateContent and vOPlateContent then
+                mixFood(visibleObject, objectCarried, player)
+            end
         end
     end
 end

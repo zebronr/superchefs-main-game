@@ -10,4 +10,9 @@ module.PriorityLevel = {
     PlateTable = 3
 }
 
+module.AllowInteractionWithSelf = {
+    DirtyPlate = true,
+    Plate = true
+}
+
 return module

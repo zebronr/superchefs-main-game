@@ -154,6 +154,7 @@ local function addOrder(data)
         frame.Parent = ListFrame
 
         local mainFrame = frame:WaitForChild("Frame")
+        mainFrame:WaitForChild("foodDisplay"):WaitForChild("ImageLabel").Image = data.foodImage
 
         local frameIn = TweenService:Create(mainFrame, TweenInfo.new(.4, Enum.EasingStyle.Back), {Position = mainFrame.Position})
         delay += .4

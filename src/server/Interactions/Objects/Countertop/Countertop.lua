@@ -24,6 +24,8 @@ function module.Interact(player, objectCarried, countertop)
     if (objectOnTop and objectOnTop:HasTag("LOCKED")) or countertop:HasTag("LOCKED") or countertop:HasTag("FIRELOCKED") then return end
 
     if objectCarried then
+        local objectCarriedClass = objectCarried:GetAttribute("objectClass")
+
         if not objectOnTop then
             if player then
                 ObjectAction.DropObject(player, true)
@@ -34,7 +36,10 @@ function module.Interact(player, objectCarried, countertop)
             CollectionService:AddTag(objectCarried, "projectileInteractionLock")
             return
         elseif objectOnTop then
-            if objectCarried:GetAttribute("objectClass") == objectOnTop:GetAttribute("objectClass") then
+            local objectOnTopClass = objectOnTop:GetAttribute("objectClass")
+
+            if objectCarriedClass == objectOnTopClass and not InteractionConfigs.AllowInteractionWithSelf[objectOnTopClass] then
+                print("welp")
                 if player then
                     Welds.unweldObjectOnTop(countertop)
                     ObjectAction.DropObject(player, true)
@@ -43,8 +48,8 @@ function module.Interact(player, objectCarried, countertop)
                 end
                 return
             else
-                local objectCarried_pL = InteractionConfigs.PriorityLevel[objectCarried:GetAttribute("objectClass")] or 1
-                local objectOnTop_pL = InteractionConfigs.PriorityLevel[objectOnTop:GetAttribute("objectClass")] or 1
+                local objectCarried_pL = InteractionConfigs.PriorityLevel[objectCarriedClass] or 1
+                local objectOnTop_pL = InteractionConfigs.PriorityLevel[objectOnTopClass] or 1
                     
                 local objectToInteractWith = objectOnTop
                 local objectToUseForInteraction = objectCarried
