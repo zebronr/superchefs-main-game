@@ -152,3 +152,11 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 - Floor and surface rays exclude the projectile itself. The legacy unfiltered rays could intersect its own collider; other floor geometry remains eligible.
 - Legacy stored both `simulate` and `fall` connections in `simulation[Projectile]`, but sent `stop` before `fall` in its normal path. The first connection was disconnected before the slot was overwritten, so a live-connection leak was not confirmed. The rewrite uses one render loop per controller.
 - Legacy had no `Destroying` cleanup for a projectile, but no ordinary gameplay path could destroy one during flight. Map teardown or external scripts could; the rewrite disconnects immediately if that happens.
+
+## Layer 8: Trash
+
+### Notes
+
+- No new fixes. The trash crash on a plate with content but no plated model is #21 (layer 3); `Plate.Clear` is safe there.
+- A pot's content can't be trashed, as in legacy (Trash ignores CookingTools), so a wrongly filled pot can't be emptied. Kept for parity; revisit when balancing gameplay.
+- An empty plate, a dirty plate, an extinguisher or empty hands do nothing at the trash, as in legacy.
