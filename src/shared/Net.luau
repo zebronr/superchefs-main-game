@@ -30,12 +30,13 @@ local function findRemote(name: string): Instance
 		warn(`Remote {name} is missing after 10 seconds; waiting for it`)
 		remote = folder:WaitForChild(name)
 	end
+	assert(remote ~= nil)
 	return remote
 end
 
 function Net.Event(name: string): RemoteEvent
 	local cached = events[name]
-	if cached ~= nil then
+	if cached then
 		return cached
 	end
 
@@ -47,7 +48,7 @@ end
 
 function Net.Function(name: string): RemoteFunction
 	local cached = functions[name]
-	if cached ~= nil then
+	if cached then
 		return cached
 	end
 
@@ -59,7 +60,7 @@ end
 
 function Net.UnreliableEvent(name: string): UnreliableRemoteEvent
 	local cached = unreliableEvents[name]
-	if cached ~= nil then
+	if cached then
 		return cached
 	end
 

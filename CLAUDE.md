@@ -27,4 +27,9 @@ Claude is the main agent. It does not write implementation code itself unless th
    - Split big jobs into focused tasks. Independent tasks can run in parallel; tasks touching the same files run one after another.
    - Codex must not commit, touch Studio, or use the Roblox MCP.
 3. **Verify.** Claude reviews the diff (`git diff`) against the spec: correctness, parity with legacy behavior, types, and code style matching the surrounding code. Fix small issues directly; send larger problems back to Codex with specific feedback.
+   Typecheck every change (must report zero errors). Use the full `~/.rokit/bin` path, because Aftman shadows `rojo` on PATH. `globalTypes.d.luau` is gitignored; re-download it from `https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau` if it's missing.
+
+   ```bash
+   ~/.rokit/bin/rojo sourcemap default.project.json -o sourcemap.json && ~/.rokit/bin/wally-package-types --sourcemap sourcemap.json Packages/ && ~/.rokit/bin/luau-lsp analyze --definitions=@roblox=globalTypes.d.luau --sourcemap=sourcemap.json --ignore="Packages/**" src
+   ```
 4. **Fallback.** If Codex fails because of quota or rate limits (or is otherwise unavailable), use a Sonnet subagent (`Agent` tool with `model: "sonnet"`) with the same spec, and tell the user Codex ran out.

@@ -9,17 +9,16 @@ Interactable.__index = Interactable
 
 type self = {
 	Instance: Instance,
-	Trove: Trove.Trove,
+	Trove: typeof(Trove.new()),
 }
 
 export type Interactable = typeof(setmetatable({} :: self, Interactable))
 
 function Interactable.new(instance: Instance): Interactable
-	local self: self = {
-		Instance = instance,
-		Trove = Trove.new(),
-	}
-	return setmetatable(self, Interactable)
+	local self = setmetatable({} :: self, Interactable)
+	self.Instance = instance
+	self.Trove = Trove.new()
+	return self
 end
 
 function Interactable.Interact(_self: Interactable, _player: Player, _heldItem: Instance?): boolean

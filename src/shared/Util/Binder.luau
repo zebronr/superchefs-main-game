@@ -21,7 +21,7 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 	local objects: { [Instance]: Bound } = {}
 	local binding: { [Instance]: boolean } = {}
 	local destroyingConnections: { [Instance]: RBXScriptConnection } = {}
-	local trove: Trove.Trove = Trove.new()
+	local trove = Trove.new()
 	local started = false
 	local destroyed = false
 
@@ -33,11 +33,11 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 		objects[instance] = nil
 
 		local connection = destroyingConnections[instance]
-		if connection ~= nil then
+		if connection then
 			destroyingConnections[instance] = nil
-			trove:Remove(connection)
+			connection:Disconnect()
 		end
-		local success, message = pcall(function(): ()
+		local success, message = pcall(function()
 			object:Destroy()
 		end)
 		if not success then
@@ -67,7 +67,7 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 		local connection = instance.Destroying:Connect(function(): ()
 			unbind(instance)
 		end)
-		destroyingConnections[instance] = trove:Add(connection)
+		destroyingConnections[instance] = connection
 	end
 
 	local binder: Binder<Bound> = {

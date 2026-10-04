@@ -7,7 +7,7 @@ local Binder = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Ut
 local BinderService = {}
 local binders: { [string]: Binder.Binder<Binder.Destroyable> } = {}
 
-local function register(tag: string, constructor: (Instance) -> Binder.Destroyable): ()
+local function _register(tag: string, constructor: (Instance) -> Binder.Destroyable): ()
 	binders[tag] = Binder.new(tag, constructor)
 end
 

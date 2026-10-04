@@ -9,3 +9,6 @@
 /ServerPackages
 /DevPackages
 sourcemap.json
+
+# Roblox type definitions for luau-lsp (downloaded)
+globalTypes.d.luau
