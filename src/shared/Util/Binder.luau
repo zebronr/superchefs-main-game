@@ -21,6 +21,7 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 	local objects: { [Instance]: Bound } = {}
 	local binding: { [Instance]: boolean } = {}
 	local destroyingConnections: { [Instance]: RBXScriptConnection } = {}
+	local ancestryConnections: { [Instance]: RBXScriptConnection } = {}
 	local trove = Trove.new()
 	local started = false
 	local destroyed = false
@@ -46,7 +47,13 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 	end
 
 	local function bind(instance: Instance): ()
-		if destroyed or objects[instance] ~= nil or binding[instance] or not CollectionService:HasTag(instance, tag) then
+		if
+			destroyed
+			or objects[instance] ~= nil
+			or binding[instance]
+			or not CollectionService:HasTag(instance, tag)
+			or not instance:IsDescendantOf(workspace)
+		then
 			return
 		end
 
@@ -59,7 +66,7 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 		end
 
 		local object: Bound = result
-		if destroyed or not CollectionService:HasTag(instance, tag) then
+		if destroyed or not CollectionService:HasTag(instance, tag) or not instance:IsDescendantOf(workspace) then
 			object:Destroy()
 			return
 		end
@@ -70,16 +77,40 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 		destroyingConnections[instance] = connection
 	end
 
+	-- Only instances inside workspace get objects; tagged templates elsewhere stay unbound.
+	local function track(instance: Instance): ()
+		if destroyed or ancestryConnections[instance] then
+			return
+		end
+		ancestryConnections[instance] = instance.AncestryChanged:Connect(function(): ()
+			if instance:IsDescendantOf(workspace) then
+				bind(instance)
+			else
+				unbind(instance)
+			end
+		end)
+		bind(instance)
+	end
+
+	local function untrack(instance: Instance): ()
+		local connection = ancestryConnections[instance]
+		if connection then
+			ancestryConnections[instance] = nil
+			connection:Disconnect()
+		end
+		unbind(instance)
+	end
+
 	local binder: Binder<Bound> = {
 		Start = function(_self: Binder<Bound>): ()
 			if started or destroyed then
 				return
 			end
 			started = true
-			trove:Connect(CollectionService:GetInstanceAddedSignal(tag), bind)
-			trove:Connect(CollectionService:GetInstanceRemovedSignal(tag), unbind)
+			trove:Connect(CollectionService:GetInstanceAddedSignal(tag), track)
+			trove:Connect(CollectionService:GetInstanceRemovedSignal(tag), untrack)
 			for _, instance in CollectionService:GetTagged(tag) do
-				bind(instance)
+				track(instance)
 			end
 		end,
 		Get = function(_self: Binder<Bound>, instance: Instance): Bound?
@@ -98,6 +129,10 @@ function Binder.new<T>(tag: string, constructor: (Instance) -> T & Destroyable):
 			end
 			destroyed = true
 			trove:Destroy()
+			for instance, connection in ancestryConnections do
+				ancestryConnections[instance] = nil
+				connection:Disconnect()
+			end
 			local instances: { Instance } = {}
 			for instance in objects do
 				table.insert(instances, instance)

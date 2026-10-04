@@ -11,15 +11,20 @@
 			}
 		},
 		"ServerScriptService": {
+			"$ignoreUnknownInstances": false,
 			"Server": {
 				"$path": "src/server"
 			}
 		},
 		"StarterPlayer": {
 			"StarterPlayerScripts": {
+				"$ignoreUnknownInstances": false,
 				"Client": {
 					"$path": "src/client"
 				}
+			},
+			"StarterCharacterScripts": {
+				"$ignoreUnknownInstances": false
 			}
 		}
 	}

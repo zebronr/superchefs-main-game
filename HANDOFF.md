@@ -6,7 +6,22 @@
 - Scaffold done and committed on `refactor`: `default.project.json` remap, `.luaurc`, Loader, Net, Binder, BinderService, Interactable, and the client/server entry points. `StarterPlayerScripts.Client` is a child, not the folder itself. The Workspace and Lighting overrides were removed from the project file.
 - `luau-lsp` was added to Rokit. The typecheck command is in `CLAUDE.md`, and `src/` reports zero errors.
 - Open: the legacy client scripts in Studio's StarterPlayerScripts will still run next to `Client` after a sync. Ask the user whether to delete them via MCP. `ReplicatedStorage.Remotes` doesn't exist yet; create it via MCP when the first remote is needed.
-- **Next:** the parity checklist, then port layer 1 (pickup/drop + Counter). See "After the scaffold" below. Everything below this section is from session 2.
+- Later in session 3: `default.project.json` sets `$ignoreUnknownInstances: false` on ServerScriptService, StarterPlayerScripts and StarterCharacterScripts. Rojo is synced into `Game.rbxl`, so Studio now has only the new scripts; the legacy Server Folder and client/character scripts are removed. This change is **uncommitted**. Note that `ReplicatedStorage.Remotes` already exists with the legacy remotes.
+- Tags are added via MCP, and the user approved that. Parity rule: fix clear legacy bugs and list each one in the checklist.
+- The parity checklist is written: `docs/PARITY.md` has 172 items across the 9 layers, each with data, remotes, Studio dependencies and suspected bugs. Codex hit its usage limit, so Sonnet wrote it. Claude spot-checked the claims against `legacy/`. It is uncommitted.
+- Studio (via MCP, user-approved):
+  - 60 instances under ServerStorage.Maps/Assets are tagged with their `objectClass` name.
+  - `ReplicatedStorage.Remotes.Interact` RemoteEvent was created.
+  - Stove/Sink/CookingTool/FireExtinguisher have no ServerStorage templates; they exist only as loose test objects in Workspace.
+- Layer 1 is ported but **uncommitted**. Sonnet wrote it because Codex was out of quota; Claude reviewed it. Code is in `src/`: Item, Station, Slot, Counter, FoodContainer, CarryService, InteractionService, LevelService (temporary bootstrap), CharacterService, TargetController, InputController.
+- MCP playtest passed for crate pickup, place on counter, take back, floor drop and floor pickup. The 4 `DefObjectOnTop` items load onto their counters.
+- Not yet tested in a playtest: same-class swap, floor Food swap, highlight visuals, LOCKED, death drop, rate limit.
+- User playtest found nothing worked: players spawned at `Workspace.SpawnLocation`, about 90 studs from the level. Fixes:
+  - LevelService now moves each character to `SpawnPoints["1_spawn{i}"]` on spawn, like legacy `teleportPlayers`.
+  - CharacterService sets `JumpPower = 0`, like legacy CharacterLoader, so Space doesn't jump.
+  - Re-verified by MCP: highlight, crate pickup, floor drop.
+- **Next:** user playtests layer 1, then layer 2 (ChoppingBoard + Use/playerLock).
+- (old) Next: port layer 1 (pickup/drop + Counter). See "After the scaffold" below. Everything below this section is from session 2.
 
 ---
 
