@@ -59,6 +59,25 @@ Interaction.Cooking = {
 	SprayingAttribute = "Spraying",
 }
 
+Interaction.Throw = {
+	Distance = 30,
+	Height = 7,
+	Speed = 45,
+	Gravity = 20,
+	FloorRayLength = 100,
+	CollisionRayLength = 100,
+	CollisionRadius = 3,
+	CollisionAngles = { -45, 0, 45 },
+	MarginOfError = 10,
+	TrailLinger = 0.5,
+	ThrowStartAttribute = "ThrowStart",
+	ThrowEndAttribute = "ThrowEnd",
+	ThrowStartedAtAttribute = "ThrowStartedAt",
+	FallFromAttribute = "FallFrom",
+	FallToAttribute = "FallTo",
+	FallStartedAtAttribute = "FallStartedAt",
+}
+
 Interaction.TargetPriority.CookingTool = 2.5
 
 -- Same-class pairs listed here do not swap on a counter.
@@ -70,6 +89,7 @@ Interaction.AllowInteractionWithSelf = {
 Interaction.Controls = {
 	Interact = Enum.KeyCode.Space,
 	Use = Enum.KeyCode.LeftControl,
+	Throw = Enum.KeyCode.LeftAlt,
 }
 
 return Interaction

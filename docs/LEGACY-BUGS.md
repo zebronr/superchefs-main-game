@@ -125,3 +125,30 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 
 - Dirty plates and the Sink do work. The levels in the repo come from a showcase that turned `enableDirtyPlates` off per level.
 - No jumping (`JumpPower = 0`) is intentional: Space is the interact key.
+
+## Layer 7: Throwing
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 37 | `CalculateEndpoint` indexed `holdingOffset.X` without a default, so throwing Food without that attribute errored after dropping it. | `Projectile.lua` `CalculateEndpoint` | Shared projectile math reads the offset through `Tags.GetVector3`, which defaults to zero. |
+| 38 | The client used `tick() + timeOffset - sentTime` for flight and fall. `timeOffset` came from a separate, approximate sync loop and could still be unset when a throw arrived, causing arithmetic on nil or skewed elapsed time. | `ProjectileHandler.client.lua`, `TimeSyncHandler.client.lua` | Both sides use `workspace:GetServerTimeNow()` and replicated start timestamps. |
+| 39 | The client initialized `t` and `f` with elapsed seconds, then added a fraction (`deltaTime / totalTime`) each frame. A late packet started at the wrong point on the path. | `ProjectileHandler.client.lua` `simulate`, `fall` | Elapsed server time is divided by duration before clamping and interpolation. |
+| 40 | The throw action read `params.localCFrame` without checking that `params` was a table. A malformed throw request errored in the remote handler. | `ActionHandler.server.lua` | `InteractionService` checks that the Throw argument is a CFrame before routing it. |
+| 41 | Countertop added `projectileInteractionIgnore` only on some placement paths. Resting items placed by default setup, chopping, or other Slots could block collision rays. | `Countertop.lua`, `Projectile.lua` `checkCollision` | The collision filter includes every bound Item whose `Surface` is set by `Slot.Place`. |
+
+### Dead code, not ported
+
+- `checkFloor` was entirely commented out and always returned nil.
+- `_testPart` was a debug helper, and its only call was commented out.
+- The projectile's debug prints were omitted.
+
+### Notes
+
+- The server still computes the flight path without moving the anchored part until completion. Clients animate it locally.
+- The landing `Receive` result is ignored, as the legacy bindable result was. A failed occupied-counter interaction leaves the food where it fell, with interaction enabled.
+- There is no throw cooldown beyond the shared request limiter.
+- Floor and surface rays exclude the projectile itself. The legacy unfiltered rays could intersect its own collider; other floor geometry remains eligible.
+- Legacy stored both `simulate` and `fall` connections in `simulation[Projectile]`, but sent `stop` before `fall` in its normal path. The first connection was disconnected before the slot was overwritten, so a live-connection leak was not confirmed. The rewrite uses one render loop per controller.
+- Legacy had no `Destroying` cleanup for a projectile, but no ordinary gameplay path could destroy one during flight. Map teardown or external scripts could; the rewrite disconnects immediately if that happens.

@@ -50,6 +50,17 @@ function Item.Get(instance: Instance): Item?
 	return items[instance]
 end
 
+-- Slot.Place sets Surface for every resting item, regardless of which station placed it.
+function Item.GetRestingInstances(): { Instance }
+	local resting: { Instance } = {}
+	for instance, item in items do
+		if item.Surface ~= nil then
+			table.insert(resting, instance)
+		end
+	end
+	return resting
+end
+
 -- Yields until the binder has created the Item for `instance`; nil on timeout.
 function Item.Await(instance: Instance, timeout: number): Item?
 	local existing = items[instance]

@@ -17,6 +17,7 @@ export type Station = Interactable.Interactable & {
 	Part: BasePart,
 	Slot: Slot.Slot,
 	Handle: (self: Station, player: Player, held: Item.Item?) -> boolean,
+	Receive: (self: Station, item: Item.Item) -> boolean,
 	IsLocked: (self: Station) -> boolean,
 }
 
@@ -54,6 +55,10 @@ function Station.IsLocked(self: Station): boolean
 end
 
 function Station.Handle(_self: Station, _player: Player, _held: Item.Item?): boolean
+	return false
+end
+
+function Station.Receive(_self: Station, _item: Item.Item): boolean
 	return false
 end
 

@@ -21,6 +21,10 @@ Tags.FireExtinguisher = "FireExtinguisher"
 Tags.ProximityNode = "ProximityNode"
 Tags.Locked = "LOCKED"
 Tags.FireLocked = "FIRELOCKED"
+Tags.ThrowInteractable = "throwInteractable"
+Tags.ProjectileIgnore = "projectileInteractionIgnore"
+Tags.Ignore = "IGNORE"
+Tags.Projectile = "Projectile"
 
 Tags.Classes = {
 	Tags.Countertop,

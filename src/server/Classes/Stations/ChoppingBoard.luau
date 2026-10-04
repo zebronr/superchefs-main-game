@@ -44,6 +44,10 @@ function ChoppingBoard.Handle(self: ChoppingBoard, player: Player, held: Item.It
 	return Counter.Handle(self, player, held)
 end
 
+function ChoppingBoard.Receive(self: ChoppingBoard, item: Item.Item): boolean
+	return Counter.Receive(self, item)
+end
+
 local function endSession(self: ChoppingBoard, session: Session): ()
 	if self.Session ~= session then
 		return

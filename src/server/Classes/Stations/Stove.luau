@@ -19,23 +19,35 @@ function Stove.new(instance: Instance): Stove
 	return self
 end
 
+-- A pot leaving the stove stops cooking; a pot arriving starts.
+local function syncTool(before: Item.Item?, after: Item.Item?): ()
+	if before == after then
+		return
+	end
+	local oldTool = CookingTool.Cast(before)
+	if oldTool ~= nil then
+		oldTool:SetEnabled(false)
+	end
+	local newTool = CookingTool.Cast(after)
+	if newTool ~= nil then
+		local class = newTool.Part:GetAttribute("cookingToolClass")
+		if typeof(class) == "string" and table.find(Config.CookingToolClasses, class) ~= nil then
+			newTool:SetEnabled(true)
+		end
+	end
+end
+
 function Stove.Handle(self: Stove, player: Player, held: Item.Item?): boolean
 	local before = self.Slot:Get()
 	local result = Counter.Handle(self, player, held)
-	local after = self.Slot:Get()
-	if before ~= after then
-		local oldTool = CookingTool.Cast(before)
-		if oldTool ~= nil then
-			oldTool:SetEnabled(false)
-		end
-		local newTool = CookingTool.Cast(after)
-		if newTool ~= nil then
-			local class = newTool.Part:GetAttribute("cookingToolClass")
-			if typeof(class) == "string" and table.find(Config.CookingToolClasses, class) ~= nil then
-				newTool:SetEnabled(true)
-			end
-		end
-	end
+	syncTool(before, self.Slot:Get())
+	return result
+end
+
+function Stove.Receive(self: Stove, item: Item.Item): boolean
+	local before = self.Slot:Get()
+	local result = Counter.Receive(self, item)
+	syncTool(before, self.Slot:Get())
 	return result
 end
 

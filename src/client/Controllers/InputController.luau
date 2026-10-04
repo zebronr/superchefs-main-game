@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local TargetController = require(script.Parent.TargetController)
@@ -11,6 +12,19 @@ local Net = require(Shared:WaitForChild("Net"))
 
 -- Ported from legacy InteractionHandler.client. Mobile buttons come in layer 9.
 local InputController = {}
+
+local function throwHeld(): ()
+	local character = Players.LocalPlayer.Character
+	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+	local holder = if root then root:FindFirstChild("ObjectHolder") else nil
+	if holder == nil or not holder:IsA("WeldConstraint") then
+		return
+	end
+	local part = holder.Part1
+	if part ~= nil then
+		Net.Event("Interact"):FireServer("Throw", part.CFrame)
+	end
+end
 
 local function fire(action: string, heldState: boolean?): ()
 	local target, node = TargetController.GetTarget()
@@ -27,6 +41,8 @@ function InputController.Start(_self: typeof(InputController)): ()
 			fire("Interact")
 		elseif input.KeyCode == Config.Controls.Use then
 			fire("Use", true)
+		elseif input.KeyCode == Config.Controls.Throw then
+			throwHeld()
 		end
 	end)
 

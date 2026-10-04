@@ -3,6 +3,8 @@
 local Item = require(script.Parent.Parent.Item)
 local Station = require(script.Parent.Parent.Station)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Tags = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Tags"))
 
 -- Ported from legacy Countertop.
 local Counter = setmetatable({}, { __index = Station })
@@ -75,6 +77,21 @@ function Counter.Handle(self: Counter, player: Player, held: Item.Item?): boolea
 		return swap(self, player)
 	end
 	return false
+end
+
+function Counter.Receive(self: Counter, item: Item.Item): boolean
+	if self:IsLocked() or item.Holder ~= nil or item.Surface ~= nil then
+		return false
+	end
+	local onTop = self.Slot:Get()
+	if onTop == nil then
+		return self.Slot:Place(item)
+	end
+	local class = Tags.ClassOf(item.Instance)
+	if class ~= nil and class == Tags.ClassOf(onTop.Instance) and not Config.AllowInteractionWithSelf[class] then
+		return false
+	end
+	return onTop:Accept(item, nil) or item:Accept(onTop, nil)
 end
 
 return Counter

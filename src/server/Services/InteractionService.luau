@@ -9,6 +9,7 @@ local Item = require(script.Parent.Parent.Classes.Item)
 local Station = require(script.Parent.Parent.Classes.Station)
 local BinderService = require(script.Parent.BinderService)
 local CarryService = require(script.Parent.CarryService)
+local ThrowService = require(script.Parent.ThrowService)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"):WaitForChild("Interaction"))
@@ -156,6 +157,13 @@ local function startUse(player: Player, target: Instance?): ()
 end
 
 local function onRequest(player: Player, action: unknown, target: unknown, node: unknown, heldState: unknown): ()
+	if action == "Throw" then
+		if typeof(target) ~= "CFrame" or not consumeRequest(player) or activeUse[player] ~= nil then
+			return
+		end
+		ThrowService.Throw(player, target)
+		return
+	end
 	if action ~= "Interact" and action ~= "Use" then
 		return
 	end
