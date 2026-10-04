@@ -62,6 +62,22 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 | 24 | Recipe matches depended on `pairs` order if recipes overlapped. | `FoodTree.lua` `CheckCombination` | `Recipes.Find` checks recipe names in sorted order. |
 | 25 | A plated model could add mass to its plate and change carry physics. | `Plate.lua` `plateFood`, `mixFood` | Cloned plated models are Massless. |
 
+## Layer 4: ServingCounter + PlateTable
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 26 | `AddPlate` ran 1.5 s after a serve without checking that its table still existed. If the map was unloaded in between (round end), the new plate was cloned into `$GAME` and welded to a dead table. | `PlateTable.lua` `AddPlate` | The delayed callback looks up a live bound table, and `AddPlate` checks again after binding the clone. A plate that can't be placed is destroyed. |
+
+### Notes
+
+- Latent, not reachable in legacy flows: the stack walk used the first `objectTopWelder` child, and a plated model's weld has the same name. Only the top plate can ever hold food, so the walk never misread a stack. `PlateStack` keeps an explicit list anyway.
+- `takeHighestPlate(origin, true)` re-parents the bottom plate to `$GAME`, but it's always already there, so it's harmless. It isn't ported.
+- The stack has no height cap, matching legacy. Serving consumes one plate and returns one.
+- Returned plates go to `PlateTable_1` until the game loop adds teams. The showcase level has dirty plates disabled.
+- The showcase PlateTable starts empty, so the only plates in play are the 4 preloaded ones on counters.
+
 ## Not bugs (checked)
 
 - Dirty plates and the Sink do work. The levels in the repo come from a showcase that turned `enableDirtyPlates` off per level.

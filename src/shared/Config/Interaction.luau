@@ -22,6 +22,7 @@ Interaction.RequestWindow = 0.5
 Interaction.CarryDistance = 2
 Interaction.DropReenableDelay = 0.5
 Interaction.NetworkOwnerResetDelay = 0.5
+Interaction.PlateReturnDelay = 1.5
 
 -- Chopping
 Interaction.ProgressPerChop = 20

@@ -11,6 +11,8 @@ local Plate = require(script.Parent.Parent.Classes.Plate)
 local Counter = require(script.Parent.Parent.Classes.Stations.Counter)
 local ChoppingBoard = require(script.Parent.Parent.Classes.Stations.ChoppingBoard)
 local FoodContainer = require(script.Parent.Parent.Classes.Stations.FoodContainer)
+local PlateTable = require(script.Parent.Parent.Classes.Stations.PlateTable)
+local ServingCounter = require(script.Parent.Parent.Classes.Stations.ServingCounter)
 
 type Bound = Interactable.Interactable & Binder.Destroyable
 
@@ -40,6 +42,8 @@ function BinderService.Init(_self: typeof(BinderService)): ()
 	register(Tags.Countertop, Counter.new)
 	register(Tags.ChoppingBoard, ChoppingBoard.new)
 	register(Tags.FoodContainer, FoodContainer.new)
+	register(Tags.PlateTable, PlateTable.new)
+	register(Tags.ServingCounter, ServingCounter.new)
 	register(Tags.Food, Item.new)
 	register(Tags.Plate, Plate.new)
 	register(Tags.DirtyPlate, Item.new)

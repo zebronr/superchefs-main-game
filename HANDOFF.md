@@ -23,7 +23,8 @@
 - Layers 1–2 committed (`0bec958`). Layer 3 (Plate, `Config/Recipes`, `Item:CanSwapWith`, `Slot.WeldOnTop`) is written by Codex, reviewed, and passed an MCP playtest: chopped mango → plate on a counter, then + cucumber → `salad(mango_cucumber)`, then picked up the full plate. Uncommitted.
   - Not yet playtested: plate-to-plate merge and swap, plating from the floor, plating from a chopping board.
 - Legacy bug log: `docs/LEGACY-BUGS.md` (now a CLAUDE.md rule).
-- **Next:** user playtests layer 3, then layer 4 (ServingCounter + orders/round). (old: user playtests layer 1), then layer 2 (ChoppingBoard + Use/playerLock).
+- Layer 3 committed (`f997198`). Layer 4 was reduced to interactions only (ServingCounter + PlateTable + `Components/PlateStack`) and the user playtested it. Orders, coins, timer, round start/end, teams and NPCs moved to a later "game loop" layer (user choices: auto-start on join, wrong dish keeps legacy behavior, NPCs in layer 9).
+- **Next:** layer 5 (Stove/Pot/fire). (old: user playtests layer 1), then layer 2 (ChoppingBoard + Use/playerLock).
 - (old) Next: port layer 1 (pickup/drop + Counter). See "After the scaffold" below. Everything below this section is from session 2.
 
 ---

@@ -5,7 +5,7 @@ Superchefs Game place (Roblox, Luau, Rojo). See `HANDOFF.md` for current state a
 ## Project rules
 
 - Code changes go through the repo and Rojo. Rojo overwrites scripts in Studio.
-- Rojo stays disconnected until the Studio vs repo diff is resolved (see `HANDOFF.md`).
+- Rojo stays connected while working: `rojo serve` runs in the background and Studio picks up every saved file. Don't stop it or ask the user to reconnect unless the server actually died.
 - **Scripts** live in the repo and sync through Rojo. Never edit scripts through the Studio MCP.
 - **Remotes, bindables, and other non-script instances** (folders, assets, values) are created in Studio through the MCP, so they're visible in the Explorer. Never create them in code: scripts reference them with `WaitForChild`. Tell the user exactly what will be created or changed before each MCP write.
 - Prefer token-cheap routes: to read Studio state in bulk, parse a saved place file locally (`Game.rbxl` with the extractor script) instead of reading script by script through the MCP.
