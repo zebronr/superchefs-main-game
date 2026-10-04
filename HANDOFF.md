@@ -1,101 +1,68 @@
-# Handoff: Superchefs refactor (session 1 → 2)
+# Handoff: Superchefs refactor (session 2 → 3)
 
-Date: 2026-10-04
+Date: 2026-10-04. Read `CLAUDE.md` first: it covers the workflow (Claude plans, Codex writes, Claude verifies) and the Studio/Rojo rules.
 
-## Where we are
+## First thing in session 3: finish the rename
 
-The user came back after about a year away. They want to refactor the **Game place** (this repo) into a clean OOP structure first, then work on game design. The Lobby place is separate and teleports players here.
+The user is renaming the local folder from `superchefs-main-game-legacy` to `superchefs-main-game` between sessions.
 
-**Update (session 2): the Studio vs repo diff is done. Studio won.** All 60 Studio scripts were extracted from `Downloads/Game.rbxl` and copied into `src/`. That added Trash, mobile controls, sounds, CharacterLoader/Colors and a TESTING start flow, and moved OrdersUIHandler to `UI/`. The changes are staged on `main` but not committed yet. Once they're committed, `src/` matches Studio, so connecting Rojo is safe.
+1. **Memory:** the old memory lives at `~/.claude/projects/C--Users-Zebron-Documents-Coding-Projects-superchefs-main-game-legacy/memory/`. Session 2 already copied it to the new project key `...-superchefs-main-game/memory/`. Check that it's there. If it isn't, copy it.
+2. **New GitHub repo:** the user wants a **new** repo and wants to keep the old one, `zebronr/superchefs-main-game-legacy`, untouched. `gh` isn't installed, so the user creates an empty repo `zebronr/superchefs-main-game` on github.com (no README or license). Then:
+   ```bash
+   git remote rename origin legacy
+   git remote add origin https://github.com/zebronr/superchefs-main-game.git
+   git push -u origin main refactor
+   ```
+   Confirm with the user before pushing.
 
-## Rules (from the user)
+## State
 
-- Code changes go through the repo and Rojo. Rojo always overwrites the scripts in Studio.
-- The Roblox Studio MCP is **read-only**. Ask the user before using it. Never write through it without explicit permission for that specific change.
-- Commit only when asked.
+- **`main`**: commit `a446161` "Sync legacy scripts from Studio". The Studio diff is done and Studio won: all 60 scripts were extracted from `Downloads/Game.rbxl`. `main` matches the live game.
+- **`refactor`** (current branch, **uncommitted, staged or in progress**):
+  - `src/` was moved to `legacy/` with `git mv`. It's reference only and Rojo doesn't sync it.
+  - `aftman.toml` and `sourcemap.json` were deleted. The toolchain is now **Rokit** (`rokit.toml`: rojo 7.4.4, wally 0.3.2, wally-package-types 1.7.0, installed in `~/.rokit/bin`).
+  - `wally.toml`: `Signal = alexanderlindholt/signalplus@3.7.2` and `Trove = sleitnick/trove@1.8.0`. `wally install` works, and `Packages/` is gitignored.
+  - `servePlaceIds` was removed from `default.project.json`, so Rojo can sync into the local `Downloads/Game.rbxl`. That file is the test place for the refactor. The rest of `default.project.json` still has the **old** mapping and needs rewriting (see below).
+  - Commit this when the user agrees. The user approves commits.
+- Tooling the user chose: Wally, Rokit, `--!strict` everywhere. They chose **not** to use StyLua or Selene.
 
-## MCP status
+## Rules added this session (also in CLAUDE.md and memory)
 
-- The Studio MCP is registered for this folder in `.mcp.json` (`Roblox_Studio` → `%LOCALAPPDATA%\Roblox\mcp.bat` → `StudioMCP.exe`). A new session should load it after the user approves the server.
-- Session 1 could not see the tools, because `.mcp.json` was added mid-session. It drove `StudioMCP.exe` directly over stdio instead. The server responded and listed its tools, but `list_roblox_studios` returned `{"studios":[]}`. **Studio was not connected to the server.**
-  - Likely fix: enable or toggle Studio's MCP setting with the place open.
-- Read tools to use: `list_roblox_studios` → `get_studio_state` → `search_game_tree` (`datamodel_type: "Edit"`, `instance_type: "BaseScript"`, `max_depth: 10`) → `script_read`. Every call needs a `studio_id`.
-- **Fallback (more reliable):** the user saves the place as `superchefs.rbxlx` in the repo root (it's gitignored). Parse the XML, extract every Script, LocalScript and ModuleScript, and diff them against `src/`.
+- **Codex writes code.** Run it with `codex exec -s workspace-write ...`, then verify the diff. If Codex hits its quota, fall back to a Sonnet subagent.
+- **Save tokens.** Bulk-read Studio by parsing a saved place file locally. The extractor script was in the session-2 scratchpad, which is gone, so have Codex rewrite it if needed. It's a pure-Python rbxl parser that needs `zstandard`; chunks are zstd-compressed.
+- **Remotes, bindables and other non-script instances are created in Studio through the MCP, never in code.** The user wants to see them in the Explorer. Scripts get them with `WaitForChild`. Tell the user what you'll create before each MCP write.
 
-## Diff deliverable
+## Next: scaffold (delegate to Codex)
 
-Map Studio paths to repo paths using `default.project.json`:
+Spec to hand over:
+- `default.project.json`:
+  - `src/shared` → `ReplicatedStorage.Shared`
+  - `Packages` → `ReplicatedStorage.Packages`
+  - `src/server` → `ServerScriptService.Server`. Same name as legacy, so Rojo replaces the legacy server scripts.
+  - `src/client` → `StarterPlayer.StarterPlayerScripts`
+  - `src/character` → `StarterPlayer.StarterCharacterScripts`
+  - Legacy `ReplicatedStorage.Modules` stays in Studio as dead modules; delete it later via the MCP with the user's permission.
+- `.luaurc`: `languageMode: strict`. Use `.luau` files.
+- `src/shared/Util/Loader.luau`: requires every ModuleScript in a folder, calls `Init` on all of them in order, then `Start` on each in its own `task.spawn`. Typed.
+- `src/server/init.server.luau`: loads `Services/`. `src/client/init.client.luau`: loads `Controllers/`.
+- `src/shared/Net`: a typed lookup of Studio-made remotes under `ReplicatedStorage.Remotes` using `WaitForChild`. It never creates instances.
+- `src/server/Classes/Interactable.luau`: base class that owns a Trove, with `Interact(player, heldItem)` and `Destroy`.
+- A tag→class binder: CollectionService tag → class, Instance → object, destroyed when the Instance is removed. This fixes the legacy `Cache` leak.
+- Typecheck after `wally install` and `rojo sourcemap` + `wally-package-types`.
 
-| Studio | Repo |
-|---|---|
-| ReplicatedStorage.Modules | src/shared |
-| ServerScriptService.Server | src/server |
-| ServerStorage.Modules | src/modules (folder doesn't exist) |
-| StarterPlayer.StarterPlayerScripts | src/starterPlayerScripts |
-| StarterPlayer.StarterCharacterScripts | src/starterCharacterScripts |
+## After the scaffold
 
-Report:
-1. Scripts that differ, with a summary of each change.
-2. Scripts that exist only in Studio, including ones outside the mapped folders.
-3. Scripts that exist only in the repo.
-
-Then the user decides what to bring into git before the refactor branch is created.
-
-## Agreed refactor decisions
-
-- New branch, rebuilt from scratch. Legacy code is reference only.
-- **Parity first:** the new code must behave the same as legacy before any design changes.
-- Custom lightweight Service/Controller loader with an Init/Start lifecycle. Not Knit.
-- Signal+ for in-process signals. Plain RemoteEvents/Functions, **created in Studio through the MCP** (the user wants to see them in the Explorer), never in code. A typed shared `Net` module may wrap them via `WaitForChild`. No networking library for now.
-- The user knows Trove, Signal and `--!strict`, but hasn't used Wally.
-- Recommended, not yet confirmed by the user:
-  - Wally, plus `wally-package-types` for strict types
-  - `--!strict`
-  - StyLua
-  - moving from Aftman to Rokit
-
-## Legacy code analysis (summary)
-
-The code is about 4,200 lines and fairly clean. The main structural problems:
-
-- **State isn't owned by objects.** It lives in module-level tables keyed by Instance (`Cache.RegisterCache`), e.g. `FoodContent[pot]` and `PlateContent[plate]`. Nothing cleans those tables up, so they leak.
-- **Inheritance is hidden.** Stove and ChoppingBoard call `Countertop.Interact` first. Pickup/drop boilerplate is duplicated across Food, Plate, DirtyPlate, CookingTool and FireExtinguisher.
-- **Priority numbers stand in for polymorphism.** `InteractionConfigs.PriorityLevel` plus `if A and B elseif B and A` chains decide who handles an interaction.
-- **Recipes live in three places:** `FoodTree`, `Pot.Combinations` and `LevelData.recipes`. Code also depends on asset naming conventions (`chopped_`, `plated_`).
-- **Remotes and bindables are created in Studio,** so the repo can't see them.
-- **No boot order.** Scripts rely on `WaitForChild` timing plus `task.wait(5)`. `MainGame` hardcodes the test level, never ends the round, and ignores teleport data.
-- `tick()` plus the custom TimeSync can be replaced with `workspace:GetServerTimeNow()`.
-- Latent bugs (moot after the rewrite):
-  - `teams = {} or teamOverwrite`
-  - `Cache.ClearCache` is a no-op
-  - Sink disables interaction on the plate *template* instead of the clone
-  - CookingTool registers two caches under the same id
-
-## Proposed target layout
-
-```
-src/
-  shared/      Data/ (Items, Recipes, Stations), Net/, Util/
-  server/      init.server.lua, Services/ (Round, Orders, Teams, Interaction, Fire, Teleport data),
-               Classes/ Interactable → Items/ (Food, Plate, CookingTool→Pot/Pan, Extinguisher)
-                                     → Stations/ (Counter→ChoppingBoard/Stove/Sink/ServingCounter/PlateTable, Dispenser)
-  client/      init.client.lua, Controllers/ (Input, Targeting/Highlight, Camera, OrdersUI, Effects, ProgressBars, NPCs)
-```
-
-A CollectionService tag maps each tagged Instance to its class object. Interaction works as `station:Interact(player, heldItem)`, which falls through to `heldItem:CombineWith(slotItem)`.
-
-## Next steps
-
-1. **Studio vs repo diff** (above), and resolve the differences with the user.
-2. Scaffold the `refactor` branch: tooling, Rojo mapping, loaders, `Net`, `Interactable` base.
-3. Write a parity checklist of legacy behaviors.
-4. Port in layers:
-   1. pickup/drop and Counter
+1. Write a parity checklist of legacy behaviors, now including Trash, mobile controls, sounds, CharacterLoader and the TESTING start flow.
+2. Port in layers:
+   1. pickup/drop + Counter
    2. ChoppingBoard
-   3. Plate and recipes
-   4. ServingCounter and orders/round
-   5. Stove, Pot and fire
-   6. Sink and dirty plates
+   3. Plate + recipes
+   4. ServingCounter + orders/round
+   5. Stove/Pot/fire
+   6. Sink/dirty plates
    7. throw
-   8. UI and effects
-5. After parity, move on to game design. The user wants it to grow beyond an Overcooked copy.
+   8. trash
+   9. UI/effects/sounds
+3. After parity, move on to game design. The user wants it to grow beyond an Overcooked copy.
+
+Legacy architecture notes (state in module-level caches, hidden inheritance, priority numbers, recipes in 3 places) are in `main`'s history of this file (commit `a446161`).

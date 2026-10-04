@@ -1,0 +1,9 @@
+[package]
+name = "zebronr/superchefs"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+Signal = "alexanderlindholt/signalplus@3.7.2"
+Trove = "sleitnick/trove@1.8.0"
