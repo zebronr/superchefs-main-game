@@ -10,6 +10,7 @@ local localPlayer = Players.LocalPlayer
 
 local animationIds = {
 	Chop = Config.ChopAnimationId,
+	Wash = Config.WashAnimationId,
 } :: { [string]: string }
 
 local character: Model? = nil

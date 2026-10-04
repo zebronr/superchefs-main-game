@@ -54,6 +54,7 @@ local function removeAt(self: PlateStack, index: number, clearInteraction: boole
 	entry.Destroying:Disconnect()
 	unweld(entry)
 	entry.Item.Surface = nil
+	entry.Item.Detach = nil
 	if clearInteraction then
 		Tags.SetInteractionDisabled(entry.Item.Instance, false)
 	end
@@ -84,9 +85,17 @@ local function addAt(self: PlateStack, item: Item.Item, index: number): boolean
 	end
 	local surface = surfaceBelow(self, index)
 	local weld = Slot.WeldOnTop(item.Part, surface)
-	item.Surface = surface
-	Tags.SetInteractionDisabled(item.Instance, true)
 	local entry: Entry
+	item.Surface = surface
+	item.Detach = function(): boolean
+		local currentIndex = table.find(self.Entries, entry)
+		if currentIndex == nil then
+			return false
+		end
+		removeAt(self, currentIndex, true)
+		return true
+	end
+	Tags.SetInteractionDisabled(item.Instance, true)
 	entry = {
 		Item = item,
 		Weld = weld,

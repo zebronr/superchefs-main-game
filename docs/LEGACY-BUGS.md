@@ -99,6 +99,28 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 - Fire does not destroy food or hurt players. An extinguished pot stays cooked, and a burning pot can be picked up.
 - Taking food out of a pot remains the legacy `PlateFood` stub.
 
+## Layer 6: Sink + dirty plates
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 34 | Using a sink before its first dirty plate deposit compared `nil <= 0` and threw. | `Sink.lua` `Use` | `Sink.DirtyCount` starts at 0; `StartUse` returns without locking when it is empty. |
+| 35 | Washing changed `interactionDisabled` on the ServerStorage `Plate` template instead of the new plate. The first clone could remain enabled on the drain board, and later clones inherited the modified template. | `Sink.lua` `Use` | The new clone is disabled before binding and stacking; the template is untouched. |
+| 36 | Sink counts, wash state and progress remained in `Cache` after a sink was destroyed; the client also retained washing progress by marker. | `Sink.lua`, `ProgressBarHandler.client.lua` | The bound sink owns its count and session; progress is an attribute on that sink. The client removes its tracked bar and connections when the sink leaves workspace. |
+
+### Dead code, not ported
+
+- `Animations.lua` defined `wash`, but no legacy code played it. The rewrite connects that ID to the wash session through `ActionAnimation`.
+
+### Notes
+
+- The dirty count is unbounded while `PlateDisplays` shows at most three, matching legacy.
+- Interacting on the wash side while carrying anything other than a DirtyPlate does nothing, matching legacy.
+- The suspected stale `washingProgress` when the count reaches zero mid-wash is not reachable through the legacy paths: only completion decrements the count, and completion first clears progress. It is not listed as a fixed bug.
+- The stack walk could stop at a plated food weld, but legacy only plates the top clean plate. It was not a reachable dirty-plate stack bug; `PlateStack` tracks entries explicitly.
+- The showcase disabled dirty plates. Level1 enables them in the rewrite so the sink cycle can be tested.
+
 ## Not bugs (checked)
 
 - Dirty plates and the Sink do work. The levels in the repo come from a showcase that turned `enableDirtyPlates` off per level.

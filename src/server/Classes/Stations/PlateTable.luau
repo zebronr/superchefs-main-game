@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Item = require(script.Parent.Parent.Item)
+local DirtyPlate = require(script.Parent.Parent.DirtyPlate)
 local Plate = require(script.Parent.Parent.Plate)
 local PlateStack = require(script.Parent.Parent.Components.PlateStack)
 local Station = require(script.Parent.Parent.Station)
@@ -11,6 +12,7 @@ local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local plateTemplate = ServerStorage:WaitForChild("Assets"):WaitForChild("Plates"):WaitForChild("Plate")
+local dirtyPlateTemplate = ServerStorage:WaitForChild("Assets"):WaitForChild("Plates"):WaitForChild("DirtyPlate")
 local BIND_TIMEOUT = 5
 
 local PlateTable = setmetatable({}, { __index = Station })
@@ -42,12 +44,12 @@ function PlateTable.ForTeam(team: number): PlateTable?
 	return nil
 end
 
-function PlateTable.AddPlate(self: PlateTable): ()
+function PlateTable.AddPlate(self: PlateTable, dirty: boolean?): ()
 	if not self.Alive or not self.Instance:IsDescendantOf(workspace) then
 		return
 	end
 
-	local plate = plateTemplate:Clone()
+	local plate = (if dirty then dirtyPlateTemplate else plateTemplate):Clone()
 	Tags.SetInteractionDisabled(plate, true)
 	plate.Parent = workspace:FindFirstChild("$GAME") or workspace
 
@@ -56,6 +58,54 @@ function PlateTable.AddPlate(self: PlateTable): ()
 		warn(`Could not add returned plate to {self.Instance:GetFullName()}`)
 		plate:Destroy()
 	end
+end
+
+local function takeStack(self: PlateTable): { Item.Item }
+	local plates: { Item.Item } = {}
+	while self.Stack:Count() > 0 do
+		local plate = self.Stack:PopTop()
+		if plate ~= nil then
+			table.insert(plates, 1, plate)
+		end
+	end
+	return plates
+end
+
+local function restoreStack(self: PlateTable, plates: { Item.Item }): ()
+	for _, plate in plates do
+		assert(self.Stack:Push(plate :: any), "Could not restore PlateTable stack")
+	end
+end
+
+local function handleDirty(self: PlateTable, player: Player, held: Item.Item?): boolean
+	local carried = DirtyPlate.Cast(held)
+	if held ~= nil and carried == nil then
+		return false
+	end
+	local plates = takeStack(self)
+	if #plates == 0 then
+		return false
+	end
+	if carried ~= nil then
+		for _, plate in plates do
+			assert(carried.Stack:Push(plate :: any), "Could not transfer dirty PlateTable stack")
+		end
+		return true
+	end
+	local bottom = DirtyPlate.Cast(plates[1])
+	if bottom == nil then
+		restoreStack(self, plates)
+		return false
+	end
+	for index = 2, #plates do
+		assert(bottom.Stack:Push(plates[index] :: any), "Could not assemble carried dirty stack")
+	end
+	if not CarryService.Pickup(player, bottom) then
+		bottom:TakeAll()
+		restoreStack(self, plates)
+		return false
+	end
+	return true
 end
 
 local function swap(self: PlateTable, player: Player): boolean
@@ -87,7 +137,9 @@ function PlateTable.Handle(self: PlateTable, player: Player, held: Item.Item?): 
 	if top == nil then
 		return false
 	end
-	-- TODO(layer 6): DirtyPlate stacks and carried DirtyPlates.
+	if DirtyPlate.Cast(top) ~= nil then
+		return handleDirty(self, player, held)
+	end
 	if Plate.Cast(top) == nil or (held ~= nil and Tags.ClassOf(held.Instance) == Tags.DirtyPlate) then
 		return false
 	end

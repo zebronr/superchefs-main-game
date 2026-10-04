@@ -8,6 +8,7 @@ local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags
 local Interactable = require(script.Parent.Parent.Classes.Interactable)
 local Item = require(script.Parent.Parent.Classes.Item)
 local Plate = require(script.Parent.Parent.Classes.Plate)
+local DirtyPlate = require(script.Parent.Parent.Classes.DirtyPlate)
 local CookingTool = require(script.Parent.Parent.Classes.CookingTool)
 local FireExtinguisher = require(script.Parent.Parent.Classes.FireExtinguisher)
 local Counter = require(script.Parent.Parent.Classes.Stations.Counter)
@@ -16,6 +17,7 @@ local FoodContainer = require(script.Parent.Parent.Classes.Stations.FoodContaine
 local PlateTable = require(script.Parent.Parent.Classes.Stations.PlateTable)
 local ServingCounter = require(script.Parent.Parent.Classes.Stations.ServingCounter)
 local Stove = require(script.Parent.Parent.Classes.Stations.Stove)
+local Sink = require(script.Parent.Parent.Classes.Stations.Sink)
 local FireService = require(script.Parent.FireService)
 
 type Bound = Interactable.Interactable & Binder.Destroyable
@@ -53,9 +55,10 @@ function BinderService.Init(_self: typeof(BinderService)): ()
 	register(Tags.PlateTable, PlateTable.new)
 	register(Tags.ServingCounter, ServingCounter.new)
 	register(Tags.Stove, Stove.new)
+	register(Tags.Sink, Sink.new)
 	register(Tags.Food, Item.new)
 	register(Tags.Plate, Plate.new)
-	register(Tags.DirtyPlate, Item.new)
+	register(Tags.DirtyPlate, DirtyPlate.new)
 	register(Tags.CookingTool, CookingTool.new)
 	register(Tags.FireExtinguisher, FireExtinguisher.new)
 end

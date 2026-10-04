@@ -32,6 +32,12 @@ Interaction.ChopAnimationId = "rbxassetid://74695809221721"
 Interaction.ChopProgressAttribute = "ChopProgress"
 Interaction.ActionAnimationAttribute = "ActionAnimation"
 
+-- Washing
+Interaction.WashRate = 75
+Interaction.MaxDisplayedDirtyPlates = 3
+Interaction.WashProgressAttribute = "WashProgress"
+Interaction.WashAnimationId = "rbxassetid://77309393012974"
+
 -- Cooking and fire
 Interaction.Cooking = {
 	CookRate = 20,

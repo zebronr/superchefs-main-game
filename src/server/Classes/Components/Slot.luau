@@ -50,6 +50,7 @@ local function clear(self: Slot): ()
 		if item.Surface == self.Surface then
 			item.Surface = nil
 		end
+		item.Detach = nil
 	end
 end
 
@@ -84,6 +85,9 @@ function Slot.Place(self: Slot, item: Item.Item, increment: number?): boolean
 	self.Item = item
 	self.Weld = weld
 	item.Surface = surface
+	item.Detach = function(): boolean
+		return self:Take() == item
+	end
 	-- You interact with the counter, not the item resting on it.
 	Tags.SetInteractionDisabled(item.Instance, true)
 	self.DestroyedConnection = item.Instance.Destroying:Connect(function(): ()

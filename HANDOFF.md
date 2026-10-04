@@ -25,7 +25,7 @@
 - Legacy bug log: `docs/LEGACY-BUGS.md` (now a CLAUDE.md rule).
 - Layer 3 committed (`f997198`). Layer 4 was reduced to interactions only (ServingCounter + PlateTable + `Components/PlateStack`) and the user playtested it. Orders, coins, timer, round start/end, teams and NPCs moved to a later "game loop" layer (user choices: auto-start on join, wrong dish keeps legacy behavior, NPCs in layer 9).
 - Layer 4 committed (`3cdd3f6`). Layer 5 (CookingTool, Stove, FireService, FireExtinguisher, EffectsController, cook bar in ProgressController) written by Codex, reviewed, MCP-playtested: strawberry → pot → stove → cooked in 5 s → warning → fire at 10 s → extinguished. Uncommitted. Test objects tagged via MCP (user-approved): `$GAME.Stove`, `$GAME.Pot`, `Workspace.FireExtinguisher`; 6 stale FireEmitter parts removed. Level1 has no stove. Pot → plate stays a stub (user choice).
-- **Next:** user playtests layer 5, then layer 6 (Sink/dirty plates; `$GAME.Sink` is still untagged). (old: user playtests layer 1), then layer 2 (ChoppingBoard + Use/playerLock).
+- **Next:** user playtests layer 6 (serve → dirty plate on PlateTable_1 → take stack → sink wash side → hold Ctrl → take clean plate from drain side), then layer 7 (throwing). Layer 5 untested bits: fire spread, pot pause/resume, popup.
 - (old) Next: port layer 1 (pickup/drop + Counter). See "After the scaffold" below. Everything below this section is from session 2.
 
 ---

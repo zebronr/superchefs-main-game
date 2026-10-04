@@ -11,7 +11,7 @@ local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags
 local ProgressController = {}
 
 type Tracked = {
-	Kind: "Food" | "CookingTool",
+	Kind: "Food" | "CookingTool" | "Sink",
 	Ancestry: RBXScriptConnection,
 	Destroying: RBXScriptConnection,
 	Attributes: { RBXScriptConnection },
@@ -41,10 +41,20 @@ local function showProgress(instance: Instance, state: Tracked, progress: number
 	end
 	if state.Bar == nil then
 		local bar = template:Clone()
-		bar.Parent = instance
+		local parent = if state.Kind == "Sink" then instance:FindFirstChild("WashPartMarker") else instance
+		if parent == nil then
+			bar:Destroy()
+			return
+		end
+		bar.Parent = parent
 		state.Bar = bar
 	end
 	updateProgressBar(state.Bar :: BillboardGui, progress)
+end
+
+local function refreshSink(instance: Instance, state: Tracked): ()
+	local progress = instance:GetAttribute(Config.WashProgressAttribute)
+	showProgress(instance, state, if typeof(progress) == "number" then progress else nil)
 end
 
 local function refreshProgress(instance: Instance, state: Tracked, playSound: boolean): ()
@@ -106,13 +116,18 @@ local function refresh(instance: Instance): ()
 					refreshProgress(instance, state, true)
 				end))
 				refreshProgress(instance, state, false)
-			else
+			elseif state.Kind == "CookingTool" then
 				for _, name in { Config.Cooking.CookContentAttribute, Config.Cooking.CookProgressAttribute, Config.Cooking.CookStartedAtAttribute } do
 					table.insert(state.Attributes, instance:GetAttributeChangedSignal(name):Connect(function(): ()
 						refreshCooking(instance, state)
 					end))
 				end
 				refreshCooking(instance, state)
+			else
+				table.insert(state.Attributes, instance:GetAttributeChangedSignal(Config.WashProgressAttribute):Connect(function(): ()
+					refreshSink(instance, state)
+				end))
+				refreshSink(instance, state)
 			end
 		end
 	else
@@ -128,7 +143,7 @@ local function refresh(instance: Instance): ()
 	end
 end
 
-local function track(instance: Instance, kind: "Food" | "CookingTool"): ()
+local function track(instance: Instance, kind: "Food" | "CookingTool" | "Sink"): ()
 	if tracked[instance] then
 		return
 	end
@@ -169,6 +184,13 @@ function ProgressController.Start(_self: typeof(ProgressController)): ()
 	CollectionService:GetInstanceRemovedSignal(Tags.CookingTool):Connect(untrack)
 	for _, instance in CollectionService:GetTagged(Tags.CookingTool) do
 		track(instance, "CookingTool")
+	end
+	CollectionService:GetInstanceAddedSignal(Tags.Sink):Connect(function(instance: Instance): ()
+		track(instance, "Sink")
+	end)
+	CollectionService:GetInstanceRemovedSignal(Tags.Sink):Connect(untrack)
+	for _, instance in CollectionService:GetTagged(Tags.Sink) do
+		track(instance, "Sink")
 	end
 	RunService.Heartbeat:Connect(function(): ()
 		for instance, state in tracked do

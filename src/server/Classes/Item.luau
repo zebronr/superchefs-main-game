@@ -16,6 +16,7 @@ export type Item = Interactable.Interactable & {
 	Holder: Player?,
 	-- The surface part this item rests on, if any (managed by Slot).
 	Surface: BasePart?,
+	Detach: (() -> boolean)?,
 	CanSwapWith: (self: Item, other: Item) -> boolean,
 }
 
@@ -31,6 +32,7 @@ function Item.new(instance: Instance): Item
 		Part = instance,
 		Holder = nil,
 		Surface = nil,
+		Detach = nil,
 	}, Item) :: any
 
 	items[instance] = self

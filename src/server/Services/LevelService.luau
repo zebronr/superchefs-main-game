@@ -1,15 +1,22 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Interactable = require(script.Parent.Parent.Classes.Interactable)
 local Item = require(script.Parent.Parent.Classes.Item)
 local Station = require(script.Parent.Parent.Classes.Station)
 local BinderService = require(script.Parent.BinderService)
+local Levels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Levels"))
 
 -- Temporary test bootstrap: loads Level1 immediately. Layer 4 replaces it with the real start flow.
 local LevelService = {}
+local LEVEL_PATH = "CoOp/Chapter1/Level1"
+
+function LevelService.GetLevelData(): Levels.LevelData
+	return Levels.GetCurrent()
+end
 
 local BIND_ATTEMPTS = 120
 
@@ -65,6 +72,7 @@ local function trackPlayer(map: Instance, player: Player): ()
 end
 
 function LevelService.Start(_self: typeof(LevelService)): ()
+	Levels.SetCurrent(LEVEL_PATH)
 	local level = ServerStorage:WaitForChild("Maps"):WaitForChild("CoOp"):WaitForChild("Chapter1"):WaitForChild("Level1")
 	local container = workspace:WaitForChild("$GAME")
 

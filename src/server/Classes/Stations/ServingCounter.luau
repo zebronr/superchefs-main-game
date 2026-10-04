@@ -8,6 +8,7 @@ local Station = require(script.Parent.Parent.Station)
 local PlateTable = require(script.Parent.PlateTable)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Levels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Levels"))
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local ServingCounter = setmetatable({}, { __index = Station })
@@ -41,7 +42,7 @@ function ServingCounter.Handle(_self: ServingCounter, player: Player, held: Item
 				warn("Could not return plate: PlateTable_1 is missing")
 				return
 			end
-			PlateTable.AddPlate(tableForTeam)
+			PlateTable.AddPlate(tableForTeam, Levels.GetCurrent().EnableDirtyPlates)
 		end)
 		return true
 	end
