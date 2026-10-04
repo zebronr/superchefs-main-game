@@ -7,11 +7,15 @@ Recipes.Combinations = {
 	["salad(mango_cucumber)"] = { "chopped_cucumber", "chopped_mango" },
 } :: { [string]: { string } }
 
-local recipeNames: { string } = {}
-for name in Recipes.Combinations do
-	table.insert(recipeNames, name)
-end
-table.sort(recipeNames)
+Recipes.Pot = {
+	strawberry_jam = { "chopped_strawberry" },
+	strawberry_jam_salad = { "strawberry_jam", "chopped_lettuce" },
+} :: { [string]: { string } }
+
+Recipes.SoupColors = {
+	strawberry_jam = Color3.fromRGB(171, 51, 51),
+	strawberry_jam_salad = Color3.fromRGB(8, 186, 141),
+} :: { [string]: Color3 }
 
 local function matches(expected: { string }, ingredients: { string }): boolean
 	if #expected ~= #ingredients then
@@ -31,9 +35,15 @@ local function matches(expected: { string }, ingredients: { string }): boolean
 	return true
 end
 
-function Recipes.Find(ingredients: { string }): string?
-	for _, name in recipeNames do
-		if matches(Recipes.Combinations[name], ingredients) then
+function Recipes.Find(ingredients: { string }, set: { [string]: { string } }?): string?
+	local recipes = set or Recipes.Combinations
+	local names: { string } = {}
+	for name in recipes do
+		table.insert(names, name)
+	end
+	table.sort(names)
+	for _, name in names do
+		if matches(recipes[name], ingredients) then
 			return name
 		end
 	end

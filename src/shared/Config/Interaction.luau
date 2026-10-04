@@ -32,6 +32,29 @@ Interaction.ChopAnimationId = "rbxassetid://74695809221721"
 Interaction.ChopProgressAttribute = "ChopProgress"
 Interaction.ActionAnimationAttribute = "ActionAnimation"
 
+-- Cooking and fire
+Interaction.Cooking = {
+	CookRate = 20,
+	CookSafeTime = 5,
+	CookAlertDuration = 5,
+	CookProgressDeduction = 50,
+	CookingToolClasses = { "Pot", "Pan" },
+	FireSpreadInterval = 8,
+	FireSpreadDistance = 5,
+	FireStart = 100,
+	ExtinguisherRange = 13.5,
+	ExtinguisherDeduction = 10,
+	ExtinguisherTick = 1,
+	CookContentAttribute = "CookContent",
+	CookProgressAttribute = "CookProgress",
+	CookStartedAtAttribute = "CookStartedAt",
+	CookedAtAttribute = "CookedAt",
+	FireAttribute = "Fire",
+	SprayingAttribute = "Spraying",
+}
+
+Interaction.TargetPriority.CookingTool = 2.5
+
 -- Same-class pairs listed here do not swap on a counter.
 Interaction.AllowInteractionWithSelf = {
 	Plate = true,

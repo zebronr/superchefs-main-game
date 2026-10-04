@@ -78,6 +78,27 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 - Returned plates go to `PlateTable_1` until the game loop adds teams. The showcase level has dirty plates disabled.
 - The showcase PlateTable starts empty, so the only plates in play are the 4 preloaded ones on counters.
 
+## Layer 5: Stove, Pot, fire
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 27 | Adding food after a pot reached 100 deducted progress, but `CookingState` stayed true, so `startCooking` returned without restarting and the old burn timer still fired. | `CookingTool.lua` `startCooking`, `PutFoodInTool` | `CookingTool.Accept` stops the prior run and burn timer, deducts progress, then starts a new run. |
+| 28 | Swapping two pots on a stove changed its occupant without enabling the new pot or stopping the old one. The legacy code only compared occupied versus empty. | `Stove.lua` `Interact` | `Stove.Handle` compares the actual slot item before and after the counter interaction. |
+| 29 | Cancelling effects for one pot cancelled every object's warning thread, while the thread cache retained entries. | `EffectsHandler.client.lua` `cancel` | Each pot's effects follow its own `CookedAt` attribute and are cleaned up with that instance. |
+| 30 | The extinguisher built `RaycastParams.FilterDescendantsInstances` with nested arrays, then called `workspace:Raycast` without passing the params. Its own part or an `IGNORE` part could block the spray. | `FireExtinguisher.lua` `Use` | The raycast receives a flat exclusion list containing `IGNORE` parts, the extinguisher and its descendants, and the user's character. |
+| 31 | Cooking content, progress, cooking state, burn delay, enabled state, and extinguisher use state stayed in caches or live loops after an object was destroyed. | `CookingTool.lua`, `FireExtinguisher.lua`, `EffectsHandler.client.lua` | Bound objects own their state and cancel their threads when destroyed; client effects clean up their connections and clones. |
+| 32 | Fire spread read `.Position` from every direct child of `$GAME`, which errors if a child is a Model. | `FireHandler.lua` `BurnObject` | `FireService` considers bound burnable BaseParts inside workspace. |
+| 33 | The client's cooking bar could grow past 100 after latency compensation or `changeProgress`, and could finish before the server. | `ProgressBarHandler.client.lua` `CookingProgress`, `changeProgress` | The bar derives clamped progress from server attributes and disappears at 100. |
+
+### Notes
+
+- `CookingTool.lua` registered `FoodContent` and `CookingProgress` with the same cache ID. `RegisterCache` replaced the registry entry, but each local retained its own table. No legacy code retrieved that ID, so this had no observed gameplay effect. The rewrite stores content and progress separately on the object.
+- The warning still follows the specified legacy timing: it ends at 9.7 s, 0.3 s before a scheduled burn at 10 s. Clearing `CookedAt` cancels it if cooking stops; it does not promise that fire will actually start.
+- Fire does not destroy food or hurt players. An extinguished pot stays cooked, and a burning pot can be picked up.
+- Taking food out of a pot remains the legacy `PlateFood` stub.
+
 ## Not bugs (checked)
 
 - Dirty plates and the Sink do work. The levels in the repo come from a showcase that turned `enableDirtyPlates` off per level.
