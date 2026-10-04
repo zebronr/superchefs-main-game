@@ -47,6 +47,21 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 | 16 | Client progress was simulated separately (`Progress[object]`), was never reset by the server on early release, and was never cleared when the food was destroyed, so it could desync and leak. | `ProgressBarHandler.client.lua` | The client draws the bar from the replicated `ChopProgress` attribute. Nothing is simulated and there's no cache. |
 | 17 | No cleanup if the player died or left mid-chop: the board stayed `LOCKED` and the animation state was left behind. | `ChoppingBoard.lua`, `InteractionHandler.server.lua` | The use is stopped on death, respawn and leave, and when the board or the food is destroyed. |
 
+## Layer 3: Plate + recipes
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 18 | A failed attempt to plate food created an empty, truthy `PlateContent` entry. Later plate interactions treated the plate as full. | `Plate.lua` `plateFood` | `Plate.Accept` changes `Content` only after finding a plated model. |
+| 19 | Mixing two plates left the carried plate's old model and weld in place, then added a second model and weld. | `Plate.lua` `mixFood` | `Plate.Accept` destroys the old model and weld before installing the recipe model. |
+| 20 | Plating could call `GetAttribute` on a nil carried object when the player had empty hands. | `Plate.lua` `plateFood` | `Plate.Accept` uses the food's own `Holder` and releases it only when held. |
+| 21 | Clearing a plate with content but no plated model called `Destroy` on nil. | `Plate.lua` `clearPlate` | `Plate.Clear` checks the model and weld independently and is safe on an empty plate. |
+| 22 | Destroyed plates remained in the `PlateContent` cache. | `Plate.lua` | Content lives on the Plate object, which the binder destroys with its instance. |
+| 23 | A missing plate `FoodList` made plating wait forever. | `Plate.lua` `plateFood`, `mixFood` | Plating warns and skips icon moves when the destination has no `FoodList`. |
+| 24 | Recipe matches depended on `pairs` order if recipes overlapped. | `FoodTree.lua` `CheckCombination` | `Recipes.Find` checks recipe names in sorted order. |
+| 25 | A plated model could add mass to its plate and change carry physics. | `Plate.lua` `plateFood`, `mixFood` | Cloned plated models are Massless. |
+
 ## Not bugs (checked)
 
 - Dirty plates and the Sink do work. The levels in the repo come from a showcase that turned `enableDirtyPlates` off per level.

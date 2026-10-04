@@ -10,6 +10,7 @@ Superchefs Game place (Roblox, Luau, Rojo). See `HANDOFF.md` for current state a
 - **Remotes, bindables, and other non-script instances** (folders, assets, values) are created in Studio through the MCP, so they're visible in the Explorer. Never create them in code: scripts reference them with `WaitForChild`. Tell the user exactly what will be created or changed before each MCP write.
 - Prefer token-cheap routes: to read Studio state in bulk, parse a saved place file locally (`Game.rbxl` with the extractor script) instead of reading script by script through the MCP.
 - Commit only when asked.
+- **Log every legacy bug in `docs/LEGACY-BUGS.md`.** Whenever a port fixes, finds, or deliberately keeps a bug from `legacy/`, add it to that layer's section in the same table format (bug, legacy file, what the rewrite does), continuing the numbering. Dead code goes under "Dead code, not ported"; bugs left for a later layer go under "Still open". Every port spec must tell Codex to do this, and Claude checks the entries against the code during verify: a fix is listed only if the rewrite really fixes it.
 
 ## Workflow: Claude plans, Codex writes, Claude verifies
 

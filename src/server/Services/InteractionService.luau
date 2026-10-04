@@ -64,6 +64,7 @@ local function interactWithItem(player: Player, target: Item.Item, held: Item.It
 	if target.Holder ~= nil or target.Surface ~= nil then
 		return
 	end
+	-- TODO(layer 9): Interact sound
 
 	if held == nil then
 		CarryService.Pickup(player, target)
@@ -74,8 +75,7 @@ local function interactWithItem(player: Player, target: Item.Item, held: Item.It
 		return
 	end
 
-	-- Legacy Food swap.
-	if CollectionService:HasTag(held.Instance, Tags.Food) and CollectionService:HasTag(target.Instance, Tags.Food) then
+	if held:CanSwapWith(target) then
 		CarryService.Drop(player)
 		CarryService.Pickup(player, target)
 	end
@@ -86,6 +86,7 @@ local function interact(player: Player, target: Instance?): ()
 
 	if target == nil then
 		if held ~= nil then
+			-- TODO(layer 9): Interact sound
 			CarryService.Drop(player)
 		end
 		return

@@ -1,12 +1,8 @@
 --!strict
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Item = require(script.Parent.Parent.Item)
 local Station = require(script.Parent.Parent.Station)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
-local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 -- Ported from legacy Countertop.
 local Counter = setmetatable({}, { __index = Station })
@@ -41,6 +37,7 @@ local function swap(self: Counter, player: Player): boolean
 end
 
 function Counter.Handle(self: Counter, player: Player, held: Item.Item?): boolean
+	-- TODO(layer 9): Interact sound
 	local onTop = self.Slot:Get()
 
 	if held == nil then
@@ -74,8 +71,7 @@ function Counter.Handle(self: Counter, player: Player, held: Item.Item?): boolea
 		return true
 	end
 
-	local class = Tags.ClassOf(held.Instance)
-	if class ~= nil and class == Tags.ClassOf(onTop.Instance) and not Config.AllowInteractionWithSelf[class] then
+	if held:CanSwapWith(onTop) then
 		return swap(self, player)
 	end
 	return false

@@ -53,14 +53,8 @@ local function clear(self: Slot): ()
 	end
 end
 
--- Ported from legacy Welds.PlaceObjectOnTop.
-function Slot.Place(self: Slot, item: Item.Item, increment: number?): boolean
-	if self.Item ~= nil or item.Holder ~= nil or item.Surface ~= nil then
-		return false
-	end
-
-	local surface = self.Surface
-	local part = item.Part
+-- Ported from legacy Welds.PlaceObjectOnTop; also used for plated models.
+function Slot.WeldOnTop(part: BasePart, surface: BasePart, increment: number?): WeldConstraint
 	local offset = -Tags.GetVector3(part, "weldingOffset") + Tags.GetVector3(surface, "directionOffset")
 	local rotation = CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
 
@@ -76,6 +70,16 @@ function Slot.Place(self: Slot, item: Item.Item, increment: number?): boolean
 	part.CFrame = surface.CFrame * CFrame.new(0, surface.Size.Y / 2 + height / 2 + (increment or 0), 0) * rotation
 	weld.Part0 = surface
 	weld.Part1 = part
+	return weld
+end
+
+function Slot.Place(self: Slot, item: Item.Item, increment: number?): boolean
+	if self.Item ~= nil or item.Holder ~= nil or item.Surface ~= nil then
+		return false
+	end
+
+	local surface = self.Surface
+	local weld = Slot.WeldOnTop(item.Part, surface, increment)
 
 	self.Item = item
 	self.Weld = weld

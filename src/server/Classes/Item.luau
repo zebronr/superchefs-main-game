@@ -3,6 +3,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Interactable = require(script.Parent.Interactable)
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 local Trove = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Trove"))
 
 -- A carryable BasePart. Floor interaction is handled by InteractionService.
@@ -14,6 +16,7 @@ export type Item = Interactable.Interactable & {
 	Holder: Player?,
 	-- The surface part this item rests on, if any (managed by Slot).
 	Surface: BasePart?,
+	CanSwapWith: (self: Item, other: Item) -> boolean,
 }
 
 local items: { [Instance]: Item } = {}
@@ -86,6 +89,11 @@ function Item.Cast(object: Interactable.Interactable?): Item?
 		return object :: any
 	end
 	return nil
+end
+
+function Item.CanSwapWith(self: Item, other: Item): boolean
+	local class = Tags.ClassOf(self.Instance)
+	return class ~= nil and class == Tags.ClassOf(other.Instance) and not Config.AllowInteractionWithSelf[class]
 end
 
 function Item.Destroy(self: Item): ()

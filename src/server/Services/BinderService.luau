@@ -7,6 +7,7 @@ local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags
 
 local Interactable = require(script.Parent.Parent.Classes.Interactable)
 local Item = require(script.Parent.Parent.Classes.Item)
+local Plate = require(script.Parent.Parent.Classes.Plate)
 local Counter = require(script.Parent.Parent.Classes.Stations.Counter)
 local ChoppingBoard = require(script.Parent.Parent.Classes.Stations.ChoppingBoard)
 local FoodContainer = require(script.Parent.Parent.Classes.Stations.FoodContainer)
@@ -39,9 +40,8 @@ function BinderService.Init(_self: typeof(BinderService)): ()
 	register(Tags.Countertop, Counter.new)
 	register(Tags.ChoppingBoard, ChoppingBoard.new)
 	register(Tags.FoodContainer, FoodContainer.new)
-	-- Plate and DirtyPlate are plain carryable items until layer 3.
 	register(Tags.Food, Item.new)
-	register(Tags.Plate, Item.new)
+	register(Tags.Plate, Plate.new)
 	register(Tags.DirtyPlate, Item.new)
 end
 
