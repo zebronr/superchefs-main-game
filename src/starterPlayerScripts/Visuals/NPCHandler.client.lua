@@ -28,10 +28,22 @@ local function calculatePath(start, finish)
         local wayPoint = pathSettings:ComputeAsync(start, finish)
     end)
     if err then
-        warn(err)
+        --warn(err)
         return
     end
     return pathSettings:GetWaypoints()
+end
+
+local function loadWalkAnimation(npc)
+    local humanoid = npc:WaitForChild("Humanoid")
+    local animator = humanoid:WaitForChild("Animator")
+
+    local walkingAnimation = Instance.new("Animation")
+    walkingAnimation.AnimationId = "rbxassetid://74792532038099"
+
+    local anim = animator:LoadAnimation(walkingAnimation)
+    anim.Looped = true
+    anim:Play()
 end
 
 local function loadPaths(NPCWaypoints)
@@ -39,7 +51,7 @@ local function loadPaths(NPCWaypoints)
     loadedFillers = NPCWaypoints:WaitForChild("Fillers")
 
     for _, starter in pairs(loadedStarters:GetChildren()) do
-        local endPoint = starter:WaitForChild("WeldConstraint").Part1
+        local endPoint = starter:WaitForChild("EndPoint").Value
 
         if string.find(starter.Name, "_direct") then
             loadedPaths[starter] =  {
@@ -54,29 +66,27 @@ local function loadPaths(NPCWaypoints)
                 })
             end
         end
-    end 
-
-    print("paths loaded", loadedPaths)
+    end
 end
 
 local function spawnNpc(starter, npcName)
-    print("spawningNPC")
-
-    local npc = NPCs:GetChildren()[math.random(1,#NPCs:GetChildren())]
-    npc = npc:Clone()
-    npc.Parent = workspace["$Temp"]
-    local humanoid = npc:WaitForChild("Humanoid")
-
-    npc:MoveTo(starter.Position)
-
     local path
 
     if string.find(starter.Name, "_direct") then
         path = loadedPaths[starter]
     else
-        warn("!",loadedPaths[starter])
         path = loadedPaths[starter][math.random(1,#loadedPaths[starter])]
     end
+
+    if not path then return end
+
+    local npc = NPCs:GetChildren()[math.random(1,#NPCs:GetChildren())]
+    npc = npc:Clone()
+    npc.Parent = workspace["$Temp"]
+    local humanoid = npc:WaitForChild("Humanoid")
+    loadWalkAnimation(npc)  
+
+    npc:MoveTo(starter.Position)
 
     for _, p in pairs(path) do
         for _, waypoint in pairs(p) do

@@ -7,7 +7,8 @@ module.PriorityLevel = {
     CookingTool = 2.5,
     Food = 1,
     ServingCounter = 3,
-    PlateTable = 3
+    PlateTable = 3,
+    Trash = 3
 }
 
 module.AllowInteractionWithSelf = {

@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local TweenService = game:GetService("TweenService")
 
 local SetCameraRE = Remotes:WaitForChild("Camera"):WaitForChild("SetCamera")
 
@@ -12,6 +13,8 @@ local coopenabled = false
 
 local closeupservice
 local cachecamerapart
+
+local coopCameraLoadDistance = 15
 
 local function DisableFollowUp()
 	if not closeupservice or not cachecamerapart then return end
@@ -26,7 +29,7 @@ local function followUp()
 	local root = character:WaitForChild("HumanoidRootPart")
 	local cameraPart = Instance.new("Part")
 
-	local yDistance, zDistance = 20, 15
+	local xDistance, yDistance, zDistance = 20, 25, 0
 	local cameraSpeed = 5
 
 	local FOV = 50
@@ -36,25 +39,29 @@ local function followUp()
 	cameraPart.Anchored = true
 	cameraPart.CanTouch = false
 	cameraPart.CanCollide = false
-	cameraPart.Parent = game.Workspace:WaitForChild("$CustomCameras")
+	cameraPart.Parent = workspace:WaitForChild("$Temp")
 	cameraPart.Name = "CustomCloseCamera"
-	cameraPart.CFrame = CFrame.lookAt(root.CFrame.Position + Vector3.new(0, yDistance, zDistance), root.Position)
+	cameraPart.CFrame = CFrame.lookAt(root.CFrame.Position + Vector3.new(xDistance, yDistance, zDistance), root.Position)
 	cachecamerapart = cameraPart
 	camera.CameraType = Enum.CameraType.Scriptable
 	
 	closeupservice = RunService.PostSimulation:Connect(function(dt)
-		cameraPart.Position = cameraPart.Position:Lerp(root.Position + Vector3.new(0, yDistance, zDistance), dt * cameraSpeed)
+		cameraPart.Position = cameraPart.Position:Lerp(root.Position + Vector3.new(xDistance, yDistance, zDistance), dt * cameraSpeed)
 		camera.CFrame = cameraPart.CFrame	
 	end)
 end
 
-local function CoopCamera(CameraCFrame)
+local function CoopCamera(CameraCFrame, params)
 	coopenabled = true
 	local FOV = 50
 	camera.FieldOfView = FOV
 	
 	camera.CameraType = Enum.CameraType.Scriptable
-	camera.CFrame = CameraCFrame
+	if params.tween then
+		local tweenTo = TweenService:Create(camera, TweenInfo.new(params.s), {CFrame = CameraCFrame})
+	else
+		camera.CFrame = CameraCFrame
+	end
 	
 	local originPosition = CameraCFrame
 	while coopenabled do
@@ -68,14 +75,24 @@ local function CoopCamera(CameraCFrame)
 	end
 end
 
+local function CoopCameraLoad(CameraCFrame)
+	local FOV = 50
+	camera.FieldOfView = FOV
+
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame = CameraCFrame*CFrame.new(0,0,coopCameraLoadDistance)
+end
+
 local function DisableAllCameras()
 	DisableFollowUp()
 	camera.CameraType = Enum.CameraType.Follow
 end
 
-SetCameraRE.OnClientEvent:Connect(function(cameraType, CameraCFrame)
+SetCameraRE.OnClientEvent:Connect(function(cameraType, CameraCFrame, params)
 	if cameraType == "coOp" then
-		CoopCamera(CameraCFrame)
+		CoopCamera(CameraCFrame, params)
+	elseif cameraType == "coOpLoad" then
+		CoopCameraLoad(CameraCFrame)
 	elseif cameraType == "FollowUp" then
 		followUp()
     elseif cameraType == "disable" then

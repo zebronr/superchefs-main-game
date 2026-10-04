@@ -28,7 +28,8 @@ local maxRequest = 10
 
 local interactableClasses = {
     "Countertop", "CookingTool", "Food", "Plate", "ChoppingBoard", 
-    "Stove", "FireExtinguisher", "DirtyPlate", "Sink", "FoodContainer", "ServingCounter", "PlateTable"
+    "Stove", "FireExtinguisher", "DirtyPlate", "Sink", "FoodContainer", "ServingCounter", "PlateTable",
+    "Trash"
 }
 local useableClasses = {
     "Countertop", "Tool", "ChoppingBoard", "FireExtinguisher", "Sink"
@@ -104,16 +105,17 @@ local function verifyRequest(parameters)
 end
 
 function functions.Interact(parameters, serverRequest)
+    print("interacting?")
     local player = parameters.requestOrigin
     local visibleObject = parameters.vO
     local objectCarried
     if serverRequest then
-        objectCarried = parameters.oC or PlayerValues.RetrieveValue(player, "ObjectCarried")
+        objectCarried = parameters.oC --or PlayerValues.RetrieveValue(player, "ObjectCarried")
     else
         objectCarried = PlayerValues.RetrieveValue(player, "ObjectCarried")
     end
 
-    if not visibleObject and not objectCarried then return end
+    if not visibleObject and not objectCarried then print("error 1"); return end
 
     local objectToInteractWith = visibleObject or objectCarried
 
@@ -125,7 +127,7 @@ function functions.Interact(parameters, serverRequest)
         end
     end
     
-    if (not objectToInteractWith) or (useLock[objectToInteractWith]) or interactLock[objectToInteractWith] then return end
+    if (not objectToInteractWith) or (useLock[objectToInteractWith]) or interactLock[objectToInteractWith] then print("error 2"); return end
 
     interactLock[objectToInteractWith] = true
 
@@ -226,16 +228,16 @@ local function requestInteraction(player, request, parameters, serverRequest)
         parameters.bypassPlayerLock = true
     end 
 
-    if functions[request] and (serverRequest or verifyRequest(parameters)) then
+    --[[if functions[request] and (serverRequest or verifyRequest(parameters)) then
 
         functions[request](parameters, serverRequest)
-    end--replace this with the commented snippet below on launch
-    --[[local _success, error = pcall(function()
+    end--replace this with the commented snippet below on launch]]--
+    local _success, error = pcall(function()
         parameters = parameters or {}
         parameters.requestOrigin = player
 
         if functions[request] and (serverRequest or verifyRequest(parameters)) then
-            functions[request](parameters) 
+            functions[request](parameters, serverRequest) 
         end
     end)
     if error then
@@ -252,7 +254,7 @@ local function requestInteraction(player, request, parameters, serverRequest)
         warn("---------------")
         warn(`ERROR INFO: {error}`)
         warn("=====================================================================")
-    end]]--
+    end
 end
 
 InteractionRequest.OnServerEvent:Connect(function(player, request, parameters)

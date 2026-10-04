@@ -27,6 +27,8 @@ local FireEmitter = Assets:WaitForChild("FireEmitter")
 local DashTrail = Assets:WaitForChild("DashTrail")
 local ObjectNotification = Assets:WaitForChild("ObjectNotification")
 local ErrorHighlight = Assets:WaitForChild("ErrorHighlight")
+local PlayerIndicator = Assets:WaitForChild("PlayerIndicator")
+local CharacterHighlight = Assets:WaitForChild("CharacterHighlight")
 
 local EffectsModules = script.Parent.Parent:WaitForChild("EffectsModules")
 local GIFModule = require(EffectsModules:WaitForChild("GIFModule"))
@@ -422,6 +424,37 @@ function effects.objError(parameters)
     end
 
     highlight:Destroy()
+end
+
+function effects.plrIndicator(parameters)
+    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local HRP = Character:WaitForChild("HumanoidRootPart")
+
+    local color = parameters.c
+
+    local indicator = PlayerIndicator:Clone()
+    indicator.Parent = Character
+
+    indicator:WaitForChild("SurfaceGui"):WaitForChild("ImageLabel").ImageColor3 = color
+
+    local WeldConstraint = Instance.new("WeldConstraint")
+    WeldConstraint.Parent = indicator
+
+    WeldConstraint.Parent = HRP
+
+    indicator.Position = HRP.Position - Vector3.new(0,3,0)
+
+    WeldConstraint.Part0 = HRP
+    WeldConstraint.Part1 = indicator
+end
+
+function effects.charHighlight(parameters) 
+    local color = parameters.c
+    local character = parameters.ch
+
+    local highlight = CharacterHighlight:Clone()
+    highlight.Parent = character
+    highlight.OutlineColor = color
 end
 
 EffectsRE.OnClientEvent:Connect(function(effectType, parameters)

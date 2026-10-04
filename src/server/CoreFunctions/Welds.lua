@@ -39,6 +39,7 @@ function module.unweldFromSurface(object)
             local w = p:FindFirstChild("objectTopWelder")
             if w and w.Part1 == object then
                 w:Destroy()
+                return p
             end
         end
     end

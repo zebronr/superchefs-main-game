@@ -65,7 +65,7 @@ function module.stackPlates(origin, newPlate)
 end
 
 function module.Interact(player, objectCarried, visibleObject)
-    print(objectCarried, visibleObject)
+    --print(objectCarried, visibleObject)
     if not objectCarried and visibleObject then
         ObjectAction.PickupObject(player, visibleObject)
     elseif objectCarried and not visibleObject then

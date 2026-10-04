@@ -25,7 +25,7 @@ local Plate = Assets:WaitForChild("Plates"):WaitForChild("Plate")
 
 function module.AddPlate(plateTable, delay, dirty)
     task.delay(delay or 1.5, function()
-        print("addingPlate!!")
+        --print("addingPlate!!")
         local clonePlate
         if dirty then
             clonePlate = DirtyPlate:Clone()

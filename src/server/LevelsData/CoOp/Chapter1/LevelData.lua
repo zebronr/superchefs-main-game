@@ -17,26 +17,26 @@ module.recipes = {
         food_name = "chopped_cucumber",
         time = 40,
         steps = {
-            [1] = {ingredient_images = {[1] = "rbxassetid://93289946475863"}}
+            [1] = {ingredient_images = {[1] = "rbxassetid://100503567650585"}}
         },
-        foodImage = ""
+        foodImage = "rbxassetid://113432140786725"
     },
     [2] = {
         food_name = "chopped_mango",
         time = 40,
         steps = {
-            [1] = {ingredient_images = {[1] = "rbxassetid://98776364547107"}}
+            [1] = {ingredient_images = {[1] = "rbxassetid://121871090737807"}}
         },
-        foodImage = ""
+        foodImage = "rbxassetid://122023330879408"
     },
     [3] = {
         food_name = "salad(mango_cucumber)",
         time = 60,
         steps = {
-            [1] = {ingredient_images = {[1] = "rbxassetid://93289946475863"}},
-            [2] = {ingredient_images = {[1] = "rbxassetid://98776364547107"}}
+            [1] = {ingredient_images = {[1] = "rbxassetid://100503567650585"}},
+            [2] = {ingredient_images = {[1] = "rbxassetid://121871090737807"}}
         },
-        foodImage = ""
+        foodImage = "rbxassetid://128533613786186"
     }
 }
 

@@ -8,6 +8,11 @@ local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("C
 local Actions = CoreFunctions:WaitForChild("Actions")
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local SoundsRemotes = Remotes:WaitForChild("Sounds")
+
+local PlayRE = SoundsRemotes:WaitForChild("Play")
+
 local Assets = ServerStorage:WaitForChild("Assets")
 local FoodModels = Assets:WaitForChild("Foods")
 local PlatedFoods = FoodModels:WaitForChild("PlatedFoods")
@@ -19,7 +24,9 @@ local FoodTree = require(script.Parent:WaitForChild("FoodTree"))
 
 module.PlateContent = Cache.RegisterCache(`{script.Name}_module.PlateContent`)
 
-local function clearPlate(plate)
+function module.clearPlate(plate)
+    if not module.PlateContent[plate] then return end
+    
     module.PlateContent[plate] = nil
 
     local food = Welds.isObjectOnTop(plate)
@@ -27,7 +34,7 @@ local function clearPlate(plate)
     food:Destroy()
 
     for _, foodImage in pairs(plate:WaitForChild("FoodList"):GetChildren()) do
-        if foodImage:IsA("ImageLabel") then
+        if foodImage:IsA("Frame") then
             foodImage:Destroy()
         end
     end
@@ -52,12 +59,14 @@ local function plateFood(plate, food, player)
         end
     end
     if platedFood then
+        PlayRE:FireAllClients("Interact")
+
         platedFood = platedFood:Clone()
         platedFood.Parent = plate
         platedFood.CanCollide = false
 
         local foodImage = food:WaitForChild("FoodList")
-        foodImage:WaitForChild("ImageLabel").Parent = plate:WaitForChild("FoodList")
+        foodImage:WaitForChild("Frame").Parent = plate:WaitForChild("FoodList")
 
         if player then
             if ObjectAction.GetValue(player, "ObjectCarried"):GetAttribute("objectClass") == "Food" then
@@ -102,18 +111,20 @@ local function mixFood(sourcePlate, targetPlate, player)
         platedFood = PlatedFoods:FindFirstChild("plated_"..combination)
     end
     if platedFood then
+        PlayRE:FireAllClients("Interact")
+        
         platedFood = platedFood:Clone()
         platedFood.Parent = targetPlate
         platedFood.CanCollide = false
 
         local FoodList = sourcePlate:WaitForChild("FoodList")
         for _, foodImage in pairs(FoodList:GetChildren()) do
-            if foodImage:IsA("ImageLabel") then
+            if foodImage:IsA("Frame") then
                 foodImage.Parent = targetPlate:WaitForChild("FoodList")
             end
         end
 
-        clearPlate(sourcePlate)
+        module.clearPlate(sourcePlate)
 
         module.PlateContent[targetPlate] = {combination}
 
@@ -122,10 +133,11 @@ local function mixFood(sourcePlate, targetPlate, player)
 end
 
 function module.Interact(player, objectCarried, visibleObject)
-    print("REACHING HERE")
     if not objectCarried and visibleObject then
+        PlayRE:FireAllClients("Interact")
         ObjectAction.PickupObject(player, visibleObject)
     elseif objectCarried and not visibleObject then
+        PlayRE:FireAllClients("Interact")
         ObjectAction.DropObject(player)
     elseif objectCarried and visibleObject then
         local objectCarriedClass = objectCarried:GetAttribute("objectClass")
@@ -140,7 +152,14 @@ function module.Interact(player, objectCarried, visibleObject)
             local oCPlateContent = module.PlateContent[objectCarried]
             local vOPlateContent = module.PlateContent[visibleObject]
             if (oCPlateContent and not vOPlateContent) or (vOPlateContent and not oCPlateContent) then
-                ObjectAction.DropObject(player)
+                PlayRE:FireAllClients("Interact")
+                local surface = Welds.unweldFromSurface(visibleObject)
+                if surface then
+                    ObjectAction.DropObject(player, true)
+                    Welds.PlaceObjectOnTop(objectCarried, surface)
+                else
+                    ObjectAction.DropObject(player)
+                end
                 ObjectAction.PickupObject(player, visibleObject)
             elseif oCPlateContent and vOPlateContent then
                 mixFood(visibleObject, objectCarried, player)

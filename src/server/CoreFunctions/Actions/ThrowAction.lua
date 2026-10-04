@@ -1,9 +1,9 @@
 local module = {}
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Modules = ReplicatedStorage:WaitForChild("Modules")
+local Shared = ReplicatedStorage:WaitForChild("Modules")
 
-local PlayerValues = require(Modules:WaitForChild("PlayerValues"))
+local PlayerValues = require(Shared:WaitForChild("PlayerValues"))
 local Projectile = require(script.Parent:WaitForChild("Projectile"))
 local ObjectAction = require(script.Parent:WaitForChild("ObjectAction"))
 

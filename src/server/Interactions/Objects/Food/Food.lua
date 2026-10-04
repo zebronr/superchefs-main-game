@@ -1,13 +1,20 @@
 local module = {}
 
 local ServerScriptService = game:GetService("ServerScriptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
 local Actions = CoreFunctions:WaitForChild("Actions")
 
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local SoundsRemotes = Remotes:WaitForChild("Sounds")
+
+local PlayRE = SoundsRemotes:WaitForChild("Play")
+
 local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
 
 function module.Interact(player, objectCarried, visibleObject)
+    PlayRE:FireAllClients("Interact")
     if not objectCarried and visibleObject then
         ObjectAction.PickupObject(player, visibleObject)
     elseif objectCarried and not visibleObject then

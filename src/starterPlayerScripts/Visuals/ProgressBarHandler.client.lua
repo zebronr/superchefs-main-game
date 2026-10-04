@@ -18,6 +18,8 @@ local LocalPlayer = Players.LocalPlayer
 local Assets = ReplicatedStorage:WaitForChild("Assets")
 local ProgressBar = Assets:WaitForChild("ProgressBar")
 
+local SoundEffects = SoundService:WaitForChild("SoundEffects")
+
 local functions = {}
 local isProgress = Cache.RegisterCache(`{script.Name}_isProgress`)
 local Progress = Cache.RegisterCache(`{script.Name}_Progress`)
@@ -47,7 +49,7 @@ function functions.ChoppingProgress(parameters)
         while isProgress[object] and not (Progress[object] >=  100) do
             n+=1
             Progress[object] += progressPerChop
-            SoundService:WaitForChild("Chop"):Play()
+            SoundEffects:WaitForChild("Chop"):Play()
             updateProgressBar(objectProgressBar, Progress[object])
             if n == 1 then --just a lazy way to take the travel time into factor lmao sorry for whoever gon read this
                 task.wait(chopDelay-travelTime)
@@ -93,7 +95,7 @@ function functions.CookingProgress(parameters)
             updateProgressBar(objectProgressBar, Progress[object])
         end
         if Progress[object] and Progress[object] >= 100 then -- change this btw
-            warn("DONE ON CLIENT")
+            --warn("DONE ON CLIENT")
             objectProgressBar:Destroy()
             isProgress[object] = nil
             Progress[object] = nil

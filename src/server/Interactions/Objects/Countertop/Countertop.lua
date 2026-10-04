@@ -10,6 +10,11 @@ local InteractionsModules  = ServerScriptService:WaitForChild("Server"):WaitForC
 
 local Shared = ReplicatedStorage:WaitForChild("Modules")
 
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local SoundsRemotes = Remotes:WaitForChild("Sounds")
+
+local PlayRE = SoundsRemotes:WaitForChild("Play")
+
 local Configs = Shared:WaitForChild("Configs")
 local InteractionConfigs = require(Configs:WaitForChild("InteractionConfigs"))
 
@@ -18,11 +23,13 @@ local ObjectAction = require(Actions:WaitForChild("ObjectAction"))
 local ToggleInteraction = require(Shared:WaitForChild("ToggleInteraction"))
 
 function module.Interact(player, objectCarried, countertop)
-    --print("COUNTERTOP INTERACT", player, objectCarried, countertop)
+    print("COUNTERTOP INTERACT", player, objectCarried, countertop)
     local objectOnTop = Welds.isObjectOnTop(countertop)
 
     if (objectOnTop and objectOnTop:HasTag("LOCKED")) or countertop:HasTag("LOCKED") or countertop:HasTag("FIRELOCKED") then return end
 
+    PlayRE:FireAllClients("Interact")
+    
     if objectCarried then
         local objectCarriedClass = objectCarried:GetAttribute("objectClass")
 
@@ -33,13 +40,13 @@ function module.Interact(player, objectCarried, countertop)
                 ToggleInteraction.Set(objectCarried, false)
             end
             Welds.PlaceObjectOnTop(objectCarried, countertop)
-            CollectionService:AddTag(objectCarried, "projectileInteractionLock")
+            CollectionService:AddTag(objectCarried, "projectileInteractionIgnore")
             return
         elseif objectOnTop then
             local objectOnTopClass = objectOnTop:GetAttribute("objectClass")
 
             if objectCarriedClass == objectOnTopClass and not InteractionConfigs.AllowInteractionWithSelf[objectOnTopClass] then
-                print("welp")
+                -- print("welp")
                 if player then
                     Welds.unweldObjectOnTop(countertop)
                     ObjectAction.DropObject(player, true)
@@ -61,7 +68,7 @@ function module.Interact(player, objectCarried, countertop)
                 --print(objectToInteractWith:GetAttribute("objectClass"))
                 local subInteraction = InteractionsModules:WaitForChild("Objects"):FindFirstChild(objectToInteractWith:GetAttribute("objectClass"))
                 subInteraction = require(subInteraction:FindFirstChild(subInteraction.Name))
-                print(objectToInteractWith)
+                --(objectToInteractWith)
                 subInteraction.Interact(player, objectToUseForInteraction, objectToInteractWith)
                 return
             end
@@ -73,7 +80,7 @@ function module.Interact(player, objectCarried, countertop)
             Welds.unweldObjectOnTop(countertop)
             if player then 
                 ObjectAction.PickupObject(player, objectOnTop)
-                CollectionService:RemoveTag(objectOnTop, "projectileInteractionLock")
+                CollectionService:RemoveTag(objectOnTop, "projectileInteractionIgnore")
                 return
             end
             return

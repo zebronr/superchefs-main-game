@@ -85,7 +85,7 @@ local function completeOrder(ui, orderNum) --success
 end
 
 local function removeOrder(ui) -- fail
-    print("removing")
+    --print("removing")
     if not ui then print("removing cancelled because ui does not exist"); return end
 	local mainFrame = ui:WaitForChild("Frame")
 	local defaultPosition = mainFrame.Position
@@ -154,7 +154,7 @@ local function addOrder(data)
         frame.Parent = ListFrame
 
         local mainFrame = frame:WaitForChild("Frame")
-        mainFrame:WaitForChild("foodDisplay"):WaitForChild("ImageLabel").Image = data.foodImage
+        mainFrame:WaitForChild("foodDisplay").Image = data.foodImage
 
         local frameIn = TweenService:Create(mainFrame, TweenInfo.new(.4, Enum.EasingStyle.Back), {Position = mainFrame.Position})
         delay += .4

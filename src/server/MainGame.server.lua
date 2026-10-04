@@ -21,9 +21,6 @@ local CacheOrdersRE = OrderRemotes:WaitForChild("CacheOrders")
 local AddOrderRE = OrderRemotes:WaitForChild("AddOrder")
 local CompleteOrderRE = OrderRemotes:WaitForChild("CompleteOrder")
 
-local CharacterRemotes = Remotes:WaitForChild("Character")
-local LoadAnimationRE = CharacterRemotes:WaitForChild("LoadAnimations")
-
 local CameraRemotes = Remotes:WaitForChild("Camera")
 local SetCameraRE = CameraRemotes:WaitForChild("SetCamera")
 
@@ -46,6 +43,10 @@ local UpdateVisibilityParametersRE = InteractionsRemotes:WaitForChild("UpdateVis
 
 local Objects = ServerScriptService:WaitForChild("Server"):WaitForChild("Interactions"):WaitForChild("Objects")
 local PlateTableModule = require(Objects:WaitForChild("PlateTable"):WaitForChild("PlateTable"))
+
+local CoreFunctions = ServerScriptService:WaitForChild("Server"):WaitForChild("CoreFunctions")
+local CharacterLoader = require(CoreFunctions:WaitForChild("CharacterLoader"))
+local Welds = require(CoreFunctions:WaitForChild("Welds"))
 
 local LevelsData = script.Parent:WaitForChild("LevelsData")
 
@@ -96,8 +97,9 @@ end
 
 local function findPlayerTeam(player)
     for i, team in pairs(teams) do
-        if table.find(team, player) then
-            return i
+        local playerNum = table.find(team, player)
+        if playerNum then
+            return i, playerNum
         end
     end
 end
@@ -108,7 +110,7 @@ local function orderSequence(team_i, sequence)
     for i=1, #sequence do
         local l = sequence:sub(i,i)
         if l == "-" then
-            print("locking")
+            --print("locking")
             orderLock[team_i] = true
             while orderLock[team_i] do task.wait() end
         elseif l == "*" then
@@ -126,12 +128,12 @@ local function orderSequence(team_i, sequence)
             orderThreads[team_i][cachedOrderNumber].orderNum = orderNumber[team_i]
 
             orderThreads[team_i][cachedOrderNumber].thread = task.delay(loadedLevelData.recipes[tonumber(l)].time, function()
-                print("failed!!", cachedOrderNumber)
+                --print("failed!!", cachedOrderNumber)
                 orderThreads[team_i][cachedOrderNumber] = nil
 
                 if not next(orderThreads[team_i]) then
                     orderLock[team_i] = false
-                    print("unlocking")
+                    --print("unlocking")
                 end
             end)
 
@@ -162,17 +164,21 @@ local function loadMap(level)
     loadedMap = (loadedLevelData.map):Clone()
     loadedMap.Parent = workspace:WaitForChild("$GAME")
 
+    for _, object in pairs(loadedMap:WaitForChild("Objects"):GetChildren()) do
+        local defaultObjectOnTop = object:FindFirstChild("DefObjectOnTop")
+        if defaultObjectOnTop then
+            local objectOnTop = defaultObjectOnTop.Value
+            objectOnTop:SetAttribute("interactionDisabled", true)
+            Welds.PlaceObjectOnTop(objectOnTop, object)
+            defaultObjectOnTop:Destroy()
+        end
+    end
+
     task.wait(3)
     UpdateVisibilityParametersRE:FireAllClients()
 end
 
-local function startGame(level, teamOverwrite)
-    loadedLevelData = require(level:WaitForChild("LevelData"))
-
-    CacheOrdersRE:FireAllClients(loadedLevelData.recipes)
-    print("CACHED")
-
-    setTeams(loadedLevelData.teams, teamOverwrite)
+local function teleportPlayers()
     for team_i, team in pairs(teams) do
         for i, player in pairs(team) do
             local character = player.Character or player.CharacterAdded:Wait()
@@ -180,6 +186,15 @@ local function startGame(level, teamOverwrite)
             character:MoveTo(spawner.Position)
         end
     end
+end
+
+local function startGame(level)
+    loadedLevelData = require(level:WaitForChild("LevelData"))
+
+    CacheOrdersRE:FireAllClients(loadedLevelData.recipes)
+    --print("CACHED")
+
+    
     ---
     ReadySetGoRE:FireAllClients()
     task.wait(3)
@@ -220,9 +235,9 @@ local function completeOrder(team_i, food, parameters)
     --
 
     for _, order in ipairs(arrangedList) do
-        print(loadedLevelData.recipes[order.orderId].food_name  , food)
+        --print(loadedLevelData.recipes[order.orderId].food_name  , food)
         if loadedLevelData.recipes[order.orderId].food_name == food then
-            warn("FOUND EARLIEST OCCURENCE OF ", food, "IN", order.orderNum)
+            --warn("FOUND EARLIEST OCCURENCE OF ", food, "IN", order.orderNum)
             
             EffectsRE:FireAllClients("orderFinish", {
                 o = parameters.servingCounter
@@ -239,7 +254,7 @@ local function completeOrder(team_i, food, parameters)
 
             if not next(orderThreads[team_i]) then
                 orderLock[team_i] = false
-                print("unlocking because completed")
+                --print("unlocking because completed")
             end
             return
         end
@@ -252,7 +267,7 @@ local function completeOrder(team_i, food, parameters)
         t = "NO ORDER YET!",
         o = parameters.servingCounter
     })
-    warn("NO ORDER OF THE GIVEN FOOD YET")
+    --warn("NO ORDER OF THE GIVEN FOOD YET")
 end
 
 local npcsRunning = false
@@ -285,17 +300,35 @@ CompleteOrderBE.Event:Connect(function(player, plateContent, parameters)
     completeOrder(team_i, plateContent, parameters)
 end)
 
-task.wait(5)
-
+--task.wait(5)
 --testing phase
-local selectedLevel = LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1")
+Remotes:WaitForChild("TESTING"):WaitForChild("StartGame").OnServerEvent:Connect(function()
+    local selectedLevel = LevelsData:WaitForChild("CoOp"):WaitForChild("Chapter1")
 
-loadMap(selectedLevel)
-LoadPathsRE:FireAllClients(loadedMap:WaitForChild("NPCWaypoints")) -- NPCS
-LoadAnimationRE:FireAllClients()
-ResetGameInfoUIRE:FireAllClients(loadedLevelData.levelDuration)
-NPCLoop(true) -- test
+    loadMap(selectedLevel)
 
-SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd3").CFrame)
-SetGameUIRE:FireAllClients(true)
-startGame(selectedLevel)
+    setTeams(loadedLevelData.teams)
+    print(teams)
+
+    for _, player in pairs(Players:GetPlayers()) do
+        local playerTeam, playerNum = findPlayerTeam(player)
+        CharacterLoader.loadPlayerChar(player, playerTeam, playerNum)
+    end
+
+    teleportPlayers()
+
+    LoadPathsRE:FireAllClients(loadedMap:WaitForChild("NPCWaypoints")) -- NPCS
+    NPCLoop(true) -- test
+
+    ResetGameInfoUIRE:FireAllClients(loadedLevelData.levelDuration)
+    SetGameUIRE:FireAllClients(true)
+    SetCameraRE:FireAllClients("FollowUp", workspace:WaitForChild("asd3").CFrame)
+
+    --task.wait(2)
+
+    --SetCameraRE:FireAllClients("coOp", workspace:WaitForChild("asd3").CFrame, {tween = true, s = .7})
+
+    task.wait(1)
+
+    startGame(selectedLevel)
+end)
