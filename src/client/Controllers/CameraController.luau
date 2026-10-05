@@ -15,11 +15,18 @@ local cameraPosition: Vector3? = nil
 local aimTarget = Vector3.zero
 local aimCurrent = Vector3.zero
 local aimEaseSpeed = CharacterConfig.CameraSpeed
+-- Follows this point instead of the character while set (a skill moving the player's view away).
+local focusOverride: Vector3? = nil
 
 -- Eases the camera by `offset` studs; pass Vector3.zero to ease back.
 function CameraController.SetAimOffset(offset: Vector3, easeSpeed: number?): ()
 	aimTarget = offset
 	aimEaseSpeed = easeSpeed or CharacterConfig.CameraSpeed
+end
+
+-- Follows `position` instead of the character, easing like normal follow; nil goes back to the character.
+function CameraController.SetFocus(position: Vector3?): ()
+	focusOverride = position
 end
 
 function CameraController.Start(_self: typeof(CameraController)): ()
@@ -44,11 +51,12 @@ function CameraController.Start(_self: typeof(CameraController)): ()
 		end
 		camera.CameraType = Enum.CameraType.Scriptable
 		camera.FieldOfView = CharacterConfig.CameraFov
-		local target = root.Position + CharacterConfig.CameraOffset
+		local followPosition = focusOverride or root.Position
+		local target = followPosition + CharacterConfig.CameraOffset
 		cameraPosition = if cameraPosition then cameraPosition:Lerp(target, math.clamp(dt * CharacterConfig.CameraSpeed, 0, 1)) else target
 		aimCurrent = aimCurrent:Lerp(aimTarget, math.clamp(dt * aimEaseSpeed, 0, 1))
 		local position = (cameraPosition :: Vector3) + aimCurrent
-		local focus = if CharacterConfig.CameraMode == "Track" then root.Position else position - CharacterConfig.CameraOffset
+		local focus = if CharacterConfig.CameraMode == "Track" then followPosition else position - CharacterConfig.CameraOffset
 		camera.CFrame = CFrame.lookAt(position, focus)
 	end)
 end

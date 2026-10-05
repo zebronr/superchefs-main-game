@@ -18,6 +18,9 @@ export type Recipe = Levels.Recipe
 export type CustomerTuning = Levels.CustomerTuning
 export type LevelData = Levels.LevelData
 export type TongueGrabTuning = Skills.TongueGrabTuning
+export type HustleTuning = Skills.HustleTuning
+export type DeepFreezeTuning = Skills.DeepFreezeTuning
+export type OrderRushTuning = Skills.OrderRushTuning
 
 local Config = {
 	Character = Character,

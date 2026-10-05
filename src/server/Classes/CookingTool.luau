@@ -28,11 +28,14 @@ export type CookingTool = Item.Item & {
 	Enabled: boolean,
 	CookLoop: thread?,
 	BurnTimer: thread?,
+	FrozenAt: number?,
 	Combinations: { [string]: { string } },
 	Display: (self: CookingTool, content: string) -> (),
 	IsEnabled: (self: CookingTool) -> boolean,
 	StartCooking: (self: CookingTool) -> (),
 	StopCooking: (self: CookingTool) -> (),
+	Freeze: (self: CookingTool) -> (),
+	Unfreeze: (self: CookingTool) -> (),
 	SetEnabled: (self: CookingTool, on: boolean) -> (),
 }
 
@@ -44,6 +47,7 @@ function CookingTool.new(instance: Instance): CookingTool
 	self.Enabled = false
 	self.CookLoop = nil
 	self.BurnTimer = nil
+	self.FrozenAt = nil
 	setmetatable(self :: any, CookingTool)
 	instance:SetAttribute(CookingConfig.CookContentAttribute, nil)
 	instance:SetAttribute(CookingConfig.CookProgressAttribute, 0)
@@ -89,7 +93,8 @@ local function finish(self: CookingTool, finishedAt: number): ()
 end
 
 function CookingTool.StartCooking(self: CookingTool): ()
-	if self.Content == nil or not self:IsEnabled() or self.CookLoop ~= nil then
+	-- A frozen tool starts again when it thaws (Unfreeze).
+	if self.Content == nil or not self:IsEnabled() or self.CookLoop ~= nil or self.FrozenAt ~= nil then
 		return
 	end
 	cancelTimer(self)
@@ -121,6 +126,51 @@ function CookingTool.StopCooking(self: CookingTool): ()
 	self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, self.Progress)
 	self.Instance:SetAttribute(CookingConfig.CookStartedAtAttribute, nil)
 	self.Instance:SetAttribute(CookingConfig.CookedAtAttribute, nil)
+end
+
+-- Deep Freeze: holds cooking progress and the burn countdown where they are.
+function CookingTool.Freeze(self: CookingTool): ()
+	if self.FrozenAt ~= nil then
+		return
+	end
+	local now = workspace:GetServerTimeNow()
+	if self.CookLoop ~= nil then
+		-- Mid-cook: bank the progress so far, like StopCooking, but keep the content.
+		local startedAt = self.Instance:GetAttribute(CookingConfig.CookStartedAtAttribute)
+		if typeof(startedAt) == "number" then
+			self.Progress = math.min(100, self.Progress + (now - startedAt) * CookingConfig.CookRate)
+		end
+		local loop = self.CookLoop
+		self.CookLoop = nil
+		if loop ~= nil and loop ~= coroutine.running() then
+			task.cancel(loop)
+		end
+		self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, self.Progress)
+		self.Instance:SetAttribute(CookingConfig.CookStartedAtAttribute, nil)
+	end
+	-- Cooked: the burn countdown stops; CookedAt stays and clients hold the warning at FrozenAt.
+	cancelTimer(self)
+	self.FrozenAt = now
+	self.Instance:SetAttribute(Config.Skills.Attribute.FrozenAt, now)
+end
+
+function CookingTool.Unfreeze(self: CookingTool): ()
+	local frozenAt = self.FrozenAt
+	if frozenAt == nil then
+		return
+	end
+	self.FrozenAt = nil
+	self.Instance:SetAttribute(Config.Skills.Attribute.FrozenAt, nil)
+	if not self.Instance:IsDescendantOf(workspace) then
+		return
+	end
+	local cookedAt = self.Instance:GetAttribute(CookingConfig.CookedAtAttribute)
+	if typeof(cookedAt) == "number" and self:IsEnabled() then
+		-- Shift the cooked time by the frozen time, which restarts the burn countdown where it stopped.
+		finish(self, cookedAt + (workspace:GetServerTimeNow() - frozenAt))
+	else
+		self:StartCooking()
+	end
 end
 
 function CookingTool.SetEnabled(self: CookingTool, on: boolean): ()

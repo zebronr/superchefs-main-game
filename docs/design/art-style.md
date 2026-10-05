@@ -5,7 +5,8 @@ Set by the Gecko's Tongue Grab (2026-10-05), which the user approved as the look
 ## Look
 - **Squishy and elastic, cartoon-organic.** Things stretch, wobble, splat and pop rather than move rigidly. Soft rounded shapes, no hard edges.
 - **Saturated warm colours** with simple baked shading: a lighter wet sheen on top, darker underneath and at the edges. No realism, no PBR detail.
-- **Small surface detail, big silhouettes.** Bumps or blotches in the texture, never in the geometry. Low-poly meshes (a few hundred faces) with smooth shading.
+- **Small surface detail, big silhouettes.** Bumps or blotches in the texture, never in the geometry. The game is **mid-to-low poly, never high poly**: meshes of a few hundred faces, round shapes from few segments (16 to 20 around).
+- **Hard objects are faceted** (the user's call on the UFO, 2026-10-05): flat shading, sharp edges, one solid colour per face, alternating panel shades, no soft noise blotches (those read as "AI-looking"). Soft organic things (the tongue) stay smooth. Reference: `art/ufo/ufo.py`.
 
 ## Motion
 - **Snappy easing, never linear.** Out with a fast-then-settle curve (Exponential Out), back with a slow-then-snap curve (Quart In).

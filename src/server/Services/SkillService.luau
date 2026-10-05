@@ -2,7 +2,11 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
+local DeepFreeze = require(script.Parent.Parent.Skills.DeepFreeze)
+local Hustle = require(script.Parent.Parent.Skills.Hustle)
+local OrderRush = require(script.Parent.Parent.Skills.OrderRush)
 local TongueGrab = require(script.Parent.Parent.Skills.TongueGrab)
 local Types = require(script.Parent.Parent.Skills.Types)
 local CarryService = require(script.Parent.CarryService)
@@ -24,6 +28,32 @@ local skills: { [string]: Types.Skill } = {
 	TongueGrab = TongueGrab,
 }
 
+-- Press-once skills, used through the "Use" action.
+local instantSkills: { [string]: Types.InstantSkill } = {
+	Hustle = Hustle,
+	DeepFreeze = DeepFreeze,
+	OrderRush = OrderRush,
+}
+
+-- Runtimes hold a Skill; an instant skill runs behind this stand-in, which only forwards Cancel.
+-- Instant skills never reach "Aiming", so Release, Interrupt and the hold timer never apply to them.
+local function asSkill(instant: Types.InstantSkill): Types.Skill
+	return {
+		HoldTimeout = 0,
+		Aim = function(_ctx: Types.Context): boolean
+			return false
+		end,
+		Release = function(_ctx: Types.Context, _direction: Vector3?, _target: Instance?): () end,
+		Interrupt = instant.Cancel,
+		Cancel = instant.Cancel,
+	}
+end
+
+local instantAdapters: { [Types.InstantSkill]: Types.Skill } = {}
+for _, instant in instantSkills do
+	instantAdapters[instant] = asSkill(instant)
+end
+
 type Runtime = {
 	Player: Player,
 	Skill: Types.Skill,
@@ -35,6 +65,8 @@ type Runtime = {
 }
 
 local runtimes: { [Player]: Runtime } = {}
+-- Studio test mode (Config.Skills.StudioTestKeys): the client names the skill, and there are no cooldowns.
+local testMode = RunService:IsStudio() and SkillsConfig.StudioTestKeys ~= nil
 local requestWindows: { [Player]: { Start: number, Count: number } } = {}
 
 local function consumeRequest(player: Player): boolean
@@ -51,10 +83,23 @@ local function consumeRequest(player: Player): boolean
 	return true
 end
 
-local function skillFor(character: Model): Types.Skill?
+-- `requested` is the skill the client named; only test mode honours it.
+local function skillName(character: Model, requested: unknown): string?
+	if testMode and typeof(requested) == "string" then
+		return requested
+	end
 	local model = character:GetAttribute(Attribute.CharacterModel)
-	local name = if typeof(model) == "string" then SkillsConfig.ByCharacter[model] else nil
+	return if typeof(model) == "string" then SkillsConfig.ByCharacter[model] else nil
+end
+
+local function skillFor(character: Model, requested: unknown): Types.Skill?
+	local name = skillName(character, requested)
 	return if name ~= nil then skills[name] else nil
+end
+
+local function instantFor(character: Model, requested: unknown): Types.InstantSkill?
+	local name = skillName(character, requested)
+	return if name ~= nil then instantSkills[name] else nil
 end
 
 local function cancelTimer(runtime: Runtime): ()
@@ -97,6 +142,9 @@ local function finish(runtime: Runtime, cooldown: number): ()
 	runtimes[runtime.Player] = nil
 	runtime.Ended = true
 	cancelTimer(runtime)
+	if testMode then
+		cooldown = 0
+	end
 	local character = runtime.Ctx.Character
 	character:SetAttribute(Attribute.ReadyAt, workspace:GetServerTimeNow() + cooldown)
 	character:SetAttribute(Attribute.Cooldown, cooldown)
@@ -167,7 +215,7 @@ local function restartHold(runtime: Runtime): ()
 	end)
 end
 
-local function aim(player: Player): ()
+local function aim(player: Player, requested: unknown): ()
 	local character = player.Character
 	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
 	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
@@ -180,7 +228,7 @@ local function aim(player: Player): ()
 	then
 		return
 	end
-	local skill = skillFor(character)
+	local skill = skillFor(character, requested)
 	local readyAt = character:GetAttribute(Attribute.ReadyAt)
 	local ready = typeof(readyAt) ~= "number" or workspace:GetServerTimeNow() >= readyAt
 	if runtimes[player] ~= nil then
@@ -214,12 +262,64 @@ local function aim(player: Player): ()
 	restartHold(runtime)
 end
 
+-- An instant skill. The client already plays it locally, so every refusal tells it to roll back.
+local function use(player: Player, requested: unknown): ()
+	local character = player.Character
+	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
+	if
+		character == nil
+		or character:GetAttribute("CustomCharacter") ~= true
+		or humanoid == nil
+		or humanoid.Health <= 0
+		or character:FindFirstChild("HumanoidRootPart") == nil
+	then
+		Net.Event("Skill"):FireClient(player, "Interrupted")
+		return
+	end
+	local instant = instantFor(character, requested)
+	local now = workspace:GetServerTimeNow()
+	local readyAt = character:GetAttribute(Attribute.ReadyAt)
+	local ready = typeof(readyAt) ~= "number" or now >= readyAt
+	if
+		instant == nil
+		or runtimes[player] ~= nil
+		or not ready
+		or (instant.RequiresEmptyHands and CarryService.GetHeld(player) ~= nil)
+		or (not instant.AllowedWhileUsing and InteractionService.IsUsing(player))
+	then
+		Net.Event("Skill"):FireClient(player, "Interrupted")
+		return
+	end
+
+	local ctx, runtime = newContext(player, character)
+	runtime.Skill = instantAdapters[instant]
+	runtime.State = "Active"
+	runtimes[player] = runtime
+	local startedAt = now - math.min(player:GetNetworkPing() / 2, SkillsConfig.MaxLagCompensation)
+	local success, accepted = pcall(instant.Use, ctx, startedAt)
+	if not success or not accepted then
+		if not success then
+			warn(`Skill use for {player.Name} failed: {accepted}`)
+			pcall(instant.Cancel, ctx)
+		end
+		if runtimes[player] == runtime then
+			runtimes[player] = nil
+			runtime.Ended = true
+			character:SetAttribute(Attribute.State, nil)
+		end
+		Net.Event("Skill"):FireClient(player, "Interrupted")
+	end
+end
+
 local function onRequest(player: Player, action: unknown, payload: unknown, hint: unknown): ()
 	if not consumeRequest(player) then
 		return
 	end
 	if action == "Aim" then
-		aim(player)
+		aim(player, payload)
+		return
+	elseif action == "Use" then
+		use(player, payload)
 		return
 	end
 	local runtime = runtimes[player]

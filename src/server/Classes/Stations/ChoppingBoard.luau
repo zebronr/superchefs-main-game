@@ -10,6 +10,7 @@ local Counter = require(script.Parent.Counter)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local InteractionConfig = Config.Interaction
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
+local SkillEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("SkillEffects"))
 local Trove = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Trove"))
 
 local choppedFoods = ServerStorage:WaitForChild("Assets"):WaitForChild("Foods"):WaitForChild("ChoppedFoods")
@@ -155,7 +156,7 @@ function ChoppingBoard.StartUse(self: ChoppingBoard, player: Player, onEnded: ()
 				complete(self, session)
 				return
 			end
-			task.wait(InteractionConfig.ChopDelay)
+			task.wait(InteractionConfig.ChopDelay / SkillEffects.WorkMultiplier(session.Player.Character))
 		end
 	end)
 	return true

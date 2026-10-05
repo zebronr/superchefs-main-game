@@ -37,4 +37,17 @@ export type Skill = {
 	TakeThrown: ((ctx: Context, item: Item.Item, position: Vector3) -> ())?,
 }
 
+-- A press-once skill (no aim). SkillService registers these separately from the hold-to-aim `Skill`s.
+export type InstantSkill = {
+	-- Refuse the use while carrying something.
+	RequiresEmptyHands: boolean,
+	-- Allow the use while chopping, washing or spraying.
+	AllowedWhileUsing: boolean,
+	-- Called after SkillService validated the request. `startedAt` is the lag-compensated server time the
+	-- client pressed. Return false to refuse; otherwise the skill must end the use with `Finish`.
+	Use: (ctx: Context, startedAt: number) -> boolean,
+	-- Drop everything: the player died, left or got a new character.
+	Cancel: (ctx: Context) -> (),
+}
+
 return {}

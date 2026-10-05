@@ -5,7 +5,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local DeepFreeze = require(script.Parent.Parent.Skills.DeepFreeze)
+local Hustle = require(script.Parent.Parent.Skills.Hustle)
+local InstantSkill = require(script.Parent.Parent.Skills.InstantSkill)
+local OrderRush = require(script.Parent.Parent.Skills.OrderRush)
 local TongueGrab = require(script.Parent.Parent.Skills.TongueGrab)
+local SpeedController = require(script.Parent.SpeedController)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -36,12 +41,25 @@ local clientSkills: { [string]: ClientSkill } = {
 	TongueGrab = TongueGrab,
 }
 
+-- Press-once skills (no aim): predicted on press, confirmed or rolled back by the server.
+local instantSkills: { [string]: InstantSkill.InstantSkill } = {
+	Hustle = Hustle,
+	DeepFreeze = DeepFreeze,
+	OrderRush = OrderRush,
+}
+
+-- An instant use the server has not answered yet.
+type Pending = {
+	Skill: InstantSkill.InstantSkill,
+	Character: Model,
+	SentAt: number,
+	Connections: { RBXScriptConnection },
+}
+
 type Aim = {
 	Skill: ClientSkill,
 	Character: Model,
 	Humanoid: Humanoid,
-	SavedWalkSpeed: number,
-	SavedAutoRotate: boolean,
 	StartedAt: number,
 	-- When the hold limit started counting: the press, or the last target switch.
 	HoldStartedAt: number,
@@ -57,6 +75,10 @@ type Aim = {
 
 local localPlayer = Players.LocalPlayer
 local aim: Aim? = nil
+-- Studio test mode (Config.Skills.StudioTestKeys): the skill picked by the last test key; nil = the character's own.
+local testKeys = if RunService:IsStudio() then SkillsConfig.StudioTestKeys else nil
+local override: string? = nil
+local pending: Pending? = nil
 local connectedButtons: { [GuiButton]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local warnedMissing: { [string]: boolean } = {}
 
@@ -67,14 +89,26 @@ local function warnOnce(message: string): ()
 	end
 end
 
-local function currentSkill(): (ClientSkill?, Model?)
+local function currentName(): (string?, Model?)
 	local character = localPlayer.Character
 	if character == nil then
 		return nil, nil
 	end
+	if override ~= nil then
+		return override, character
+	end
 	local model = character:GetAttribute(Attribute.CharacterModel)
-	local name = if typeof(model) == "string" then SkillsConfig.ByCharacter[model] else nil
+	return if typeof(model) == "string" then SkillsConfig.ByCharacter[model] else nil, character
+end
+
+local function currentSkill(): (ClientSkill?, Model?)
+	local name, character = currentName()
 	return if name ~= nil then clientSkills[name] else nil, character
+end
+
+local function currentInstant(): (InstantSkill.InstantSkill?, Model?)
+	local name, character = currentName()
+	return if name ~= nil then instantSkills[name] else nil, character
 end
 
 local function handsFull(character: Model): boolean
@@ -101,6 +135,10 @@ function SkillController.IsBusy(): boolean
 	if aim ~= nil then
 		return true
 	end
+	local instant = currentInstant()
+	if instant ~= nil and instant.IsBusy() then
+		return true
+	end
 	local character = localPlayer.Character
 	return character ~= nil and character:GetAttribute(Attribute.State) ~= nil
 end
@@ -113,10 +151,7 @@ local function freeMovement(current: Aim): ()
 		return
 	end
 	current.Freed = true
-	if current.Humanoid.Parent ~= nil then
-		current.Humanoid.WalkSpeed = current.SavedWalkSpeed
-		current.Humanoid.AutoRotate = current.SavedAutoRotate
-	end
+	SpeedController.SetRooted("Aim", false)
 end
 
 local function endAim(): ()
@@ -129,7 +164,66 @@ local function endAim(): ()
 	freeMovement(current)
 end
 
+local function settle(): ()
+	local current = pending
+	if current == nil then
+		return
+	end
+	pending = nil
+	for _, connection in current.Connections do
+		connection:Disconnect()
+	end
+end
+
+-- The server refused (or never answered): undo the local prediction.
+local function rollback(): ()
+	local current = pending
+	if current == nil then
+		return
+	end
+	settle()
+	current.Skill.Rollback()
+end
+
+local function useInstant(skill: InstantSkill.InstantSkill, character: Model): ()
+	if pending ~= nil or SkillController.IsBusy() then
+		return
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if
+		humanoid == nil
+		or humanoid.Health <= 0
+		or cooldownFraction(character) > 0
+		or (skill.RequiresEmptyHands and handsFull(character))
+		or not skill.CanUse(character)
+	then
+		return
+	end
+	local current: Pending = {
+		Skill = skill,
+		Character = character,
+		SentAt = os.clock(),
+		Connections = {},
+	}
+	pending = current
+	-- Any sign the server accepted (a new cooldown, or the skill state) confirms the prediction.
+	local function confirm(): ()
+		if pending == current then
+			settle()
+		end
+	end
+	table.insert(current.Connections, character:GetAttributeChangedSignal(Attribute.ReadyAt):Connect(confirm))
+	table.insert(current.Connections, character:GetAttributeChangedSignal(Attribute.State):Connect(confirm))
+	skill.Predict(character)
+	Net.Event("Skill"):FireServer("Use", override)
+end
+
 local function pressSkill(): ()
+	local instant, instantCharacter = currentInstant()
+	if instant ~= nil and instantCharacter ~= nil then
+		useInstant(instant, instantCharacter)
+		return
+	end
 	local skill, character = currentSkill()
 	if skill == nil or character == nil or aim ~= nil or SkillController.IsBusy() then
 		return
@@ -142,8 +236,6 @@ local function pressSkill(): ()
 		Skill = skill,
 		Character = character,
 		Humanoid = humanoid,
-		SavedWalkSpeed = humanoid.WalkSpeed,
-		SavedAutoRotate = humanoid.AutoRotate,
 		StartedAt = os.clock(),
 		HoldStartedAt = os.clock(),
 		RetargetPending = false,
@@ -154,10 +246,9 @@ local function pressSkill(): ()
 		SawState = false,
 	}
 	-- Rooted until the server says the use is over.
-	humanoid.WalkSpeed = 0
-	humanoid.AutoRotate = false
+	SpeedController.SetRooted("Aim", true)
 	skill.BeginAim(character)
-	Net.Event("Skill"):FireServer("Aim")
+	Net.Event("Skill"):FireServer("Aim", override)
 end
 
 local function releaseSkill(): ()
@@ -176,6 +267,19 @@ local function releaseSkill(): ()
 	current.FreeAt = os.clock() + current.Skill.ActiveTime
 	current.Skill.ReleaseAim(true)
 	Net.Event("Skill"):FireServer("Release", current.Skill.GetDirection(), current.Skill.GetTarget())
+end
+
+local function stepPending(): ()
+	local current = pending
+	if current == nil then
+		return
+	end
+	if localPlayer.Character ~= current.Character then
+		rollback()
+	elseif os.clock() - current.SentAt >= SkillsConfig.InstantConfirmTimeout then
+		-- No answer at all: treat it as refused.
+		rollback()
+	end
 end
 
 local function stepAim(dt: number): ()
@@ -245,9 +349,15 @@ end
 -- Shows the HUD only for characters that have a skill, with the cooldown fill and a greyed-out look.
 local function updateHud(): ()
 	local skill, character = currentSkill()
-	local hasSkill = skill ~= nil and character ~= nil
+	local instant = currentInstant()
+	local hasSkill = (skill ~= nil or instant ~= nil) and character ~= nil
 	local fraction = if character ~= nil and hasSkill then cooldownFraction(character) else 0
-	local unavailable = fraction > 0 or (character ~= nil and handsFull(character)) or SkillController.IsBusy()
+	local needsEmptyHands = if instant ~= nil then instant.RequiresEmptyHands else true
+	local unavailable = fraction > 0
+		or (needsEmptyHands and character ~= nil and handsFull(character))
+		or (instant ~= nil and character ~= nil and not instant.CanUse(character))
+		or pending ~= nil
+		or SkillController.IsBusy()
 	local playerGui = localPlayer:FindFirstChild("PlayerGui")
 	if playerGui == nil then
 		return
@@ -255,7 +365,7 @@ local function updateHud(): ()
 
 	local hud = playerGui:FindFirstChild("SkillHUD")
 	if hud ~= nil and hud:IsA("ScreenGui") then
-		hud.Enabled = hasSkill
+		hud.Enabled = hasSkill and Config.UI.ShowSkillHud
 		local button = hud:FindFirstChild("Button")
 		if button ~= nil and button:IsA("Frame") then
 			local key = button:FindFirstChild("Key")
@@ -266,7 +376,7 @@ local function updateHud(): ()
 			button.BackgroundTransparency = if unavailable then 0.6 else 0
 			setCooldownFrame(button, fraction)
 		end
-	elseif hasSkill then
+	elseif hasSkill and Config.UI.ShowSkillHud then
 		warnOnce("PlayerGui.SkillHUD is missing")
 	end
 
@@ -288,26 +398,43 @@ function SkillController.Start(_self: typeof(SkillController)): ()
 	for _, skill in clientSkills do
 		skill.Setup()
 	end
+	for _, skill in instantSkills do
+		skill.Setup()
+	end
 	-- Input already consumed by the game (text boxes, GUI) is ignored.
 	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean): ()
-		if not gameProcessed and input.KeyCode == Config.Interaction.Controls.Skill then
+		if gameProcessed then
+			return
+		end
+		local test = if testKeys ~= nil then testKeys[input.KeyCode.Name] else nil
+		if input.KeyCode == Config.Interaction.Controls.Skill or test ~= nil then
+			-- A test key picks its skill until the next press; the skill key goes back to the character's own.
+			if aim == nil and pending == nil and not SkillController.IsBusy() then
+				override = test
+			end
 			pressSkill()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject): ()
 		-- Letting go always counts, even over a GUI.
-		if input.KeyCode == Config.Interaction.Controls.Skill then
+		local test = testKeys ~= nil and testKeys[input.KeyCode.Name] ~= nil
+		if input.KeyCode == Config.Interaction.Controls.Skill or test then
 			releaseSkill()
 		end
 	end)
 	Net.Event("Skill").OnClientEvent:Connect(function(message: unknown): ()
 		if message == "Interrupted" then
 			endAim()
+			rollback()
 		end
 	end)
-	localPlayer.CharacterRemoving:Connect(endAim)
+	localPlayer.CharacterRemoving:Connect(function(): ()
+		endAim()
+		rollback()
+	end)
 	RunService.RenderStepped:Connect(function(dt: number): ()
 		stepAim(dt)
+		stepPending()
 		updateHud()
 	end)
 end

@@ -81,7 +81,7 @@ Legacy cleanup on 2026-10-05 removed every raw class tag (131), `VISIBLE` (132),
 
 | Attribute | On | Meaning |
 |-----------|----|---------|
-| `interactionDisabled` | items | Not targetable (e.g. food while being handed out). |
+| `interactionDisabled` | items, CustomerTable stations | Not targetable (e.g. food while being handed out). `CustomerTable` sets it when there is nothing to do at the table. |
 | `ChopProgress`, `WashProgress` | chopping boards, sinks | Progress bars. |
 | `ActionAnimation` | characters | Current chop/wash animation; also signals the owning client that auto-use is running, so movement or dash sends `StopUse`. |
 | `CookContent`, `CookProgress`, `CookStartedAt`, `CookedAt`, `Fire`, `Spraying` | cooking tools, stations, extinguisher | Cooking, fire and spray state. |
@@ -94,4 +94,8 @@ Legacy cleanup on 2026-10-05 removed every raw class tag (131), `VISIBLE` (132),
 | `GrabFrom`, `GrabStartedAt`, `GrabByUserId` | items tagged `Grabbed` | Where the pulled item started, when the pull began, and whose tongue pulls it. |
 | `CustomCharacter`, `PlayerColor`, `Team` | players / characters | Character model, outline color, team number. |
 | `CustomerState`, `PatienceStartedAt`, `PatienceDuration`, `Recipe`, `Team` | customer models | Manual serve mode customer state for the bubble. |
+| `HustleUntil` | characters (Bill) | `GetServerTimeNow` when Hustle ends. Server chop/wash speed and every client's Hustle visuals read it (`SkillEffects`). |
+| `FreezeCenter`, `FreezeStartedAt`, `FreezeUntil` | characters (Penguin) | The running frost circle: centre (Vector3) and its start and end. `FreezeService`, `FireService` and every client read the circles through `SkillEffects.FreezeZones`. Cleared when it ends. |
+| `FrozenAt` | cooking tools, customer models | `GetServerTimeNow` when Deep Freeze froze it (nil when not frozen). Clients hold the progress/burn warning and patience bar at this time and tint the object. |
+| `RushStartedAt`, `RushOrigin`, `RushStops` | characters (Alien) | Order Rush chain: lag-compensated start, where the Alien stood, and the stops (`"x,y,z,yaw;x,y,z,yaw"`, radians for facing, `SkillEffects.EncodeStops`). Clients draw the afterimages from these; they draw the origin at the hidden Alien's live position (RushOrigin is a fallback, since it lags when pressed while moving). Cleared when the chain ends. |
 | `RoundState`, `RoundEndsAt`, `RoundDuration`, `Coins_<team>`, `ServeMode`, `LevelPath` | ReplicatedStorage | Round, coins and level info for clients. |

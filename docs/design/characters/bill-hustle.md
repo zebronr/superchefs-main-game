@@ -1,6 +1,6 @@
 # Bill: Hustle
 
-Status: **design draft.** Job: All-rounder. Shape: **self buff**. Follows the [general skill rules](../characters.md#general-skill-rules) and the [art style](../art-style.md).
+Status: **code written and smoke-tested (2026-10-05);** placeholder VFX and a stand-in character model (see HANDOFF). Job: All-rounder. Shape: **self buff**. Follows the [general skill rules](../characters.md#general-skill-rules) and the [art style](../art-style.md).
 
 ## Who Bill is
 

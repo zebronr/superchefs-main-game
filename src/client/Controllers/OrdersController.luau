@@ -11,7 +11,8 @@ local Levels = Config.Levels
 local patience = Config.UI.Patience
 local Net = require(Shared:WaitForChild("Net"))
 
-type Order = { OrderNum: number, Recipe: number, StartedAt: number, Duration: number }
+-- PausedAt: server time Deep Freeze paused the ticket (nil while it runs).
+type Order = { OrderNum: number, Recipe: number, StartedAt: number, Duration: number, PausedAt: number? }
 type Card = { Ui: GuiObject, Main: GuiObject, Fill: Frame, Order: Order, Generation: number, Tweens: { Tween } }
 
 local OrdersController = {}
@@ -203,6 +204,13 @@ function OrdersController.Start(_self: typeof(OrdersController)): ()
 			end
 		elseif message == "AddOrder" and isOrder(value) then
 			addOrder(value :: Order, true)
+		elseif message == "UpdateOrder" and isOrder(value) then
+			-- A paused or resumed ticket: new timing, same card.
+			local order = value :: Order
+			local card = cards[order.OrderNum]
+			if card ~= nil then
+				card.Order = order
+			end
 		elseif message == "CompleteOrder" and typeof(value) == "number" then
 			removeOrder(value, true)
 		elseif message == "ExpireOrder" and typeof(value) == "number" then
@@ -214,12 +222,15 @@ function OrdersController.Start(_self: typeof(OrdersController)): ()
 	RunService.Heartbeat:Connect(function(): ()
 		for _, card in cards do
 			local order = card.Order
-			local fraction = math.clamp((order.StartedAt + order.Duration - workspace:GetServerTimeNow()) / math.max(order.Duration, 0.001), 0, 1)
+			local pausedAt = order.PausedAt
+			local now = if typeof(pausedAt) == "number" then pausedAt else workspace:GetServerTimeNow()
+			local fraction = math.clamp((order.StartedAt + order.Duration - now) / math.max(order.Duration, 0.001), 0, 1)
 			local progress = 1 - fraction
 			-- Legacy tweened from the template fill (width 2, green) to width 1 and yellow, then to 0 and red.
 			card.Fill.Size = UDim2.new(if progress <= 0.5 then 2 - progress * 2 else (1 - progress) * 2, 0, 1, 0)
-			card.Fill.BackgroundColor3 = if progress <= 0.5
-				then patience.Green:Lerp(patience.Yellow, progress * 2)
+			card.Fill.BackgroundColor3 = if typeof(pausedAt) == "number"
+				then patience.Frozen
+				elseif progress <= 0.5 then patience.Green:Lerp(patience.Yellow, progress * 2)
 				else patience.Yellow:Lerp(patience.Red, (progress - 0.5) * 2)
 		end
 	end)

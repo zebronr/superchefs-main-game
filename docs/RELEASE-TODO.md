@@ -24,3 +24,11 @@ Until then, the round auto-starts on join, and the first countdown is missed in 
 ## Throw key
 
 Throw is bound to E for Studio testing, because LeftAlt unfocuses the Studio window. Before release, set `Interaction.Controls.Throw` (`src/shared/Config/Interaction.luau`) back to `Enum.KeyCode.LeftAlt`, or pick a final key.
+
+## Studio skill test keys
+
+`Config.Skills.StudioTestKeys` (R Tongue Grab, T Hustle, Y Deep Freeze, U Order Rush) lets any character use any skill in Studio with no cooldowns. Live servers ignore it, but set it to nil and remove the code path before release.
+
+## Skill HUD
+
+The desktop skill button is hidden (`Config.UI.ShowSkillHud = false`, 2026-10-05). Before release, remake `StarterGui.SkillHUD` (see `docs/PLACEHOLDER-UI.md`) and set the flag back to true, or decide on a different skill indicator.

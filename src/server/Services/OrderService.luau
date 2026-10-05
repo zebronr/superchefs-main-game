@@ -15,9 +15,12 @@ export type Order = {
 	Recipe: number,
 	StartedAt: number,
 	Duration: number,
+	-- Server time Deep Freeze paused the ticket (nil while it runs). Clients stop the bar here.
+	PausedAt: number?,
 }
 
-type Entry = { Data: Order, Timer: thread }
+-- Timer is nil while the ticket is paused; OnExpire restarts it on Resume (only manual orders have one).
+type Entry = { Data: Order, Timer: thread?, OnExpire: (() -> ())? }
 
 local OrderService = {}
 local activeGeneration: number? = nil
@@ -53,7 +56,10 @@ function OrderService.Stop(): ()
 	activeGeneration = nil
 	for _, teamOrders in orders do
 		for _, entry in teamOrders do
-			task.cancel(entry.Timer)
+			local timer = entry.Timer
+			if timer ~= nil then
+				task.cancel(timer)
+			end
 		end
 	end
 	orders = {}
@@ -166,17 +172,52 @@ function OrderService.Open(team: number, recipeId: number, onExpire: () -> ()): 
 		StartedAt = workspace:GetServerTimeNow(),
 		Duration = recipe.Time,
 	}
-	local timer = task.delay(recipe.Time, function(): ()
+	local function expire(): ()
 		if activeGeneration ~= generation or teamOrders[number] == nil then
 			return
 		end
 		teamOrders[number] = nil
 		sendTeam(team, "ExpireOrder", number)
 		onExpire()
-	end)
-	teamOrders[number] = { Data = order, Timer = timer }
+	end
+	teamOrders[number] = { Data = order, Timer = task.delay(recipe.Time, expire), OnExpire = expire }
 	sendTeam(team, "AddOrder", order)
 	return number
+end
+
+-- Deep Freeze: stops a manual order's timer.
+function OrderService.Pause(team: number, number: number): ()
+	local teamOrders = orders[team]
+	local entry = if teamOrders ~= nil then teamOrders[number] else nil
+	if entry == nil or entry.OnExpire == nil or entry.Data.PausedAt ~= nil then
+		return
+	end
+	local timer = entry.Timer
+	entry.Timer = nil
+	if timer ~= nil then
+		task.cancel(timer)
+	end
+	entry.Data.PausedAt = workspace:GetServerTimeNow()
+	sendTeam(team, "UpdateOrder", entry.Data)
+end
+
+-- Restarts a paused order with the time it had left; its StartedAt moves by the paused time.
+function OrderService.Resume(team: number, number: number): ()
+	local teamOrders = orders[team]
+	local entry = if teamOrders ~= nil then teamOrders[number] else nil
+	local pausedAt = if entry ~= nil then entry.Data.PausedAt else nil
+	if entry == nil or pausedAt == nil then
+		return
+	end
+	local now = workspace:GetServerTimeNow()
+	local data = entry.Data
+	data.StartedAt += now - pausedAt
+	data.PausedAt = nil
+	local expire = entry.OnExpire
+	if expire ~= nil then
+		entry.Timer = task.delay(math.max(0, data.StartedAt + data.Duration - now), expire)
+	end
+	sendTeam(team, "UpdateOrder", data)
 end
 
 function OrderService.Close(team: number, number: number, success: boolean, counter: Instance): ()
@@ -185,7 +226,10 @@ function OrderService.Close(team: number, number: number, success: boolean, coun
 	if teamOrders == nil or entry == nil then
 		return
 	end
-	task.cancel(entry.Timer)
+	local timer = entry.Timer
+	if timer ~= nil then
+		task.cancel(timer)
+	end
 	teamOrders[number] = nil
 	if success then
 		sendTeam(team, "CompleteOrder", number)
@@ -205,7 +249,10 @@ function OrderService.Serve(player: Player, dish: string, counter: Instance): bo
 				if recipe ~= nil and recipe.Name == dish then
 					local entry = teamOrders[order.OrderNum]
 					if entry ~= nil then
-						task.cancel(entry.Timer)
+						local timer = entry.Timer
+						if timer ~= nil then
+							task.cancel(timer)
+						end
 						teamOrders[order.OrderNum] = nil
 						sendTeam(team, "CompleteOrder", order.OrderNum)
 						payOrder(team, counter)

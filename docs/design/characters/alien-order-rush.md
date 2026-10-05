@@ -1,6 +1,6 @@
 # Alien: Order Rush
 
-Status: **design draft** (the user's idea). Job: Waiter (order taking). Shape: **instant chain**. The character is a **little alien** (not an animal). Follows the [general skill rules](../characters.md#general-skill-rules) and the [art style](../art-style.md).
+Status: **code written and smoke-tested (2026-10-05);** placeholder VFX and a stand-in character model (see HANDOFF). The user's idea. Job: Waiter (order taking). Shape: **instant chain**. The character is a **little alien** (not an animal). Follows the [general skill rules](../characters.md#general-skill-rules) and the [art style](../art-style.md).
 
 ## Fantasy
 
@@ -23,7 +23,7 @@ Variant to test: end at the **last table** instead. That's better if the Alien i
 
 ## Camera
 
-Teleporting the camera 4 times in 1.5 s would be disorienting. The camera **stays where the skill was used**. The player watches their own afterimages pop up at each table, and the order tickets appear one by one.
+Teleporting the camera 4 times in 1.5 s would be disorienting. The camera **stays where the skill was used**. The player watches their own afterimages pop up at each table, and the order tickets appear one by one. *(Changed 2026-10-05: with the UFO there are no jumps, so the camera eases along after the UFO instead.)*
 
 ## Interrupt
 
@@ -51,6 +51,8 @@ The cooldown is long because the value scales with how many tables are waiting. 
 If customers are shared between teams, taking an order claims that customer for your team. This skill would claim 4 at once, which is very strong. Options: a lower cap in Versus, or only customers on your side of the room.
 
 ## VFX (art style: squishy, elastic, with a UFO-beam theme)
+
+**Built (2026-10-05):** a UFO hovers above instead of blink-teleporting. It drops in and beams the Alien up, flies from customer to customer leaning into each flight, beams a see-through copy down beside each one (sparkle on landing) and back up, returns, beams the Alien down and zips off. The copy lands at a clear waiter spot beside each customer and faces them. Your own camera follows your UFO and eases back when it leaves. Mesh: `art/ufo/`. The bullets below are the original sketch; the streak trail was dropped (the UFO's flight shows the path).
 
 - **Vanish:** a soft green beam drops onto the Alien from above. It squashes thin and tall, gets sucked up the beam with a pop and a puff.
 - **Each table:** a short beam flashes down and an afterimage of the Alien appears for an instant (a translucent green-tinted copy), with a sparkle burst. The order ticket pops out above the customer with a bouncy scale (1.3x, then settle).

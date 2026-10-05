@@ -14,6 +14,7 @@ local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local InteractionConfig = Config.Interaction
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
+local SkillEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("SkillEffects"))
 local Trove = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Trove"))
 
 local plateTemplate = ServerStorage:WaitForChild("Assets"):WaitForChild("Plates"):WaitForChild("Plate")
@@ -243,7 +244,8 @@ function Sink.StartUse(self: Sink, player: Player, onEnded: () -> ()): boolean
 			if self.Session ~= session then
 				return
 			end
-			progress = math.min(progress + delta * InteractionConfig.WashRate, 100)
+			local multiplier = SkillEffects.WorkMultiplier(session.Player.Character)
+			progress = math.min(progress + delta * InteractionConfig.WashRate * multiplier, 100)
 			self.Instance:SetAttribute(InteractionConfig.WashProgressAttribute, progress)
 		end
 	end)

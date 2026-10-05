@@ -4,6 +4,19 @@ Versions are git tags (`vMAJOR.MINOR.PATCH`). The rules are in `docs/VERSIONING.
 
 ## Unreleased
 
+- Three new super skills (key `Q`), all instant and predicted locally:
+  - Bill's Hustle: 5 s of +30% walk speed and +50% chopping and washing speed, usable while carrying or working.
+  - The Penguin's Deep Freeze: a 12-stud frost circle for 6 s that pauses cooking, burn countdowns, customer patience, order tickets and fire spread inside it. Other players slide on the ice; the Penguin is faster on it.
+  - The Alien's Order Rush: a UFO beams the Alien up, flies to up to 4 waiting customers (least patient first), beams down to take each order, and drops the Alien back where it started. Your camera follows your UFO.
+    - The tractor beam shoots and retracts smoothly, swirls and squashes as it lands.
+    - The UFO swoops between customers, overshoots and wobbles to a stop, squishes as it moves, and drifts while hovering.
+    - The beamed copy of the Alien stretches in the beam, glitches apart, and lands with a squishy bounce.
+    - The Alien lands beside each customer like a waiter, facing them.
+    - The real Alien's outline and "you" ring hide during the rush, so only the copy shows them.
+    - Using it while moving no longer pops the Alien back to where it was when the key was pressed.
+- The skill HUD button is hidden for now (`Config.UI.ShowSkillHud`); the skill key and mobile button still work.
+- Order tickets and customer patience bars turn ice blue while frozen.
+- Customer tables only highlight when there is something to do there (taking an order, serving, or a dirty plate), not while customers walk up, eat or leave.
 - The Gecko's tongue is now textured and wobbling with a sticky tip, effects for firing, sticking, missing a wall and catching, and a trail on the grabbed item.
 - Tap once to chop food or wash a whole stack of plates; move or dash to stop early.
 - Gecko's Tongue Grab now snaps toward nearby items, spins to lock onto reachable items, shows a striped aim guide, and fires a smoother tongue immediately on release; holding until the limit cancels without firing, and every lock switch restarts that limit.

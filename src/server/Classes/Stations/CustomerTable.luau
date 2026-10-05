@@ -12,6 +12,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local RoundConfig = Config.Round
 local Net = require(Shared:WaitForChild("Net"))
+local Tags = require(Shared:WaitForChild("Tags"))
 
 export type CustomerState = "Walking" | "WaitingToOrder" | "WaitingForFood" | "Eating" | "Leaving"
 
@@ -39,6 +40,10 @@ function CustomerTable.new(instance: Instance): CustomerTable
 	self.Alive = true
 	setmetatable(self :: any, CustomerTable)
 	tables[instance] = self
+	self.Slot.OnChanged = function(): ()
+		CustomerTable.RefreshInteraction(self)
+	end
+	CustomerTable.RefreshInteraction(self)
 	return self
 end
 
@@ -58,6 +63,7 @@ end
 
 function CustomerTable.SetCustomer(self: CustomerTable, customer: Customer?): ()
 	self.Customer = customer
+	CustomerTable.RefreshInteraction(self)
 end
 
 function CustomerTable.GetCustomer(self: CustomerTable): Customer?
@@ -115,6 +121,19 @@ local function takeDirtyPlate(self: CustomerTable, player: Player, held: Item.It
 		return false
 	end
 	return true
+end
+
+function CustomerTable.RefreshInteraction(self: CustomerTable): ()
+	local enabled = false
+	if RoundConfig.ServeMode == "Manual" then
+		local customer = self.Customer
+		if customer ~= nil then
+			local state = customer.GetState()
+			enabled = state == "WaitingToOrder" or state == "WaitingForFood"
+		end
+		enabled = enabled or DirtyPlate.Cast(self.Slot:Get()) ~= nil
+	end
+	Tags.SetInteractionDisabled(self.Instance, not enabled)
 end
 
 function CustomerTable.Handle(self: CustomerTable, player: Player, held: Item.Item?): boolean

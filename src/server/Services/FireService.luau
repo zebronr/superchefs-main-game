@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local CookingConfig = Config.Interaction.Cooking
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
+local SkillEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("SkillEffects"))
 
 local FireService = {}
 
@@ -81,6 +82,13 @@ function FireService.Extinguish(instance: Instance, amount: number): ()
 	end
 end
 
+-- Deep Freeze circles running this frame; fire neither spreads from nor into them.
+local frozenZones: { SkillEffects.Zone } = {}
+
+local function isFrozen(instance: Instance): boolean
+	return #frozenZones > 0 and instance:IsA("BasePart") and SkillEffects.IsFrozen(instance.Position, frozenZones)
+end
+
 local function canSpreadTo(source: Burnable, target: Burnable): boolean
 	if source == target or FireService.IsBurning(target.Instance) or not isBurnable(target) then
 		return false
@@ -96,6 +104,9 @@ local function canSpreadTo(source: Burnable, target: Burnable): boolean
 	if (sourcePart.Position - targetPart.Position).Magnitude > CookingConfig.FireSpreadDistance then
 		return false
 	end
+	if isFrozen(targetPart) then
+		return false
+	end
 	if target.Kind == "Station" then
 		local slot = (target :: any).Slot
 		local onTop = slot:Get()
@@ -108,14 +119,18 @@ local function canSpreadTo(source: Burnable, target: Burnable): boolean
 end
 
 function FireService.Start(_self: typeof(FireService)): ()
-	RunService.Heartbeat:Connect(function(): ()
+	RunService.Heartbeat:Connect(function(dt: number): ()
 		local now = workspace:GetServerTimeNow()
+		frozenZones = if next(fires) ~= nil then SkillEffects.FreezeZones(now) else {}
 		-- Burn adds to `fires`, so iterate over a copy.
 		for instance, fire in table.clone(fires) do
 			if not instance:IsDescendantOf(workspace) then
 				instance:SetAttribute(CookingConfig.FireAttribute, nil)
 				CollectionService:RemoveTag(instance, Tags.FireLocked)
 				untrack(instance)
+			elseif isFrozen(instance) then
+				-- Frozen fires keep burning but their spread countdown waits.
+				fire.NextSpreadAt += dt
 			elseif now >= fire.NextSpreadAt then
 				fire.NextSpreadAt += CookingConfig.FireSpreadInterval
 				local source = fire.Object

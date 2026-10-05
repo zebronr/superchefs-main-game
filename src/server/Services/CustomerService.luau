@@ -15,6 +15,7 @@ local InteractionConfig = Config.Interaction
 local Levels = Config.Levels
 local RoundConfig = Config.Round
 local CustomerConfig = Config.Customers
+local FrozenAttribute = Config.Skills.Attribute.FrozenAt
 local Net = require(Shared:WaitForChild("Net"))
 
 type CustomerState = CustomerTable.CustomerState
@@ -31,6 +32,9 @@ type Session = {
 	Recipe: Config.Recipe?,
 	OrderNumber: number?,
 	Thread: thread?,
+	PatienceStartedAt: number?,
+	-- Server time the Penguin's Deep Freeze paused this customer's patience (nil when not frozen).
+	FrozenAt: number?,
 }
 
 local CustomerService = {}
@@ -53,9 +57,11 @@ end
 local function setState(session: Session, state: CustomerState): ()
 	session.State = state
 	session.Model:SetAttribute("CustomerState", state)
+	CustomerTable.RefreshInteraction(session.Table)
 end
 
 local function setPatience(session: Session, startedAt: number?, duration: number?): ()
+	session.PatienceStartedAt = startedAt
 	session.Model:SetAttribute("PatienceStartedAt", startedAt)
 	session.Model:SetAttribute("PatienceDuration", duration)
 end
@@ -224,8 +230,15 @@ local function takeOrder(session: Session): ()
 	session.Recipe = recipe
 	session.OrderNumber = number
 	session.Model:SetAttribute("Recipe", recipe.Id)
-	setPatience(session, workspace:GetServerTimeNow(), recipe.Time)
+	local now = workspace:GetServerTimeNow()
+	setPatience(session, now, recipe.Time)
 	setState(session, "WaitingForFood")
+	if session.FrozenAt ~= nil then
+		-- Taken inside a frost circle: the new ticket starts paused.
+		session.FrozenAt = now
+		session.Model:SetAttribute(FrozenAttribute, now)
+		OrderService.Pause(session.Team, number)
+	end
 end
 
 local function serveCustomer(session: Session): ()
@@ -259,12 +272,15 @@ local function run(session: Session, tuning: Config.CustomerTuning): ()
 	session.Root.Anchored = true
 
 	setState(session, "WaitingToOrder")
-	local startedAt = workspace:GetServerTimeNow()
-	setPatience(session, startedAt, tuning.OrderPatience)
+	setPatience(session, workspace:GetServerTimeNow(), tuning.OrderPatience)
+	-- Deep Freeze pauses the clock (FrozenAt) and shifts PatienceStartedAt when it lets go.
 	while
 		isActive(session)
 		and stateOf(session) == "WaitingToOrder"
-		and workspace:GetServerTimeNow() - startedAt < tuning.OrderPatience
+		and (
+			session.FrozenAt ~= nil
+			or workspace:GetServerTimeNow() - (session.PatienceStartedAt or 0) < tuning.OrderPatience
+		)
 	do
 		task.wait(CustomerConfig.Poll)
 	end
@@ -346,6 +362,8 @@ local function spawnCustomer(customerTable: CustomerTable.CustomerTable, tuning:
 		Recipe = nil,
 		OrderNumber = nil,
 		Thread = nil,
+		PatienceStartedAt = nil,
+		FrozenAt = nil,
 	}
 	model:SetAttribute("CustomerState", "Walking")
 	model:SetAttribute("Team", CustomerConfig.Team)
@@ -362,6 +380,60 @@ local function spawnCustomer(customerTable: CustomerTable.CustomerTable, tuning:
 		end)
 		run(session, tuning)
 	end)
+end
+
+-- Every customer model in play (for FreezeService).
+function CustomerService.GetModels(): { Model }
+	local models: { Model } = {}
+	for model in sessions do
+		table.insert(models, model)
+	end
+	return models
+end
+
+-- Deep Freeze: pauses a customer's patience (and their order ticket), or lets it run again.
+function CustomerService.SetFrozen(model: Model, frozen: boolean): ()
+	local session = sessions[model]
+	if session == nil then
+		return
+	end
+	local now = workspace:GetServerTimeNow()
+	local number = if stateOf(session) == "WaitingForFood" then session.OrderNumber else nil
+	if frozen then
+		if session.FrozenAt ~= nil then
+			return
+		end
+		session.FrozenAt = now
+		model:SetAttribute(FrozenAttribute, now)
+		if number ~= nil then
+			OrderService.Pause(session.Team, number)
+		end
+		return
+	end
+	local frozenAt = session.FrozenAt
+	if frozenAt == nil then
+		return
+	end
+	session.FrozenAt = nil
+	model:SetAttribute(FrozenAttribute, nil)
+	local startedAt = session.PatienceStartedAt
+	local duration = model:GetAttribute("PatienceDuration")
+	if startedAt ~= nil and typeof(duration) == "number" then
+		setPatience(session, startedAt + (now - frozenAt), duration)
+	end
+	if number ~= nil then
+		OrderService.Resume(session.Team, number)
+	end
+end
+
+-- Order Rush: takes a waiting customer's order as if a player had walked up. False if they are not waiting.
+function CustomerService.TakeOrderFor(model: Model): boolean
+	local session = sessions[model]
+	if session == nil or stateOf(session) ~= "WaitingToOrder" then
+		return false
+	end
+	takeOrder(session)
+	return stateOf(session) == "WaitingForFood"
 end
 
 function CustomerService.Stop(): ()

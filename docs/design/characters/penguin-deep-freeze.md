@@ -1,6 +1,6 @@
 # Penguin: Deep Freeze
 
-Status: **design draft.** Job: Saver (buys the team time). Shape: **instant zone** around the Penguin. Follows the [general skill rules](../characters.md#general-skill-rules) and the [art style](../art-style.md).
+Status: **code written and smoke-tested (2026-10-05);** placeholder VFX and a stand-in character model (see HANDOFF). Job: Saver (buys the team time). Shape: **instant zone** around the Penguin. Follows the [general skill rules](../characters.md#general-skill-rules) and the [art style](../art-style.md).
 
 ## Fantasy
 

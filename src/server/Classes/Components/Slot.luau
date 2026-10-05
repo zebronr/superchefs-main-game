@@ -16,6 +16,7 @@ type self = {
 	Item: Item.Item?,
 	Weld: WeldConstraint?,
 	DestroyedConnection: RBXScriptConnection?,
+	OnChanged: (() -> ())?,
 }
 
 export type Slot = typeof(setmetatable({} :: self, Slot))
@@ -26,6 +27,7 @@ function Slot.new(surface: BasePart): Slot
 	self.Item = nil
 	self.Weld = nil
 	self.DestroyedConnection = nil
+	self.OnChanged = nil
 	return self
 end
 
@@ -51,6 +53,9 @@ local function clear(self: Slot): ()
 			item.Surface = nil
 		end
 		item.Detach = nil
+	end
+	if self.OnChanged ~= nil then
+		self.OnChanged()
 	end
 end
 
@@ -93,6 +98,9 @@ function Slot.Place(self: Slot, item: Item.Item, increment: number?): boolean
 	self.DestroyedConnection = item.Instance.Destroying:Connect(function(): ()
 		clear(self)
 	end)
+	if self.OnChanged ~= nil then
+		self.OnChanged()
+	end
 	return true
 end
 

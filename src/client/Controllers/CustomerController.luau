@@ -20,6 +20,8 @@ local bubbles: { [Model]: Bubble } = {}
 local GREEN = Config.UI.Patience.Green
 local YELLOW = Config.UI.Patience.Yellow
 local RED = Config.UI.Patience.Red
+local FROZEN = Config.UI.Patience.Frozen
+local FrozenAttribute = Config.Skills.Attribute.FrozenAt
 
 local function remove(model: Model): ()
 	local bubble = bubbles[model]
@@ -86,11 +88,15 @@ local function update(model: Model, bubble: Bubble): ()
 	local startedAt = model:GetAttribute("PatienceStartedAt")
 	local duration = model:GetAttribute("PatienceDuration")
 	if fill ~= nil and typeof(startedAt) == "number" and typeof(duration) == "number" then
-		local fraction = math.clamp((startedAt + duration - workspace:GetServerTimeNow()) / math.max(duration, 0.001), 0, 1)
+		-- Deep Freeze holds the bar where it was when the customer froze.
+		local frozenAt = model:GetAttribute(FrozenAttribute)
+		local now = if typeof(frozenAt) == "number" then frozenAt else workspace:GetServerTimeNow()
+		local fraction = math.clamp((startedAt + duration - now) / math.max(duration, 0.001), 0, 1)
 		local progress = 1 - fraction
 		fill.Size = UDim2.new(fraction, 0, 1, 0)
-		fill.BackgroundColor3 = if progress <= 0.5
-			then GREEN:Lerp(YELLOW, progress * 2)
+		fill.BackgroundColor3 = if typeof(frozenAt) == "number"
+			then FROZEN
+			elseif progress <= 0.5 then GREEN:Lerp(YELLOW, progress * 2)
 			else YELLOW:Lerp(RED, (progress - 0.5) * 2)
 	end
 end

@@ -193,7 +193,10 @@ end
 local function updateCooking(instance: Instance, state: Tracked): ()
 	local cookedAt = instance:GetAttribute(CookingConfig.CookedAtAttribute)
 	if typeof(cookedAt) == "number" then
-		local elapsed = workspace:GetServerTimeNow() - cookedAt
+		-- Deep Freeze holds the burn warning where it was when the tool froze.
+		local frozenAt = instance:GetAttribute(Config.Skills.Attribute.FrozenAt)
+		local now = if typeof(frozenAt) == "number" then frozenAt else workspace:GetServerTimeNow()
+		local elapsed = now - cookedAt
 		showFinished(instance, state, elapsed)
 		showWarning(instance, state, elapsed)
 	else
