@@ -3,7 +3,9 @@
 local PathfindingService = game:GetService("PathfindingService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Net = require(Shared:WaitForChild("Net"))
 
 type Route = { { PathWaypoint } }
 type Starter = { Position: Vector3, Routes: { Route } }
@@ -151,7 +153,7 @@ local function spawnNPC(starterName: string): ()
 		local animator = humanoid:FindFirstChildOfClass("Animator")
 		if animator ~= nil then
 			local animation = Instance.new("Animation")
-			animation.AnimationId = "rbxassetid://74792532038099"
+			animation.AnimationId = Config.Customers.WalkAnimation
 			local track = animator:LoadAnimation(animation)
 			track.Looped = true
 			track:Play()

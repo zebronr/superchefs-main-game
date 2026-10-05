@@ -10,6 +10,8 @@ Character.CharacterModels = {
 	zebronr = "Gecko",
 } :: { [string]: string }
 Character.DefaultCharacterModel = "Bill"
+-- In Studio every player gets this character model, whatever the name mapping says. Set nil to use the mapping. Ignored on live servers.
+Character.StudioOverride = "Gecko" :: string?
 Character.Colors = {
 	{ Color3.fromRGB(14, 0, 115), Color3.fromRGB(115, 0, 2), Color3.fromRGB(0, 115, 0), Color3.fromRGB(115, 107, 0) },
 	{ Color3.fromRGB(165, 63, 164), Color3.fromRGB(0, 113, 115), Color3.fromRGB(115, 67, 0), Color3.fromRGB(111, 167, 28) },

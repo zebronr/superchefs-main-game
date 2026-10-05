@@ -6,7 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Config = require(Shared:WaitForChild("Config"):WaitForChild("Interaction"))
+local Config = require(Shared:WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
 local Tags = require(Shared:WaitForChild("Tags"))
 
 -- Ported from legacy HighlightHandler: picks the best interactable near the character and highlights it.
@@ -104,7 +105,7 @@ end
 
 local function findBest(rootPart: BasePart): (Instance?, BasePart?)
 	local position = rootPart.Position
-	local nearby = workspace:GetPartBoundsInRadius(position, Config.TargetRadius, overlapParams)
+	local nearby = workspace:GetPartBoundsInRadius(position, InteractionConfig.TargetRadius, overlapParams)
 
 	local bestTarget: Instance? = nil
 	local bestNode: BasePart? = nil
@@ -127,12 +128,12 @@ local function findBest(rootPart: BasePart): (Instance?, BasePart?)
 		end
 
 		local distance = (part.Position - position).Magnitude
-		if distance >= (Config.MinDistance[class] or Config.DefaultMinDistance) then
+		if distance >= (InteractionConfig.MinDistance[class] or InteractionConfig.DefaultMinDistance) then
 			continue
 		end
 
-		local priority = Config.TargetPriority[class] or Config.DefaultPriority
-		local score = priority * Config.PriorityWeight - distance
+		local priority = InteractionConfig.TargetPriority[class] or InteractionConfig.DefaultPriority
+		local score = priority * InteractionConfig.PriorityWeight - distance
 		if score > bestScore then
 			bestScore = score
 			bestTarget = candidate
@@ -168,13 +169,13 @@ function TargetController.GetTarget(): (Instance?, BasePart?)
 end
 
 function TargetController.Start(_self: typeof(TargetController)): ()
-	local template = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("VisibilityHighlight")
-	assert(template:IsA("Highlight"), "ReplicatedStorage.Assets.VisibilityHighlight must be a Highlight")
+	local template = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Highlights"):WaitForChild("VisibilityHighlight")
+	assert(template:IsA("Highlight"), "ReplicatedStorage.Assets.Highlights.VisibilityHighlight must be a Highlight")
 	highlightTemplate = template
 
 	local tracked: { string } = { Tags.ProximityNode }
-	for _, tag in Tags.Classes do
-		table.insert(tracked, tag)
+	for _, className in Tags.Classes do
+		table.insert(tracked, Tags.ClassTag(className))
 	end
 	for _, tag in tracked do
 		CollectionService:GetInstanceAddedSignal(tag):Connect(track)

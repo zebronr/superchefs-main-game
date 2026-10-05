@@ -8,8 +8,9 @@ local Item = require(script.Parent.Item)
 local Plate = require(script.Parent.Plate)
 local CarryService = require(script.Parent.Parent.Services.CarryService)
 local FireService = require(script.Parent.Parent.Services.FireService)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction")).Cooking
-local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Recipes"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CookingConfig = Config.Interaction.Cooking
+local Recipes = Config.Recipes
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local CookingTool = setmetatable({}, { __index = Item })
@@ -44,10 +45,10 @@ function CookingTool.new(instance: Instance): CookingTool
 	self.CookLoop = nil
 	self.BurnTimer = nil
 	setmetatable(self :: any, CookingTool)
-	instance:SetAttribute(Config.CookContentAttribute, nil)
-	instance:SetAttribute(Config.CookProgressAttribute, 0)
-	instance:SetAttribute(Config.CookStartedAtAttribute, nil)
-	instance:SetAttribute(Config.CookedAtAttribute, nil)
+	instance:SetAttribute(CookingConfig.CookContentAttribute, nil)
+	instance:SetAttribute(CookingConfig.CookProgressAttribute, 0)
+	instance:SetAttribute(CookingConfig.CookStartedAtAttribute, nil)
+	instance:SetAttribute(CookingConfig.CookedAtAttribute, nil)
 	return self
 end
 
@@ -74,11 +75,11 @@ end
 local function finish(self: CookingTool, finishedAt: number): ()
 	self.CookLoop = nil
 	self.Progress = 100
-	self.Instance:SetAttribute(Config.CookProgressAttribute, 100)
-	self.Instance:SetAttribute(Config.CookStartedAtAttribute, nil)
-	self.Instance:SetAttribute(Config.CookedAtAttribute, finishedAt)
+	self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, 100)
+	self.Instance:SetAttribute(CookingConfig.CookStartedAtAttribute, nil)
+	self.Instance:SetAttribute(CookingConfig.CookedAtAttribute, finishedAt)
 	cancelTimer(self)
-	local burnAt = finishedAt + Config.CookSafeTime + Config.CookAlertDuration
+	local burnAt = finishedAt + CookingConfig.CookSafeTime + CookingConfig.CookAlertDuration
 	self.BurnTimer = task.delay(math.max(0, burnAt - workspace:GetServerTimeNow()), function(): ()
 		self.BurnTimer = nil
 		if self:IsEnabled() and self.Instance:IsDescendantOf(workspace) then
@@ -98,18 +99,18 @@ function CookingTool.StartCooking(self: CookingTool): ()
 	end
 	local startedAt = workspace:GetServerTimeNow()
 	local startingProgress = self.Progress
-	local duration = (100 - startingProgress) / Config.CookRate
-	self.Instance:SetAttribute(Config.CookProgressAttribute, startingProgress)
-	self.Instance:SetAttribute(Config.CookStartedAtAttribute, startedAt)
+	local duration = (100 - startingProgress) / CookingConfig.CookRate
+	self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, startingProgress)
+	self.Instance:SetAttribute(CookingConfig.CookStartedAtAttribute, startedAt)
 	self.CookLoop = task.delay(duration, function(): ()
 		finish(self, startedAt + duration)
 	end)
 end
 
 function CookingTool.StopCooking(self: CookingTool): ()
-	local startedAt = self.Instance:GetAttribute(Config.CookStartedAtAttribute)
+	local startedAt = self.Instance:GetAttribute(CookingConfig.CookStartedAtAttribute)
 	if typeof(startedAt) == "number" then
-		self.Progress = math.min(100, self.Progress + (workspace:GetServerTimeNow() - startedAt) * Config.CookRate)
+		self.Progress = math.min(100, self.Progress + (workspace:GetServerTimeNow() - startedAt) * CookingConfig.CookRate)
 	end
 	local loop = self.CookLoop
 	self.CookLoop = nil
@@ -117,9 +118,9 @@ function CookingTool.StopCooking(self: CookingTool): ()
 		task.cancel(loop)
 	end
 	cancelTimer(self)
-	self.Instance:SetAttribute(Config.CookProgressAttribute, self.Progress)
-	self.Instance:SetAttribute(Config.CookStartedAtAttribute, nil)
-	self.Instance:SetAttribute(Config.CookedAtAttribute, nil)
+	self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, self.Progress)
+	self.Instance:SetAttribute(CookingConfig.CookStartedAtAttribute, nil)
+	self.Instance:SetAttribute(CookingConfig.CookedAtAttribute, nil)
 end
 
 function CookingTool.SetEnabled(self: CookingTool, on: boolean): ()
@@ -133,7 +134,7 @@ end
 
 function CookingTool.Accept(self: CookingTool, other: Interactable.Interactable, _player: Player?): boolean
 	local food = Item.Cast(other)
-	if food ~= nil and CollectionService:HasTag(food.Instance, Tags.Food) then
+	if food ~= nil and Tags.IsClass(food.Instance, Tags.Food) then
 		local ingredients = if self.Content ~= nil then { self.Content, food.Instance.Name } else { food.Instance.Name }
 		local nextContent = Recipes.Find(ingredients, self.Combinations)
 		if nextContent == nil then
@@ -142,15 +143,15 @@ function CookingTool.Accept(self: CookingTool, other: Interactable.Interactable,
 		self:StopCooking()
 		self:Display(nextContent)
 		self.Content = nextContent
-		self.Instance:SetAttribute(Config.CookContentAttribute, nextContent)
+		self.Instance:SetAttribute(CookingConfig.CookContentAttribute, nextContent)
 		if food.Holder ~= nil then
 			CarryService.Release(food.Holder)
 		end
 		food.Instance:Destroy()
 		if self.Progress > 0 then
-			self.Progress = math.max(0, self.Progress - Config.CookProgressDeduction)
+			self.Progress = math.max(0, self.Progress - CookingConfig.CookProgressDeduction)
 		end
-		self.Instance:SetAttribute(Config.CookProgressAttribute, self.Progress)
+		self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, self.Progress)
 		self:StartCooking()
 		return true
 	end

@@ -6,7 +6,9 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Gif = require(script.Parent.Parent.Util.Gif)
-local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Net = require(Shared:WaitForChild("Net"))
 
 local GameUIController = {}
 local player = Players.LocalPlayer
@@ -55,7 +57,7 @@ local function popCoins(): ()
 	local color = coinsLabel.TextColor3
 	local enlarge = TweenService:Create(coinsLabel, TweenInfo.new(0.5), {
 		Size = UDim2.new(size.X.Scale * 1.3, 0, size.Y.Scale * 1.3, 0),
-		TextColor3 = Color3.fromRGB(14, 255, 14),
+		TextColor3 = Config.UI.Coins.Pop,
 	})
 	local shrink = TweenService:Create(coinsLabel, TweenInfo.new(0.5), { Size = size, TextColor3 = color })
 	enlarge.Completed:Once(function(): ()
@@ -95,7 +97,7 @@ end
 local function showCoinNotif(amount: number): ()
 	local label = coinTemplate:Clone()
 	label.Text = `+{amount}`
-	label.TextColor3 = Color3.fromRGB(47, 255, 10)
+	label.TextColor3 = Config.UI.Coins.Notification
 	label.Visible = true
 	label.Parent = coinTemplate.Parent
 	TweenService:Create(label, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {

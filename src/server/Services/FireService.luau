@@ -4,7 +4,8 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction")).Cooking
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CookingConfig = Config.Interaction.Cooking
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local FireService = {}
@@ -43,7 +44,7 @@ local function untrack(instance: Instance): ()
 end
 
 function FireService.IsBurning(instance: Instance): boolean
-	return fires[instance] ~= nil and typeof(instance:GetAttribute(Config.FireAttribute)) == "number"
+	return fires[instance] ~= nil and typeof(instance:GetAttribute(CookingConfig.FireAttribute)) == "number"
 end
 
 function FireService.Burn(object: Burnable): ()
@@ -51,11 +52,11 @@ function FireService.Burn(object: Burnable): ()
 	if not instance:IsDescendantOf(workspace) or not isBurnable(object) or FireService.IsBurning(instance) then
 		return
 	end
-	instance:SetAttribute(Config.FireAttribute, Config.FireStart)
+	instance:SetAttribute(CookingConfig.FireAttribute, CookingConfig.FireStart)
 	CollectionService:AddTag(instance, Tags.FireLocked)
 	fires[instance] = {
 		Object = object,
-		NextSpreadAt = workspace:GetServerTimeNow() + Config.FireSpreadInterval,
+		NextSpreadAt = workspace:GetServerTimeNow() + CookingConfig.FireSpreadInterval,
 		Destroying = instance.Destroying:Connect(function(): ()
 			untrack(instance)
 		end),
@@ -66,15 +67,15 @@ function FireService.Extinguish(instance: Instance, amount: number): ()
 	if amount <= 0 or not FireService.IsBurning(instance) then
 		return
 	end
-	local value = instance:GetAttribute(Config.FireAttribute)
+	local value = instance:GetAttribute(CookingConfig.FireAttribute)
 	if typeof(value) ~= "number" then
 		return
 	end
 	local remaining = value - amount
 	if remaining > 0 then
-		instance:SetAttribute(Config.FireAttribute, remaining)
+		instance:SetAttribute(CookingConfig.FireAttribute, remaining)
 	else
-		instance:SetAttribute(Config.FireAttribute, nil)
+		instance:SetAttribute(CookingConfig.FireAttribute, nil)
 		CollectionService:RemoveTag(instance, Tags.FireLocked)
 		untrack(instance)
 	end
@@ -92,7 +93,7 @@ local function canSpreadTo(source: Burnable, target: Burnable): boolean
 	if not sourcePart:IsA("BasePart") or not targetPart:IsA("BasePart") then
 		return false
 	end
-	if (sourcePart.Position - targetPart.Position).Magnitude > Config.FireSpreadDistance then
+	if (sourcePart.Position - targetPart.Position).Magnitude > CookingConfig.FireSpreadDistance then
 		return false
 	end
 	if target.Kind == "Station" then
@@ -112,11 +113,11 @@ function FireService.Start(_self: typeof(FireService)): ()
 		-- Burn adds to `fires`, so iterate over a copy.
 		for instance, fire in table.clone(fires) do
 			if not instance:IsDescendantOf(workspace) then
-				instance:SetAttribute(Config.FireAttribute, nil)
+				instance:SetAttribute(CookingConfig.FireAttribute, nil)
 				CollectionService:RemoveTag(instance, Tags.FireLocked)
 				untrack(instance)
 			elseif now >= fire.NextSpreadAt then
-				fire.NextSpreadAt += Config.FireSpreadInterval
+				fire.NextSpreadAt += CookingConfig.FireSpreadInterval
 				local source = fire.Object
 				local provider = getObjects
 				if provider == nil then

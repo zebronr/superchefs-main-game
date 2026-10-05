@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Item = require(script.Parent.Item)
 local FireService = require(script.Parent.Parent.Services.FireService)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction")).Cooking
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CookingConfig = Config.Interaction.Cooking
 
 type Session = {
 	Player: Player,
@@ -25,7 +26,7 @@ function FireExtinguisher.new(instance: Instance): FireExtinguisher
 	local self = Item.new(instance) :: FireExtinguisher
 	self.Session = nil
 	setmetatable(self :: any, FireExtinguisher)
-	instance:SetAttribute(Config.SprayingAttribute, nil)
+	instance:SetAttribute(CookingConfig.SprayingAttribute, nil)
 	return self
 end
 
@@ -41,7 +42,7 @@ local function endSession(self: FireExtinguisher, session: Session): ()
 	if session.HolderWatch ~= nil then
 		session.HolderWatch:Disconnect()
 	end
-	self.Instance:SetAttribute(Config.SprayingAttribute, nil)
+	self.Instance:SetAttribute(CookingConfig.SprayingAttribute, nil)
 	session.OnEnded()
 end
 
@@ -77,12 +78,12 @@ local function spray(self: FireExtinguisher, player: Player): ()
 	for y = -3, -5, -1 do
 		for x = -5, 5, 5 do
 			local origin = emitter.CFrame
-			local endpoint = origin * CFrame.new(x, y, -Config.ExtinguisherRange)
+			local endpoint = origin * CFrame.new(x, y, -CookingConfig.ExtinguisherRange)
 			local hit = workspace:Raycast(origin.Position, endpoint.Position - origin.Position, params)
-			if hit ~= nil and (hit.Position - origin.Position).Magnitude <= Config.ExtinguisherRange then
+			if hit ~= nil and (hit.Position - origin.Position).Magnitude <= CookingConfig.ExtinguisherRange then
 				local burning = findFire(hit.Instance)
 				if burning ~= nil then
-					FireService.Extinguish(burning, Config.ExtinguisherDeduction)
+					FireService.Extinguish(burning, CookingConfig.ExtinguisherDeduction)
 				end
 			end
 		end
@@ -104,7 +105,7 @@ function FireExtinguisher.StartUse(self: FireExtinguisher, player: Player, onEnd
 		HolderWatch = nil,
 	}
 	self.Session = session
-	self.Instance:SetAttribute(Config.SprayingAttribute, true)
+	self.Instance:SetAttribute(CookingConfig.SprayingAttribute, true)
 	session.HolderWatch = game:GetService("RunService").Heartbeat:Connect(function(): ()
 		if self.Holder ~= player then
 			endSession(self, session)
@@ -113,7 +114,7 @@ function FireExtinguisher.StartUse(self: FireExtinguisher, player: Player, onEnd
 	session.Loop = task.defer(function(): ()
 		while self.Session == session and self.Holder == player do
 			spray(self, player)
-			task.wait(Config.ExtinguisherTick)
+			task.wait(CookingConfig.ExtinguisherTick)
 		end
 		endSession(self, session)
 	end)

@@ -1,5 +1,42 @@
 # Handoff: Superchefs refactor
 
+## Config (2026-10-05)
+
+One entry point: `local Config = require(Shared:WaitForChild("Config"))` (`src/shared/Config/init.luau`). Never require the child files directly, and children must never require the index.
+
+- `Config.Character`: movement, dash, camera.
+- `Config.Interaction`: stations, cooking, carry, throw (`.Cooking`, `.Throw`).
+- `Config.Levels`: level data, per-level customer tuning, `GetCurrent()`.
+- `Config.Recipes`: pot and plate combinations, soup colors.
+- `Config.Round`: serve mode and round timings.
+- `Config.Customers`: customer team, walking, animation, arrival.
+- `Config.UI`: patience, ticket and coin colors.
+
+Types are re-exported on the index (`Config.ServeMode`, `Config.Recipe`, `Config.CustomerTuning`, `Config.LevelData`). New tunables go in these files, never hardcoded in scripts.
+
+## Assets layout (2026-10-05)
+
+`ReplicatedStorage.Assets` (client templates):
+- `UI`: BurningWarning, CookingFinished, ObjectNotification, ProgressBar (BillboardGuis).
+- `Highlights`: CharacterHighlight, ErrorHighlight, VisibilityHighlight.
+- `Effects`: DashTrail, FireEmitter, PlayerIndicator, ProjectileTrail.
+- `Skills.<SkillName>`: one folder per skill, e.g. `Skills.TongueGrab` (TongueBody, TongueTip, TongueGuide, TongueHighlight, `VFX`).
+
+`ServerStorage.Assets` keeps `Foods` and `Plates`. New templates go in the matching folder.
+
+## Interactions
+
+Chopping boards and sinks auto-use from one tap. Releasing Use does not stop them; moving, dashing, Interact, server distance checks, or completion does. A sink washes its entire dirty stack in one session, resetting progress and the safety timeout after each plate. The extinguisher remains hold-to-spray.
+
+## Serve modes (Window / Manual)
+
+- `src/shared/Config/Round.luau` `ServeMode` picks the mode once at server start: `"Manual"` (default) or `"Window"` (legacy serving window). `Levels.DefaultFor` maps the mode to the level path, and `LevelService` loads `ServerStorage.Maps` by that path. It also sets the `ServeMode` and `LevelPath` attributes on ReplicatedStorage; the client's `Levels.GetCurrent()` reads `LevelPath`.
+- Window: unchanged (order sequence, ServingCounter, ambient NPCs) on `CoOp/Chapter1/Level1`.
+- Manual: clean test map `CoOp/Test/Basic` (`Maps.CoOp.Test.Basic`: floor, invisible walls, the stations, no decor; the older `Test/Tables` is a Level1 clone and still loads if you point `DefaultFor.Manual` at it) with `CustomerTable_1..3` (each with a `Seat`) and a `CustomerSpawn`. `CustomerService` spawns NPC models from `ReplicatedStorage.NPCs` every `Customers.SpawnInterval`; they walk to a free table, wait to order, you interact to take the order (`OrderService.Open` makes the ticket), cook, then deliver the plate to their table (`CustomerTable` station). They eat, leave a dirty plate (or a clean plate returns to the PlateTable when `EnableDirtyPlates` is false), and walk back. `CustomerController` shows the `UIs.CustomerBubble` (alert or recipe icon, patience bar).
+- Barebones on purpose: block tables, no sitting animation, random recipes, single team (team 1), only the dirty plate can be picked up from a table.
+
+---
+
 ## Session 3 update (2026-10-04)
 
 - Rename done. `origin` is now `zebronr/superchefs-main-game`, and the old repo is the remote `legacy`. Both branches are pushed.
@@ -99,3 +136,23 @@ Spec to hand over:
 3. After parity, move on to game design. The user wants it to grow beyond an Overcooked copy.
 
 Legacy architecture notes (state in module-level caches, hidden inheritance, priority numbers, recipes in 3 places) are in `main`'s history of this file (commit `a446161`).
+
+---
+
+## Throwing (revamped 2026-10-05)
+
+- Server (`ThrowService`): the start time is back-dated by half the thrower's ping (capped by `MaxLagCompensation`). Each Heartbeat it sweeps a sphere (`CastRadius`) along the arc with an exclude list built once per throw. A hit, or the end of the arc, is an impact: the item falls straight down with `FallGravity`, and a `throwInteractable` station under the impact point receives it.
+- Catch: before the sweep, a player with empty hands, not mid-Use, within `CatchRadius` of the path and facing the item (`CatchFacingDot`) picks it up through `CarryService.Pickup`. If the pickup fails, the item falls instead.
+- Client: `InputController.throwHeld` calls `ProjectileController.Predict` for Food. The thrower runs the flight locally, rolls back after `PredictionTimeout` without confirmation, and blends into the server timeline over `ReconcileTime` once the `Projectile` tag and `ThrowStartedAt` arrive. Other clients render from the replicated attributes.
+- Tunables: `Interaction.Throw` in `src/shared/Config/Interaction.luau`.
+
+## Super skills (2026-10-05)
+
+- Server: `Services/SkillService` owns the `Skill` remote, per-player state and cooldown attributes. A skill is a module in `src/server/Skills/` returning `Types.Skill` (`Aim`, `Release`, `Interrupt`, `Cancel`, `HoldTimeout`, optional `FindIntercept`/`TakeThrown`); `Skills/TongueGrab` is the Gecko. It talks to the rest through `ThrowService.SetInterceptor` / `SetCharacterHitHandler` and `InteractionService.TakeFor` / `StationOf` / `IsUsing`.
+- Client: `Controllers/SkillController` (key, mobile button, HUD, aim flow, rooting) and one module per skill in `src/client/Skills/` (`BeginAim`/`StepAim`/`ReleaseAim`/`EndAim`/`GetDirection`/`GetTarget`/`Setup`). `ReleaseAim` receives whether the player released (rather than timed out). `InputController` skips other actions while `SkillController.IsBusy()`.
+- Gecko auto-aims to a nearby reachable item on press. Movement spins a virtual aim yaw; the Gecko turns quickly toward the reachable item closest to it, with a 10-degree switch margin. The guide and highlight follow the lock. Release sends that lock as a hint, which the server validates before targeting; invalid hints fall back to the aim line. Holding until timeout cancels without firing and applies a 0.5-second cooldown. The fired tongue and flying item use shared extend/retract easing.
+- The releasing client draws its tongue immediately and hands off when a fresh `TongueStartedAt` arrives. The server backdates extending by capped half-ping and publishes state, timestamps and tip only; every client renders the effect.
+- Add a skill: write the server module and the client module, register each in `SkillService` and `SkillController`, map the character in `Config.Skills.ByCharacter`, add its tuning to `Config/Skills.luau`, and add Studio UI/assets (see `docs/PLACEHOLDER-UI.md`).
+- Studio instances needed: `Remotes.Skill`, `Assets.Skills.TongueGrab.TongueBody` (Beam), `TongueTip` (MeshPart), `VFX` (Thwip/Splat/Dust/Pop emitters, ItemTrail), `TongueGuide` / `TongueHighlight`, `StarterGui.SkillHUD`, `MobileControls.Skill`. Art sources live in `art/tongue/`: `tongue_tip.py` is a headless Blender script and `textures.py` uses Pillow; outputs are in `art/tongue/out/`. Optional sounds in `SoundService.SoundEffects`: `TongueThwip`, `TonguePop`, `TongueWhiff`.
+- `Config.Character.StudioOverride` (default `"Gecko"`): in Studio every player gets that model; set nil to use the name mapping. Live servers ignore it.
+- Design: `docs/design/characters/gecko-tongue-grab.md`.

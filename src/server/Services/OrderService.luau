@@ -5,7 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EffectService = require(script.Parent.EffectService)
 local TeamService = require(script.Parent.TeamService)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Levels = require(Shared:WaitForChild("Config"):WaitForChild("Levels"))
+local Config = require(Shared:WaitForChild("Config"))
+local Levels = Config.Levels
+local RoundConfig = Config.Round
 local Net = require(Shared:WaitForChild("Net"))
 
 export type Order = {
@@ -114,6 +116,18 @@ local function runSequence(team: number, sequence: string, delaySeconds: number,
 	return delaySeconds
 end
 
+-- Effects and coins for a delivered order, shared by the serving window and manual tables.
+local function payOrder(team: number, counter: Instance): ()
+	Net.Event("Effect"):FireAllClients("OrderFinish", counter)
+	local amount = Levels.GetCurrent().CoinsPerOrder
+	local attribute = `Coins_{team}`
+	local coins = ReplicatedStorage:GetAttribute(attribute)
+	ReplicatedStorage:SetAttribute(attribute, (if typeof(coins) == "number" then coins else 0) + amount)
+	for _, member in TeamService.GetPlayers(team) do
+		Net.Event("Effect"):FireClient(member, "CoinNotif", amount)
+	end
+end
+
 function OrderService.StartRound(teamCount: number, generation: number): ()
 	OrderService.Stop()
 	activeGeneration = generation
@@ -121,6 +135,9 @@ function OrderService.StartRound(teamCount: number, generation: number): ()
 	for team = 1, teamCount do
 		orders[team] = {}
 		nextNumbers[team] = 1
+		if RoundConfig.ServeMode == "Manual" then
+			continue
+		end
 		task.spawn(function(): ()
 			local delaySeconds = runSequence(team, level.Sequence, level.OrderDelay, generation)
 			while activeGeneration == generation do
@@ -130,6 +147,51 @@ function OrderService.StartRound(teamCount: number, generation: number): ()
 				delaySeconds = runSequence(team, level.LoopSequence, delaySeconds, generation)
 			end
 		end)
+	end
+end
+
+-- Manual serve mode: a customer's order. Expiry fires ExpireOrder and then onExpire.
+function OrderService.Open(team: number, recipeId: number, onExpire: () -> ()): number?
+	local generation = activeGeneration
+	local teamOrders = orders[team]
+	local recipe = Levels.GetCurrent().Recipes[recipeId]
+	if generation == nil or teamOrders == nil or recipe == nil then
+		return nil
+	end
+	local number = nextNumbers[team] or 1
+	nextNumbers[team] = number + 1
+	local order: Order = {
+		OrderNum = number,
+		Recipe = recipeId,
+		StartedAt = workspace:GetServerTimeNow(),
+		Duration = recipe.Time,
+	}
+	local timer = task.delay(recipe.Time, function(): ()
+		if activeGeneration ~= generation or teamOrders[number] == nil then
+			return
+		end
+		teamOrders[number] = nil
+		sendTeam(team, "ExpireOrder", number)
+		onExpire()
+	end)
+	teamOrders[number] = { Data = order, Timer = timer }
+	sendTeam(team, "AddOrder", order)
+	return number
+end
+
+function OrderService.Close(team: number, number: number, success: boolean, counter: Instance): ()
+	local teamOrders = orders[team]
+	local entry = if teamOrders ~= nil then teamOrders[number] else nil
+	if teamOrders == nil or entry == nil then
+		return
+	end
+	task.cancel(entry.Timer)
+	teamOrders[number] = nil
+	if success then
+		sendTeam(team, "CompleteOrder", number)
+		payOrder(team, counter)
+	else
+		sendTeam(team, "ExpireOrder", number)
 	end
 end
 
@@ -146,14 +208,7 @@ function OrderService.Serve(player: Player, dish: string, counter: Instance): bo
 						task.cancel(entry.Timer)
 						teamOrders[order.OrderNum] = nil
 						sendTeam(team, "CompleteOrder", order.OrderNum)
-						Net.Event("Effect"):FireAllClients("OrderFinish", counter)
-						local amount = Levels.GetCurrent().CoinsPerOrder
-						local attribute = `Coins_{team}`
-						local coins = ReplicatedStorage:GetAttribute(attribute)
-						ReplicatedStorage:SetAttribute(attribute, (if typeof(coins) == "number" then coins else 0) + amount)
-						for _, member in TeamService.GetPlayers(team) do
-							Net.Event("Effect"):FireClient(member, "CoinNotif", amount)
-						end
+						payOrder(team, counter)
 						return true
 					end
 				end

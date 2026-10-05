@@ -3,7 +3,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Interactable = require(script.Parent.Interactable)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 local Trove = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Trove"))
 
@@ -61,6 +62,14 @@ function Item.GetRestingInstances(): { Instance }
 	return resting
 end
 
+function Item.GetAll(): { Item }
+	local all: { Item } = {}
+	for _, item in items do
+		table.insert(all, item :: any)
+	end
+	return all
+end
+
 -- Yields until the binder has created the Item for `instance`; nil on timeout.
 function Item.Await(instance: Instance, timeout: number): Item?
 	local existing = items[instance]
@@ -106,7 +115,7 @@ end
 
 function Item.CanSwapWith(self: Item, other: Item): boolean
 	local class = Tags.ClassOf(self.Instance)
-	return class ~= nil and class == Tags.ClassOf(other.Instance) and not Config.AllowInteractionWithSelf[class]
+	return class ~= nil and class == Tags.ClassOf(other.Instance) and not InteractionConfig.AllowInteractionWithSelf[class]
 end
 
 function Item.Destroy(self: Item): ()

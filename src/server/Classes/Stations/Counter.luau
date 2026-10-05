@@ -4,7 +4,8 @@ local Item = require(script.Parent.Parent.Item)
 local Station = require(script.Parent.Parent.Station)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
 local EffectService = require(script.Parent.Parent.Parent.Services.EffectService)
-local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
 local Tags = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Tags"))
 
 -- Ported from legacy Countertop.
@@ -90,7 +91,7 @@ function Counter.Receive(self: Counter, item: Item.Item): boolean
 		return self.Slot:Place(item)
 	end
 	local class = Tags.ClassOf(item.Instance)
-	if class ~= nil and class == Tags.ClassOf(onTop.Instance) and not Config.AllowInteractionWithSelf[class] then
+	if class ~= nil and class == Tags.ClassOf(onTop.Instance) and not InteractionConfig.AllowInteractionWithSelf[class] then
 		return false
 	end
 	return onTop:Accept(item, nil) or item:Accept(onTop, nil)

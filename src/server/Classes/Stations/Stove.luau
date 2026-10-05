@@ -6,7 +6,8 @@ local Item = require(script.Parent.Parent.Item)
 local CookingTool = require(script.Parent.Parent.CookingTool)
 local Station = require(script.Parent.Parent.Station)
 local Counter = require(script.Parent.Counter)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction")).Cooking
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CookingConfig = Config.Interaction.Cooking
 
 local Stove = setmetatable({}, { __index = Station })
 Stove.__index = Stove
@@ -31,7 +32,7 @@ local function syncTool(before: Item.Item?, after: Item.Item?): ()
 	local newTool = CookingTool.Cast(after)
 	if newTool ~= nil then
 		local class = newTool.Instance:GetAttribute("cookingToolClass")
-		if typeof(class) == "string" and table.find(Config.StoveToolClasses, class) ~= nil then
+		if typeof(class) == "string" and table.find(CookingConfig.StoveToolClasses, class) ~= nil then
 			newTool:SetEnabled(true)
 		end
 	end

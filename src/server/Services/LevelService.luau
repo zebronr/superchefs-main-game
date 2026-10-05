@@ -11,10 +11,11 @@ local BinderService = require(script.Parent.BinderService)
 local CarryService = require(script.Parent.CarryService)
 local InteractionService = require(script.Parent.InteractionService)
 local TeamService = require(script.Parent.TeamService)
-local Levels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Levels"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Levels = Config.Levels
+local RoundConfig = Config.Round
 
 local LevelService = {}
-local LEVEL_PATH = "CoOp/Chapter1/Level1"
 local mapTemplate: Instance? = nil
 local map: Instance? = nil
 local container: Instance? = nil
@@ -22,7 +23,7 @@ local initialChildren: { Instance } = {}
 local mapGeneration = 0
 local started = false
 
-function LevelService.GetLevelData(): Levels.LevelData
+function LevelService.GetLevelData(): Config.LevelData
 	return Levels.GetCurrent()
 end
 
@@ -115,6 +116,10 @@ local function cloneMap(): ()
 	end
 end
 
+function LevelService.GetServeMode(): Config.ServeMode
+	return RoundConfig.ServeMode
+end
+
 function LevelService.GetMap(): Instance?
 	return map
 end
@@ -161,8 +166,16 @@ function LevelService.Start(_self: typeof(LevelService)): ()
 		return
 	end
 	started = true
-	Levels.SetCurrent(LEVEL_PATH)
-	mapTemplate = ServerStorage:WaitForChild("Maps"):WaitForChild("CoOp"):WaitForChild("Chapter1"):WaitForChild("Level1")
+	-- The mode is read once at server start; there is no runtime switching.
+	local path = Levels.DefaultFor[RoundConfig.ServeMode]
+	Levels.SetCurrent(path)
+	ReplicatedStorage:SetAttribute("ServeMode", RoundConfig.ServeMode)
+	ReplicatedStorage:SetAttribute("LevelPath", path)
+	local template: Instance = ServerStorage:WaitForChild("Maps")
+	for _, segment in string.split(path, "/") do
+		template = template:WaitForChild(segment)
+	end
+	mapTemplate = template
 	container = workspace:WaitForChild("$GAME")
 	for _, child in (container :: Instance):GetChildren() do
 		table.insert(initialChildren, child:Clone())

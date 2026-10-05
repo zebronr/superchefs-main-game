@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local ProgressController = {}
@@ -53,12 +54,12 @@ local function showProgress(instance: Instance, state: Tracked, progress: number
 end
 
 local function refreshSink(instance: Instance, state: Tracked): ()
-	local progress = instance:GetAttribute(Config.WashProgressAttribute)
+	local progress = instance:GetAttribute(InteractionConfig.WashProgressAttribute)
 	showProgress(instance, state, if typeof(progress) == "number" then progress else nil)
 end
 
 local function refreshProgress(instance: Instance, state: Tracked, playSound: boolean): ()
-	local value = instance:GetAttribute(Config.ChopProgressAttribute)
+	local value = instance:GetAttribute(InteractionConfig.ChopProgressAttribute)
 	if typeof(value) ~= "number" then
 		showProgress(instance, state, nil)
 		state.LastProgress = nil
@@ -72,18 +73,18 @@ local function refreshProgress(instance: Instance, state: Tracked, playSound: bo
 end
 
 local function refreshCooking(instance: Instance, state: Tracked): ()
-	if typeof(instance:GetAttribute(Config.Cooking.CookContentAttribute)) ~= "string" then
+	if typeof(instance:GetAttribute(InteractionConfig.Cooking.CookContentAttribute)) ~= "string" then
 		showProgress(instance, state, nil)
 		return
 	end
-	local base = instance:GetAttribute(Config.Cooking.CookProgressAttribute)
+	local base = instance:GetAttribute(InteractionConfig.Cooking.CookProgressAttribute)
 	if typeof(base) ~= "number" then
 		showProgress(instance, state, nil)
 		return
 	end
-	local startedAt = instance:GetAttribute(Config.Cooking.CookStartedAtAttribute)
+	local startedAt = instance:GetAttribute(InteractionConfig.Cooking.CookStartedAtAttribute)
 	local progress = if typeof(startedAt) == "number"
-		then math.min(base + (workspace:GetServerTimeNow() - startedAt) * Config.Cooking.CookRate, 100)
+		then math.min(base + (workspace:GetServerTimeNow() - startedAt) * InteractionConfig.Cooking.CookRate, 100)
 		else base
 	showProgress(instance, state, progress)
 end
@@ -112,19 +113,19 @@ local function refresh(instance: Instance): ()
 	if instance:IsDescendantOf(workspace) then
 		if #state.Attributes == 0 then
 			if state.Kind == "Food" then
-				table.insert(state.Attributes, instance:GetAttributeChangedSignal(Config.ChopProgressAttribute):Connect(function(): ()
+				table.insert(state.Attributes, instance:GetAttributeChangedSignal(InteractionConfig.ChopProgressAttribute):Connect(function(): ()
 					refreshProgress(instance, state, true)
 				end))
 				refreshProgress(instance, state, false)
 			elseif state.Kind == "CookingTool" then
-				for _, name in { Config.Cooking.CookContentAttribute, Config.Cooking.CookProgressAttribute, Config.Cooking.CookStartedAtAttribute } do
+				for _, name in { InteractionConfig.Cooking.CookContentAttribute, InteractionConfig.Cooking.CookProgressAttribute, InteractionConfig.Cooking.CookStartedAtAttribute } do
 					table.insert(state.Attributes, instance:GetAttributeChangedSignal(name):Connect(function(): ()
 						refreshCooking(instance, state)
 					end))
 				end
 				refreshCooking(instance, state)
 			else
-				table.insert(state.Attributes, instance:GetAttributeChangedSignal(Config.WashProgressAttribute):Connect(function(): ()
+				table.insert(state.Attributes, instance:GetAttributeChangedSignal(InteractionConfig.WashProgressAttribute):Connect(function(): ()
 					refreshSink(instance, state)
 				end))
 				refreshSink(instance, state)
@@ -164,38 +165,38 @@ local function track(instance: Instance, kind: "Food" | "CookingTool" | "Sink"):
 end
 
 function ProgressController.Start(_self: typeof(ProgressController)): ()
-	local progressBar = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("ProgressBar")
-	assert(progressBar:IsA("BillboardGui"), "ReplicatedStorage.Assets.ProgressBar must be a BillboardGui")
+	local progressBar = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("UI"):WaitForChild("ProgressBar")
+	assert(progressBar:IsA("BillboardGui"), "ReplicatedStorage.Assets.UI.ProgressBar must be a BillboardGui")
 	template = progressBar
 	local sound = SoundService:WaitForChild("SoundEffects"):WaitForChild("Chop")
 	assert(sound:IsA("Sound"), "SoundService.SoundEffects.Chop must be a Sound")
 	chopSound = sound
 
-	CollectionService:GetInstanceAddedSignal(Tags.Food):Connect(function(instance: Instance): ()
+	CollectionService:GetInstanceAddedSignal(Tags.ClassTag(Tags.Food)):Connect(function(instance: Instance): ()
 		track(instance, "Food")
 	end)
-	CollectionService:GetInstanceRemovedSignal(Tags.Food):Connect(untrack)
-	for _, instance in CollectionService:GetTagged(Tags.Food) do
+	CollectionService:GetInstanceRemovedSignal(Tags.ClassTag(Tags.Food)):Connect(untrack)
+	for _, instance in CollectionService:GetTagged(Tags.ClassTag(Tags.Food)) do
 		track(instance, "Food")
 	end
-	CollectionService:GetInstanceAddedSignal(Tags.CookingTool):Connect(function(instance: Instance): ()
+	CollectionService:GetInstanceAddedSignal(Tags.ClassTag(Tags.CookingTool)):Connect(function(instance: Instance): ()
 		track(instance, "CookingTool")
 	end)
-	CollectionService:GetInstanceRemovedSignal(Tags.CookingTool):Connect(untrack)
-	for _, instance in CollectionService:GetTagged(Tags.CookingTool) do
+	CollectionService:GetInstanceRemovedSignal(Tags.ClassTag(Tags.CookingTool)):Connect(untrack)
+	for _, instance in CollectionService:GetTagged(Tags.ClassTag(Tags.CookingTool)) do
 		track(instance, "CookingTool")
 	end
-	CollectionService:GetInstanceAddedSignal(Tags.Sink):Connect(function(instance: Instance): ()
+	CollectionService:GetInstanceAddedSignal(Tags.ClassTag(Tags.Sink)):Connect(function(instance: Instance): ()
 		track(instance, "Sink")
 	end)
-	CollectionService:GetInstanceRemovedSignal(Tags.Sink):Connect(untrack)
-	for _, instance in CollectionService:GetTagged(Tags.Sink) do
+	CollectionService:GetInstanceRemovedSignal(Tags.ClassTag(Tags.Sink)):Connect(untrack)
+	for _, instance in CollectionService:GetTagged(Tags.ClassTag(Tags.Sink)) do
 		track(instance, "Sink")
 	end
 	RunService.Heartbeat:Connect(function(): ()
 		for instance, state in tracked do
 			if state.Kind == "CookingTool" and #state.Attributes > 0 then
-				local startedAt = instance:GetAttribute(Config.Cooking.CookStartedAtAttribute)
+				local startedAt = instance:GetAttribute(InteractionConfig.Cooking.CookStartedAtAttribute)
 				if typeof(startedAt) == "number" then
 					refreshCooking(instance, state)
 				end

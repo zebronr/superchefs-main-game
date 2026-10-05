@@ -7,10 +7,12 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local DirtyPlate = require(script.Parent.Parent.DirtyPlate)
 local Item = require(script.Parent.Parent.Item)
+local Plate = require(script.Parent.Parent.Plate)
 local PlateStack = require(script.Parent.Parent.Components.PlateStack)
 local Station = require(script.Parent.Parent.Station)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 local Trove = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Trove"))
 
@@ -25,6 +27,7 @@ type Session = {
 	Loop: thread?,
 	Timeout: thread?,
 	Converting: boolean,
+	StopRequested: boolean,
 }
 
 export type Sink = Station.Station & {
@@ -47,6 +50,7 @@ end
 
 function Sink.new(instance: Instance): Sink
 	local self = Station.new(instance) :: Sink
+	self.AutoUse = true
 	self.WashPartMarker = partChild(instance, "WashPartMarker")
 	self.DrainBoard = partChild(instance, "DrainBoard")
 	self.PlateDisplays = instance:WaitForChild("PlateDisplays")
@@ -67,7 +71,7 @@ local function washSide(self: Sink, player: Player): boolean?
 end
 
 local function updateDisplays(self: Sink): ()
-	for index = 1, Config.MaxDisplayedDirtyPlates do
+	for index = 1, InteractionConfig.MaxDisplayedDirtyPlates do
 		local display = self.PlateDisplays:FindFirstChild(tostring(index))
 		if display ~= nil and display:IsA("BasePart") then
 			display.Transparency = if index <= self.DirtyCount then 0 else 1
@@ -102,7 +106,9 @@ function Sink.Handle(self: Sink, player: Player, held: Item.Item?): boolean
 		return true
 	end
 	if held ~= nil then
-		return false
+		-- Plate onto the top clean plate without taking it off the drain board.
+		local top = self.DrainStack:Top()
+		return top ~= nil and (top:Accept(held, player) or held:Accept(top, player))
 	end
 	local plate = self.DrainStack:PopTop()
 	if plate == nil then
@@ -129,13 +135,25 @@ local function endSession(self: Sink, session: Session): ()
 	if loop ~= nil and loop ~= coroutine.running() and not session.Converting then
 		task.cancel(loop)
 	end
-	if session.Character:GetAttribute(Config.ActionAnimationAttribute) == "Wash" then
-		session.Character:SetAttribute(Config.ActionAnimationAttribute, nil)
+	if session.Character:GetAttribute(InteractionConfig.ActionAnimationAttribute) == "Wash" then
+		session.Character:SetAttribute(InteractionConfig.ActionAnimationAttribute, nil)
 	end
 	session.OnEnded()
 end
 
-local function complete(self: Sink, session: Session): ()
+local function restartTimeout(self: Sink, session: Session): ()
+	local timeout = session.Timeout
+	if timeout ~= nil and timeout ~= coroutine.running() then
+		task.cancel(timeout)
+	end
+	session.Timeout = task.delay(100 / InteractionConfig.WashRate + InteractionConfig.UseTimeoutMargin, function(): ()
+		if not session.Converting then
+			endSession(self, session)
+		end
+	end)
+end
+
+local function complete(self: Sink, session: Session): boolean
 	session.Converting = true
 	local clone: Instance? = nil
 	local success, message = pcall(function(): boolean
@@ -147,10 +165,13 @@ local function complete(self: Sink, session: Session): ()
 		newClone.Parent = gameFolder
 		local plate = Item.Await(newClone, BIND_TIMEOUT)
 		assert(self.Session == session and plate ~= nil, "Clean plate could not bind")
-		assert(self.DrainStack:Push(plate), "Clean plate could not be stacked")
+		-- A plated plate stays on top so a finished wash doesn't bury it.
+		local top = Plate.Cast(self.DrainStack:Top())
+		local stacked = if top ~= nil and top.Content ~= nil then self.DrainStack:InsertBelowTop(plate) else self.DrainStack:Push(plate)
+		assert(stacked, "Clean plate could not be stacked")
 		self.DirtyCount -= 1
 		updateDisplays(self)
-		self.Instance:SetAttribute(Config.WashProgressAttribute, nil)
+		self.Instance:SetAttribute(InteractionConfig.WashProgressAttribute, nil)
 		return true
 	end)
 	if not success then
@@ -159,7 +180,14 @@ local function complete(self: Sink, session: Session): ()
 		end
 		warn(`Sink {self.Instance:GetFullName()} failed to finish: {message}`)
 	end
-	endSession(self, session)
+	session.Converting = false
+	if not success or self.Session ~= session or session.StopRequested or self.DirtyCount <= 0 then
+		endSession(self, session)
+		return false
+	end
+	self.Instance:SetAttribute(InteractionConfig.WashProgressAttribute, 0)
+	restartTimeout(self, session)
+	return true
 end
 
 function Sink.StartUse(self: Sink, player: Player, onEnded: () -> ()): boolean
@@ -178,12 +206,13 @@ function Sink.StartUse(self: Sink, player: Player, onEnded: () -> ()): boolean
 		Loop = nil,
 		Timeout = nil,
 		Converting = false,
+		StopRequested = false,
 	}
 	self.Session = session
-	character:SetAttribute(Config.ActionAnimationAttribute, "Wash")
-	local stored = self.Instance:GetAttribute(Config.WashProgressAttribute)
+	character:SetAttribute(InteractionConfig.ActionAnimationAttribute, "Wash")
+	local stored = self.Instance:GetAttribute(InteractionConfig.WashProgressAttribute)
 	local progress = if typeof(stored) == "number" then math.clamp(stored, 0, 100) else 0
-	self.Instance:SetAttribute(Config.WashProgressAttribute, progress)
+	self.Instance:SetAttribute(InteractionConfig.WashProgressAttribute, progress)
 	session.Trove:Connect(self.Instance.Destroying, function(): ()
 		endSession(self, session)
 	end)
@@ -201,23 +230,21 @@ function Sink.StartUse(self: Sink, player: Player, onEnded: () -> ()): boolean
 			endSession(self, session)
 		end)
 	end
-	session.Timeout = task.delay(100 / Config.WashRate + Config.UseTimeoutMargin, function(): ()
-		if not session.Converting then
-			endSession(self, session)
-		end
-	end)
+	restartTimeout(self, session)
 	session.Loop = task.defer(function(): ()
 		while self.Session == session do
 			if progress >= 100 then
-				complete(self, session)
-				return
+				if not complete(self, session) then
+					return
+				end
+				progress = 0
 			end
 			local delta = RunService.Heartbeat:Wait()
 			if self.Session ~= session then
 				return
 			end
-			progress = math.min(progress + delta * Config.WashRate, 100)
-			self.Instance:SetAttribute(Config.WashProgressAttribute, progress)
+			progress = math.min(progress + delta * InteractionConfig.WashRate, 100)
+			self.Instance:SetAttribute(InteractionConfig.WashProgressAttribute, progress)
 		end
 	end)
 	return true
@@ -225,8 +252,12 @@ end
 
 function Sink.StopUse(self: Sink, player: Player): ()
 	local session = self.Session
-	if session ~= nil and session.Player == player and not session.Converting then
-		endSession(self, session)
+	if session ~= nil and session.Player == player then
+		if session.Converting then
+			session.StopRequested = true
+		else
+			endSession(self, session)
+		end
 	end
 end
 

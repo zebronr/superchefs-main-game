@@ -2,9 +2,11 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Character"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CharacterConfig = Config.Character
 local TeamService = require(script.Parent.TeamService)
 
 local CharacterService = {}
@@ -13,7 +15,7 @@ local tracked: { [Player]: boolean } = {}
 local lastDash: { [Player]: number } = {}
 
 local function playerColor(player: Player): Color3
-	local colors = Config.Colors[TeamService.GetTeam(player)] or Config.Colors[1]
+	local colors = CharacterConfig.Colors[TeamService.GetTeam(player)] or CharacterConfig.Colors[1]
 	local slot = TeamService.GetSlot(player)
 	return colors[(slot - 1) % #colors + 1]
 end
@@ -36,7 +38,10 @@ end
 local function setupCharacter(player: Player, character: Model): ()
 	if character:GetAttribute("CustomCharacter") ~= true then
 		local characters = ServerStorage:WaitForChild("Characters")
-		local modelName = Config.CharacterModels[player.Name] or Config.DefaultCharacterModel
+		local override = CharacterConfig.StudioOverride
+		local modelName = if override ~= nil and RunService:IsStudio()
+			then override
+			else CharacterConfig.CharacterModels[player.Name] or CharacterConfig.DefaultCharacterModel
 		local template = characters:FindFirstChild(modelName)
 		if template == nil or not template:IsA("Model") then
 			warn(`Character model {modelName} is missing for {player.Name}`)
@@ -45,6 +50,7 @@ local function setupCharacter(player: Player, character: Model): ()
 		local clone = template:Clone()
 		clone.Name = player.Name
 		clone:SetAttribute("CustomCharacter", true)
+		clone:SetAttribute(Config.Skills.Attribute.CharacterModel, modelName)
 		clone:SetAttribute("PlayerColor", playerColor(player))
 		clone:PivotTo(character:GetPivot())
 		clone.Parent = workspace
@@ -76,7 +82,7 @@ function CharacterService.Dash(player: Player): ()
 		return
 	end
 	local now = workspace:GetServerTimeNow()
-	if now - (lastDash[player] or -math.huge) < Config.DashEffectCooldown then
+	if now - (lastDash[player] or -math.huge) < CharacterConfig.DashEffectCooldown then
 		return
 	end
 	lastDash[player] = now

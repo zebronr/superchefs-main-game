@@ -5,7 +5,8 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local CookingTool = require(script.Parent.Parent.CookingTool)
 local Slot = require(script.Parent.Parent.Components.Slot)
-local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Recipes"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Recipes = Config.Recipes
 
 local soupTemplate = ServerStorage:WaitForChild("Assets"):WaitForChild("Foods"):WaitForChild("SoupModel")
 

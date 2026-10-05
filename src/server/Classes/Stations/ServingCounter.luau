@@ -10,8 +10,9 @@ local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
 local EffectService = require(script.Parent.Parent.Parent.Services.EffectService)
 local OrderService = require(script.Parent.Parent.Parent.Services.OrderService)
 local TeamService = require(script.Parent.Parent.Parent.Services.TeamService)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
-local Levels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Levels"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
+local Levels = Config.Levels
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local ServingCounter = setmetatable({}, { __index = Station })
@@ -39,7 +40,7 @@ function ServingCounter.Handle(self: ServingCounter, player: Player, held: Item.
 		OrderService.Serve(player, dish, self.Instance)
 		local team = TeamService.GetTeam(player)
 		plate.Instance:Destroy()
-		task.delay(Config.PlateReturnDelay, function(): ()
+		task.delay(InteractionConfig.PlateReturnDelay, function(): ()
 			if not self.Instance:IsDescendantOf(workspace) then
 				return
 			end

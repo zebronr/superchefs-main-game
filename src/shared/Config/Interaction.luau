@@ -17,6 +17,10 @@ Interaction.PriorityWeight = 100
 Interaction.ServerDistanceMargin = 10
 Interaction.MaxRequests = 10
 Interaction.RequestWindow = 0.5
+-- Flat distance from the use start before an automatic station use stops.
+Interaction.AutoUse = {
+	MoveTolerance = 2,
+}
 
 -- Carrying
 Interaction.CarryDistance = 2
@@ -64,11 +68,21 @@ Interaction.Throw = {
 	Distance = 30,
 	Height = 7,
 	Speed = 45,
-	Gravity = 20,
+	-- Studs/s^2: the fall after an impact accelerates.
+	FallGravity = 120,
 	FloorRayLength = 100,
-	CollisionRayLength = 100,
-	CollisionRadius = 3,
-	CollisionAngles = { -45, 0, 45 },
+	-- Sphere radius of the swept collision cast.
+	CastRadius = 0.5,
+	-- Studs: how close a player's root must be to the flight path to catch.
+	CatchRadius = 3.5,
+	-- The catcher's flat look must dot the flat direction toward the thrower at least this much.
+	CatchFacingDot = 0.3,
+	-- Seconds: cap on back-dating the server start by half the thrower's ping.
+	MaxLagCompensation = 0.2,
+	-- Seconds the thrower's client waits for the server to confirm before rolling back.
+	PredictionTimeout = 1,
+	-- Seconds to blend the predicted position into the server timeline.
+	ReconcileTime = 0.12,
 	MarginOfError = 10,
 	TrailLinger = 0.5,
 	ThrowStartAttribute = "ThrowStart",
@@ -88,8 +102,10 @@ Interaction.AllowInteractionWithSelf = {
 Interaction.Controls = {
 	Interact = Enum.KeyCode.Space,
 	Use = Enum.KeyCode.LeftControl,
-	Throw = Enum.KeyCode.LeftAlt,
+	-- Temporarily E: LeftAlt unfocuses the Studio window. Restore LeftAlt for release.
+	Throw = Enum.KeyCode.E,
 	Dash = Enum.KeyCode.LeftShift,
+	Skill = Enum.KeyCode.Q,
 }
 
 return Interaction

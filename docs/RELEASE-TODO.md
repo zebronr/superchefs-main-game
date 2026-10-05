@@ -20,3 +20,7 @@ Do this once the lobby place is connected to the main game, when players telepor
 4. Move the join-time messages (the `Orders` snapshot, `RoundEnd`, `ReadySetGo`) from PlayerAdded to the ready handler. That way a late joiner gets them after its listeners exist.
 
 Until then, the round auto-starts on join, and the first countdown is missed in Studio playtests.
+
+## Throw key
+
+Throw is bound to E for Studio testing, because LeftAlt unfocuses the Studio window. Before release, set `Interaction.Controls.Throw` (`src/shared/Config/Interaction.luau`) back to `Enum.KeyCode.LeftAlt`, or pick a final key.

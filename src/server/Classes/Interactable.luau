@@ -14,6 +14,7 @@ export type Kind = "Station" | "Item"
 export type Interactable = {
 	Instance: Instance,
 	Kind: Kind,
+	AutoUse: boolean,
 	Trove: typeof(Trove.new()),
 	Interact: (self: Interactable, player: Player, held: Interactable?) -> boolean,
 	StartUse: (self: Interactable, player: Player, onEnded: () -> ()) -> boolean,
@@ -26,6 +27,7 @@ function Interactable.new(instance: Instance, kind: Kind): Interactable
 	local self: Interactable = setmetatable({
 		Instance = instance,
 		Kind = kind,
+		AutoUse = false,
 		Trove = Trove.new(),
 	}, Interactable) :: any
 	return self

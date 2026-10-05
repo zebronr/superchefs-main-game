@@ -1,6 +1,5 @@
 --!strict
 
-local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Item = require(script.Parent.Parent.Item)
@@ -25,7 +24,7 @@ function Trash.Handle(_self: Trash, player: Player, held: Item.Item?): boolean
 	if held == nil then
 		return false
 	end
-	if CollectionService:HasTag(held.Instance, Tags.Food) then
+	if Tags.IsClass(held.Instance, Tags.Food) then
 		CarryService.Drop(player, true)
 		held.Instance:Destroy()
 		return true

@@ -6,7 +6,9 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Levels = require(Shared:WaitForChild("Config"):WaitForChild("Levels"))
+local Config = require(Shared:WaitForChild("Config"))
+local Levels = Config.Levels
+local patience = Config.UI.Patience
 local Net = require(Shared:WaitForChild("Net"))
 
 type Order = { OrderNum: number, Recipe: number, StartedAt: number, Duration: number }
@@ -162,14 +164,14 @@ local function removeOrder(number: number, success: boolean): ()
 		end
 		if success then
 			for _, image in images do
-				image.ImageColor3 = Color3.fromRGB(150, 210, 166)
+				image.ImageColor3 = Config.UI.Ticket.Success
 			end
 			tween(card, main, TweenInfo.new(0.5, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, -0.7, 0) }).Completed:Wait()
 		else
 			local home = main.Position
 			for index = 1, 5 do
 				for _, image in images do
-					image.ImageColor3 = if index % 2 == 0 then Color3.fromRGB(255, 124, 124) else Color3.new(1, 1, 1)
+					image.ImageColor3 = if index % 2 == 0 then Config.UI.Ticket.Fail else Color3.new(1, 1, 1)
 				end
 				for _, direction in { 1, -1 } do
 					tween(card, main, TweenInfo.new(0.05), { Position = home + UDim2.new(0.03 * direction, 0, 0, 0) }).Completed:Wait()
@@ -217,8 +219,8 @@ function OrdersController.Start(_self: typeof(OrdersController)): ()
 			-- Legacy tweened from the template fill (width 2, green) to width 1 and yellow, then to 0 and red.
 			card.Fill.Size = UDim2.new(if progress <= 0.5 then 2 - progress * 2 else (1 - progress) * 2, 0, 1, 0)
 			card.Fill.BackgroundColor3 = if progress <= 0.5
-				then Color3.fromRGB(63, 111, 34):Lerp(Color3.fromRGB(184, 180, 46), progress * 2)
-				else Color3.fromRGB(184, 180, 46):Lerp(Color3.fromRGB(163, 37, 46), (progress - 0.5) * 2)
+				then patience.Green:Lerp(patience.Yellow, progress * 2)
+				else patience.Yellow:Lerp(patience.Red, (progress - 0.5) * 2)
 		end
 	end)
 end

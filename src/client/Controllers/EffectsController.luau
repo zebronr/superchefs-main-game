@@ -7,7 +7,8 @@ local TweenService = game:GetService("TweenService")
 
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction")).Cooking
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CookingConfig = Config.Interaction.Cooking
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local EffectsController = {}
@@ -24,6 +25,7 @@ type Tracked = {
 }
 
 local tracked: { [Instance]: Tracked } = {}
+local effectClasses = { Tags.CookingTool, Tags.Countertop, Tags.ChoppingBoard, Tags.Stove, Tags.FireExtinguisher }
 local finishedTemplate: BillboardGui
 local warningTemplate: BillboardGui
 local fireTemplate: BasePart
@@ -170,9 +172,9 @@ local function warningVisible(elapsed: number): boolean
 end
 
 local function showWarning(instance: Instance, state: Tracked, elapsed: number): ()
-	local startAt = 0.1 + 2.5 + Config.CookSafeTime - 2.9
+	local startAt = 0.1 + 2.5 + CookingConfig.CookSafeTime - 2.9
 	local warningElapsed = elapsed - startAt
-	if warningElapsed >= 0 and warningElapsed < Config.CookAlertDuration then
+	if warningElapsed >= 0 and warningElapsed < CookingConfig.CookAlertDuration then
 		if state.BurningWarning == nil then
 			local clone = warningTemplate:Clone()
 			clone.Parent = instance
@@ -189,7 +191,7 @@ local function showWarning(instance: Instance, state: Tracked, elapsed: number):
 end
 
 local function updateCooking(instance: Instance, state: Tracked): ()
-	local cookedAt = instance:GetAttribute(Config.CookedAtAttribute)
+	local cookedAt = instance:GetAttribute(CookingConfig.CookedAtAttribute)
 	if typeof(cookedAt) == "number" then
 		local elapsed = workspace:GetServerTimeNow() - cookedAt
 		showFinished(instance, state, elapsed)
@@ -211,7 +213,7 @@ local function emit(emitter: ParticleEmitter, accumulator: number, dt: number, r
 end
 
 local function updateFire(instance: Instance, state: Tracked, dt: number): ()
-	local fire = instance:GetAttribute(Config.FireAttribute)
+	local fire = instance:GetAttribute(CookingConfig.FireAttribute)
 	if typeof(fire) == "number" and fire > 0 and instance:IsA("BasePart") then
 		if state.FirePart == nil then
 			local clone = fireTemplate:Clone()
@@ -248,7 +250,7 @@ local function updateFoam(instance: Instance, state: Tracked, dt: number): ()
 	if emitter ~= nil then
 		emitter.Enabled = false
 	end
-	if instance:GetAttribute(Config.SprayingAttribute) ~= true then
+	if instance:GetAttribute(CookingConfig.SprayingAttribute) ~= true then
 		state.FoamAccumulator = 0
 		return
 	end
@@ -259,11 +261,13 @@ end
 
 function EffectsController.Start(_self: typeof(EffectsController)): ()
 	local assets = ReplicatedStorage:WaitForChild("Assets")
-	local finished = assets:WaitForChild("CookingFinished")
-	local warning = assets:WaitForChild("BurningWarning")
-	local fire = assets:WaitForChild("FireEmitter")
-	local smoke = assets:WaitForChild("DashTrail")
-	local errorHighlight = assets:WaitForChild("ErrorHighlight")
+	local uiAssets = assets:WaitForChild("UI")
+	local effectAssets = assets:WaitForChild("Effects")
+	local finished = uiAssets:WaitForChild("CookingFinished")
+	local warning = uiAssets:WaitForChild("BurningWarning")
+	local fire = effectAssets:WaitForChild("FireEmitter")
+	local smoke = effectAssets:WaitForChild("DashTrail")
+	local errorHighlight = assets:WaitForChild("Highlights"):WaitForChild("ErrorHighlight")
 	assert(finished:IsA("BillboardGui"), "CookingFinished must be a BillboardGui")
 	assert(warning:IsA("BillboardGui"), "BurningWarning must be a BillboardGui")
 	assert(fire:IsA("BasePart"), "FireEmitter must be a BasePart")
@@ -281,7 +285,8 @@ function EffectsController.Start(_self: typeof(EffectsController)): ()
 			objError(value)
 		end
 	end)
-	for _, tag in { Tags.CookingTool, Tags.Countertop, Tags.ChoppingBoard, Tags.Stove, Tags.FireExtinguisher } do
+	for _, className in effectClasses do
+		local tag = Tags.ClassTag(className)
 		CollectionService:GetInstanceAddedSignal(tag):Connect(track)
 		CollectionService:GetInstanceRemovedSignal(tag):Connect(untrack)
 		for _, instance in CollectionService:GetTagged(tag) do
@@ -289,11 +294,9 @@ function EffectsController.Start(_self: typeof(EffectsController)): ()
 		end
 	end
 	workspace.DescendantAdded:Connect(function(instance: Instance): ()
-		for _, tag in { Tags.CookingTool, Tags.Countertop, Tags.ChoppingBoard, Tags.Stove, Tags.FireExtinguisher } do
-			if CollectionService:HasTag(instance, tag) then
-				track(instance)
-				return
-			end
+		local class = Tags.ClassOf(instance)
+		if class ~= nil and table.find(effectClasses, class) ~= nil then
+			track(instance)
 		end
 	end)
 	RunService.Heartbeat:Connect(function(dt: number): ()
@@ -301,11 +304,12 @@ function EffectsController.Start(_self: typeof(EffectsController)): ()
 			if not instance:IsDescendantOf(workspace) then
 				continue
 			end
-			if CollectionService:HasTag(instance, Tags.CookingTool) then
+			local class = Tags.ClassOf(instance)
+			if class == Tags.CookingTool then
 				updateCooking(instance, state)
 			end
 			updateFire(instance, state, dt)
-			if CollectionService:HasTag(instance, Tags.FireExtinguisher) then
+			if class == Tags.FireExtinguisher then
 				updateFoam(instance, state, dt)
 			end
 		end

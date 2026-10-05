@@ -6,7 +6,8 @@ local RunService = game:GetService("RunService")
 
 local AnimationController = require(script.Parent.AnimationController)
 local CharacterEffectsController = require(script.Parent.CharacterEffectsController)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Character"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CharacterConfig = Config.Character
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
 local MovementController = {}
@@ -23,13 +24,13 @@ function MovementController.Dash(): ()
 	if root == nil or not root:IsA("BasePart") or humanoid == nil or humanoid.Health <= 0 then
 		return
 	end
-	nextDashAt = now + Config.DashCooldown
+	nextDashAt = now + CharacterConfig.DashCooldown
 	local attachment = Instance.new("Attachment")
 	attachment.Parent = root
 	local velocity = Instance.new("LinearVelocity")
 	velocity.Attachment0 = attachment
-	velocity.MaxForce = Config.DashMaxForce
-	velocity.VectorVelocity = root.CFrame.LookVector * Vector3.new(1, 0, 1) * Config.DashStrength
+	velocity.MaxForce = CharacterConfig.DashMaxForce
+	velocity.VectorVelocity = root.CFrame.LookVector * Vector3.new(1, 0, 1) * CharacterConfig.DashStrength
 	velocity.Parent = root
 	AnimationController.PlayDash()
 	CharacterEffectsController.PlayLocalDash()
@@ -38,7 +39,7 @@ function MovementController.Dash(): ()
 	local heartbeat: RBXScriptConnection? = nil
 	heartbeat = RunService.Heartbeat:Connect(function(dt: number): ()
 		elapsed += dt
-		if elapsed >= Config.DashLength or root.Parent == nil then
+		if elapsed >= CharacterConfig.DashLength or root.Parent == nil then
 			if heartbeat then
 				heartbeat:Disconnect()
 			end
@@ -46,7 +47,7 @@ function MovementController.Dash(): ()
 			attachment:Destroy()
 			return
 		end
-		velocity.VectorVelocity = root.CFrame.LookVector * Vector3.new(1, 0, 1) * (Config.DashStrength * Config.DashFollowupFactor)
+		velocity.VectorVelocity = root.CFrame.LookVector * Vector3.new(1, 0, 1) * (CharacterConfig.DashStrength * CharacterConfig.DashFollowupFactor)
 	end)
 end
 

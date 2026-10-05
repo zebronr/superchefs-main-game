@@ -3,15 +3,16 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
-local CharacterConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Character"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
+local CharacterConfig = Config.Character
 
 local AnimationController = {}
 local localPlayer = Players.LocalPlayer
 
 local animationIds = {
-	Chop = Config.ChopAnimationId,
-	Wash = Config.WashAnimationId,
+	Chop = InteractionConfig.ChopAnimationId,
+	Wash = InteractionConfig.WashAnimationId,
 	Run = CharacterConfig.RunAnimationId,
 	Pickup = CharacterConfig.PickupAnimationId,
 	Dash = CharacterConfig.DashAnimationId,
@@ -85,7 +86,7 @@ end
 
 local function update(): ()
 	local current = character
-	local name = if current then current:GetAttribute(Config.ActionAnimationAttribute) else nil
+	local name = if current then current:GetAttribute(InteractionConfig.ActionAnimationAttribute) else nil
 	local nextTrack = if typeof(name) == "string" then tracks[name] else nil
 	if playing == nextTrack then
 		return
@@ -141,7 +142,7 @@ local function setup(nextCharacter: Model): ()
 			end)
 			watchHolder()
 		end
-		attributeConnection = nextCharacter:GetAttributeChangedSignal(Config.ActionAnimationAttribute):Connect(update)
+		attributeConnection = nextCharacter:GetAttributeChangedSignal(InteractionConfig.ActionAnimationAttribute):Connect(update)
 		update()
 	end)
 end

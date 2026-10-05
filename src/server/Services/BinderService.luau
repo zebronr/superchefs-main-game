@@ -1,6 +1,8 @@
 --!strict
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Binder = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("Binder"))
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
@@ -14,6 +16,7 @@ local Pot = require(script.Parent.Parent.Classes.CookingTools.Pot)
 local FireExtinguisher = require(script.Parent.Parent.Classes.FireExtinguisher)
 local Counter = require(script.Parent.Parent.Classes.Stations.Counter)
 local ChoppingBoard = require(script.Parent.Parent.Classes.Stations.ChoppingBoard)
+local CustomerTable = require(script.Parent.Parent.Classes.Stations.CustomerTable)
 local FoodContainer = require(script.Parent.Parent.Classes.Stations.FoodContainer)
 local PlateTable = require(script.Parent.Parent.Classes.Stations.PlateTable)
 local ServingCounter = require(script.Parent.Parent.Classes.Stations.ServingCounter)
@@ -41,28 +44,56 @@ local function newCookingTool(instance: Instance): CookingTool.CookingTool
 	return constructor(instance)
 end
 
-local function register(tag: string, constructor: (Instance) -> Interactable.Interactable): ()
-	binders[tag] = Binder.new(tag, constructor :: (Instance) -> Bound)
+-- Binders are keyed by class name and listen on the generated Class_<name> tag.
+local function register(className: string, constructor: (Instance) -> Interactable.Interactable): ()
+	binders[className] = Binder.new(Tags.ClassTag(className), constructor :: (Instance) -> Bound)
 end
 
-function BinderService.Get(tag: string): Binder.Binder<Bound>?
-	return binders[tag]
+function BinderService.Get(className: string): Binder.Binder<Bound>?
+	return binders[className]
 end
 
--- Looks the instance up across every binder.
+-- Looks the instance up in the binder of its objectClass.
 function BinderService.GetObject(instance: Instance): Interactable.Interactable?
-	for _, binder in binders do
-		local object = binder:Get(instance)
-		if object ~= nil then
-			return object
+	local class = Tags.ClassOf(instance)
+	local binder = if class ~= nil then binders[class] else nil
+	return if binder ~= nil then binder:Get(instance) else nil
+end
+
+-- Adds Class_<objectClass> to every classed instance under a template root.
+local function tagTree(root: Instance): ()
+	local function tag(instance: Instance): ()
+		local value = instance:GetAttribute(Tags.ClassAttribute)
+		if value == nil then
+			return
+		end
+		if typeof(value) == "string" and Tags.ClassOf(instance) ~= nil then
+			CollectionService:AddTag(instance, Tags.ClassTag(value))
+		else
+			warn(`{instance:GetFullName()} has unknown objectClass {tostring(value)}`)
 		end
 	end
-	return nil
+	tag(root)
+	for _, descendant in root:GetDescendants() do
+		tag(descendant)
+	end
+end
+
+-- Runs in Init: the Loader finishes every Init before any Start, and LevelService snapshots in Start.
+local function tagClasses(): ()
+	local roots = { ServerStorage:FindFirstChild("Maps"), ServerStorage:FindFirstChild("Assets"), workspace:FindFirstChild("$GAME") }
+	for index = 1, 3 do
+		local root = roots[index]
+		if root ~= nil then
+			tagTree(root)
+		end
+	end
 end
 
 function BinderService.Init(_self: typeof(BinderService)): ()
-	FireService.SetObjectProvider(function(tag: string): { any }
-		local binder = binders[tag]
+	tagClasses()
+	FireService.SetObjectProvider(function(className: string): { any }
+		local binder = binders[className]
 		return if binder ~= nil then binder:GetAll() else {}
 	end)
 	register(Tags.Countertop, Counter.new)
@@ -70,6 +101,7 @@ function BinderService.Init(_self: typeof(BinderService)): ()
 	register(Tags.FoodContainer, FoodContainer.new)
 	register(Tags.PlateTable, PlateTable.new)
 	register(Tags.ServingCounter, ServingCounter.new)
+	register(Tags.CustomerTable, CustomerTable.new)
 	register(Tags.Stove, Stove.new)
 	register(Tags.Sink, Sink.new)
 	register(Tags.Trash, Trash.new)

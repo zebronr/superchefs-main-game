@@ -1,6 +1,5 @@
 --!strict
 
-local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -9,7 +8,8 @@ local Item = require(script.Parent.Item)
 local Slot = require(script.Parent.Components.Slot)
 local CarryService = require(script.Parent.Parent.Services.CarryService)
 local EffectService = require(script.Parent.Parent.Services.EffectService)
-local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Recipes"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Recipes = Config.Recipes
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 local platedFoods = ServerStorage:WaitForChild("Assets"):WaitForChild("Foods"):WaitForChild("PlatedFoods")
@@ -113,7 +113,7 @@ end
 
 function Plate.Accept(self: Plate, other: Interactable.Interactable, _player: Player?): boolean
 	local food = Item.Cast(other)
-	if food ~= nil and CollectionService:HasTag(food.Instance, Tags.Food) then
+	if food ~= nil and Tags.IsClass(food.Instance, Tags.Food) then
 		local content = self.Content
 		local nextContent = if content == nil then food.Instance.Name else Recipes.Find({ content, food.Instance.Name })
 		if nextContent == nil then

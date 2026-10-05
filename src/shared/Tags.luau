@@ -1,7 +1,5 @@
 --!strict
 
-local CollectionService = game:GetService("CollectionService")
-
 local Tags = {}
 
 Tags.Countertop = "Countertop"
@@ -9,6 +7,7 @@ Tags.ChoppingBoard = "ChoppingBoard"
 Tags.FoodContainer = "FoodContainer"
 Tags.PlateTable = "PlateTable"
 Tags.ServingCounter = "ServingCounter"
+Tags.CustomerTable = "CustomerTable"
 Tags.Trash = "Trash"
 Tags.Food = "Food"
 Tags.Plate = "Plate"
@@ -18,6 +17,9 @@ Tags.Sink = "Sink"
 Tags.CookingTool = "CookingTool"
 Tags.FireExtinguisher = "FireExtinguisher"
 
+Tags.ClassAttribute = "objectClass"
+Tags.ClassTagPrefix = "Class_"
+
 Tags.ProximityNode = "ProximityNode"
 Tags.Locked = "LOCKED"
 Tags.FireLocked = "FIRELOCKED"
@@ -25,6 +27,7 @@ Tags.ThrowInteractable = "throwInteractable"
 Tags.ProjectileIgnore = "projectileInteractionIgnore"
 Tags.Ignore = "IGNORE"
 Tags.Projectile = "Projectile"
+Tags.Grabbed = "Grabbed"
 
 Tags.Classes = {
 	Tags.Countertop,
@@ -32,6 +35,7 @@ Tags.Classes = {
 	Tags.FoodContainer,
 	Tags.PlateTable,
 	Tags.ServingCounter,
+	Tags.CustomerTable,
 	Tags.Trash,
 	Tags.Food,
 	Tags.Plate,
@@ -44,13 +48,27 @@ Tags.Classes = {
 
 local DISABLED_ATTRIBUTE = "interactionDisabled"
 
+local classSet: { [string]: boolean } = {}
+for _, className in Tags.Classes do
+	classSet[className] = true
+end
+
+-- The generated CollectionService tag for a class name; BinderService adds it at server start.
+function Tags.ClassTag(className: string): string
+	return Tags.ClassTagPrefix .. className
+end
+
+-- Reads the objectClass attribute; only known class names count.
 function Tags.ClassOf(instance: Instance): string?
-	for _, tag in Tags.Classes do
-		if CollectionService:HasTag(instance, tag) then
-			return tag
-		end
+	local value = instance:GetAttribute(Tags.ClassAttribute)
+	if typeof(value) == "string" and classSet[value] then
+		return value
 	end
 	return nil
+end
+
+function Tags.IsClass(instance: Instance, className: string): boolean
+	return Tags.ClassOf(instance) == className
 end
 
 function Tags.IsInteractionDisabled(instance: Instance): boolean

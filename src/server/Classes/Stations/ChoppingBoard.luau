@@ -7,7 +7,8 @@ local ServerStorage = game:GetService("ServerStorage")
 local Item = require(script.Parent.Parent.Item)
 local Station = require(script.Parent.Parent.Station)
 local Counter = require(script.Parent.Counter)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 local Trove = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Trove"))
 
@@ -35,6 +36,7 @@ ChoppingBoard.__index = ChoppingBoard
 
 function ChoppingBoard.new(instance: Instance): ChoppingBoard
 	local self = Station.new(instance) :: ChoppingBoard
+	self.AutoUse = true
 	self.Session = nil
 	setmetatable(self :: any, ChoppingBoard)
 	return self
@@ -63,8 +65,8 @@ local function endSession(self: ChoppingBoard, session: Session): ()
 		task.cancel(loop)
 	end
 	CollectionService:RemoveTag(self.Instance, Tags.Locked)
-	if session.Character:GetAttribute(Config.ActionAnimationAttribute) == "Chop" then
-		session.Character:SetAttribute(Config.ActionAnimationAttribute, nil)
+	if session.Character:GetAttribute(InteractionConfig.ActionAnimationAttribute) == "Chop" then
+		session.Character:SetAttribute(InteractionConfig.ActionAnimationAttribute, nil)
 	end
 	session.OnEnded()
 end
@@ -127,7 +129,7 @@ function ChoppingBoard.StartUse(self: ChoppingBoard, player: Player, onEnded: ()
 	}
 	self.Session = session
 	CollectionService:AddTag(self.Instance, Tags.Locked)
-	character:SetAttribute(Config.ActionAnimationAttribute, "Chop")
+	character:SetAttribute(InteractionConfig.ActionAnimationAttribute, "Chop")
 	session.Trove:Connect(item.Instance.Destroying, function(): ()
 		if not session.Converting then
 			endSession(self, session)
@@ -137,23 +139,23 @@ function ChoppingBoard.StartUse(self: ChoppingBoard, player: Player, onEnded: ()
 		endSession(self, session)
 	end)
 	-- A release or timeout during conversion would destroy the raw food without placing the chopped one.
-	session.Timeout = task.delay(100 / Config.ProgressPerChop * Config.ChopDelay + Config.UseTimeoutMargin, function(): ()
+	session.Timeout = task.delay(100 / InteractionConfig.ProgressPerChop * InteractionConfig.ChopDelay + InteractionConfig.UseTimeoutMargin, function(): ()
 		if not session.Converting then
 			endSession(self, session)
 		end
 	end)
 
 	session.Loop = task.defer(function(): ()
-		local stored = item.Instance:GetAttribute(Config.ChopProgressAttribute)
+		local stored = item.Instance:GetAttribute(InteractionConfig.ChopProgressAttribute)
 		local progress = if typeof(stored) == "number" then math.clamp(stored, 0, 100) else 0
 		while self.Session == session do
-			progress += Config.ProgressPerChop
-			item.Instance:SetAttribute(Config.ChopProgressAttribute, math.min(progress, 100))
+			progress += InteractionConfig.ProgressPerChop
+			item.Instance:SetAttribute(InteractionConfig.ChopProgressAttribute, math.min(progress, 100))
 			if progress > 100 then
 				complete(self, session)
 				return
 			end
-			task.wait(Config.ChopDelay)
+			task.wait(InteractionConfig.ChopDelay)
 		end
 	end)
 	return true

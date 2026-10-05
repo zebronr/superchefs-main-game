@@ -3,27 +3,28 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Item = require(script.Parent.Parent.Item)
-local Station = require(script.Parent.Parent.Station)
+local Counter = require(script.Parent.Counter)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
--- Ported from legacy FoodContainer.
-local FoodContainer = setmetatable({}, { __index = Station })
+-- Ported from legacy FoodContainer. Items can sit on top like on a counter; whatever is on top
+-- is always taken first, and only an empty lid hands out food.
+local FoodContainer = setmetatable({}, { __index = Counter })
 FoodContainer.__index = FoodContainer
 
-export type FoodContainer = Station.Station
+export type FoodContainer = Counter.Counter
 
 local BIND_TIMEOUT = 5
 
 function FoodContainer.new(instance: Instance): FoodContainer
-	local self = Station.new(instance)
+	local self = Counter.new(instance)
 	setmetatable(self :: any, FoodContainer)
 	return self
 end
 
 function FoodContainer.Handle(self: FoodContainer, player: Player, held: Item.Item?): boolean
-	if held ~= nil then
-		return false
+	if held ~= nil or self.Slot:Get() ~= nil then
+		return Counter.Handle(self, player, held)
 	end
 
 	local foodValue = self.Instance:FindFirstChild("Food")

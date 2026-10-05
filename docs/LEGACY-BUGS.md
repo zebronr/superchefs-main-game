@@ -139,6 +139,9 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 | 39 | The client initialized `t` and `f` with elapsed seconds, then added a fraction (`deltaTime / totalTime`) each frame. A late packet started at the wrong point on the path. | `ProjectileHandler.client.lua` `simulate`, `fall` | Elapsed server time is divided by duration before clamping and interpolation. |
 | 40 | The throw action read `params.localCFrame` without checking that `params` was a table. A malformed throw request errored in the remote handler. | `ActionHandler.server.lua` | `InteractionService` checks that the Throw argument is a CFrame before routing it. |
 | 41 | Countertop added `projectileInteractionIgnore` only on some placement paths. Resting items placed by default setup, chopping, or other Slots could block collision rays. | `Countertop.lua`, `Projectile.lua` `checkCollision` | The collision filter includes every bound Item whose `Surface` is set by `Slot.Place`. |
+| 42 | Collision used three forward 100-stud rays from the current point and counted a hit within 3 studs. A thin obstacle could be missed or tunneled through between frames, and a wall up to 3 studs ahead triggered the fall before the item reached it. | `Projectile.lua` `checkCollision` | The server sweeps a sphere from the previous step's position to the new one each Heartbeat, so nothing between two frames is skipped, and the item falls from the sphere's contact point at the obstacle. |
+| 43 | The exclude list was rebuilt every frame, with tag lookups, in `checkCollision`. | `Projectile.lua` `checkCollision` | The exclude list and `RaycastParams` are built once per throw. |
+| 44 | A throw whose arc ended exactly on a catching counter never reached it: only a mid-flight collision looked for a counter. | `Projectile.lua` | The end of the arc is treated like an impact, and a `throwInteractable` station under the endpoint receives the item. |
 
 ### Dead code, not ported
 

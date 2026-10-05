@@ -5,23 +5,27 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Character"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local CharacterConfig = Config.Character
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
 local CharacterEffectsController = {}
 local assets = ReplicatedStorage:WaitForChild("Assets")
+local effectAssets = assets:WaitForChild("Effects")
+local uiAssets = assets:WaitForChild("UI")
+local highlightAssets = assets:WaitForChild("Highlights")
 local warnedSounds: { [string]: boolean } = {}
 local watchers: { [Player]: { RBXScriptConnection } } = {}
 local playerConnections: { [Player]: RBXScriptConnection } = {}
 
 local function dashTrail(character: Model): ()
 	local root = character:FindFirstChild("HumanoidRootPart")
-	local template = assets:FindFirstChild("DashTrail")
+	local template = effectAssets:FindFirstChild("DashTrail")
 	if root == nil or not root:IsA("BasePart") or template == nil or not template:IsA("BasePart") then
 		return
 	end
 	task.spawn(function(): ()
-		for index = 1, Config.DashTrailCount do
+		for index = 1, CharacterConfig.DashTrailCount do
 			if root.Parent == nil then
 				return
 			end
@@ -30,10 +34,10 @@ local function dashTrail(character: Model): ()
 			trail.Orientation += Vector3.new(0, math.random(0, 360), 0)
 			trail.Position = root.Position - Vector3.new(0, 3, 0)
 			trail.Parent = workspace:FindFirstChild("$Temp") or workspace
-			local fraction = (index - 1) / (Config.DashTrailCount - 1)
-			local size = Config.DashTrailMaxSize:Lerp(Config.DashTrailMinSize, fraction)
-			local grow = TweenService:Create(trail, TweenInfo.new(Config.DashTrailGrowTime), { Size = size })
-			local shrink = TweenService:Create(trail, TweenInfo.new(Config.DashTrailShrinkTime, Enum.EasingStyle.Exponential), { Size = Vector3.zero })
+			local fraction = (index - 1) / (CharacterConfig.DashTrailCount - 1)
+			local size = CharacterConfig.DashTrailMaxSize:Lerp(CharacterConfig.DashTrailMinSize, fraction)
+			local grow = TweenService:Create(trail, TweenInfo.new(CharacterConfig.DashTrailGrowTime), { Size = size })
+			local shrink = TweenService:Create(trail, TweenInfo.new(CharacterConfig.DashTrailShrinkTime, Enum.EasingStyle.Exponential), { Size = Vector3.zero })
 			grow.Completed:Connect(function(): ()
 				if trail.Parent ~= nil then
 					shrink:Play()
@@ -43,7 +47,7 @@ local function dashTrail(character: Model): ()
 				trail:Destroy()
 			end)
 			grow:Play()
-			task.wait(Config.DashTrailInterval)
+			task.wait(CharacterConfig.DashTrailInterval)
 		end
 	end)
 end
@@ -56,7 +60,7 @@ function CharacterEffectsController.PlayLocalDash(): ()
 end
 
 local function notify(instance: Instance, message: string): ()
-	local template = assets:FindFirstChild("ObjectNotification")
+	local template = uiAssets:FindFirstChild("ObjectNotification")
 	if template == nil or not template:IsA("BillboardGui") or not instance:IsDescendantOf(workspace) then
 		return
 	end
@@ -113,7 +117,7 @@ local function watchCharacter(player: Player, character: Model): ()
 			return
 		end
 		if highlight == nil then
-			local template = assets:FindFirstChild("CharacterHighlight")
+			local template = highlightAssets:FindFirstChild("CharacterHighlight")
 			if template ~= nil and template:IsA("Highlight") then
 				local clone = template:Clone()
 				clone.Parent = character
@@ -124,7 +128,7 @@ local function watchCharacter(player: Player, character: Model): ()
 			highlight.OutlineColor = color
 		end
 		if player == Players.LocalPlayer and indicator == nil then
-			local template = assets:FindFirstChild("PlayerIndicator")
+			local template = effectAssets:FindFirstChild("PlayerIndicator")
 			local root = character:FindFirstChild("HumanoidRootPart")
 			if template ~= nil and template:IsA("BasePart") and root ~= nil and root:IsA("BasePart") then
 				local clone = template:Clone()

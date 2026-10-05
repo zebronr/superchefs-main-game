@@ -4,7 +4,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Item = require(script.Parent.Parent.Classes.Item)
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local InteractionConfig = Config.Interaction
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
 -- Replaces legacy PlayerValues.ObjectCarried and ObjectAction.
@@ -77,7 +78,7 @@ function CarryService.Pickup(player: Player, item: Item.Item): boolean
 
 	part.CanCollide = false
 	part.CFrame = rootPart.CFrame
-		* CFrame.new(0, 0, -Config.CarryDistance)
+		* CFrame.new(0, 0, -InteractionConfig.CarryDistance)
 		* CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
 
 	weld.Part1 = part
@@ -112,7 +113,7 @@ function CarryService.Drop(player: Player, keepDisabled: boolean?): Item.Item?
 	part.CanCollide = true
 
 	if not keepDisabled then
-		task.delay(Config.DropReenableDelay, function(): ()
+		task.delay(InteractionConfig.DropReenableDelay, function(): ()
 			-- Skip if it was picked up or placed again in the meantime.
 			if item.Holder == nil and item.Surface == nil and item.Instance.Parent ~= nil then
 				Tags.SetInteractionDisabled(item.Instance, false)
@@ -120,7 +121,7 @@ function CarryService.Drop(player: Player, keepDisabled: boolean?): Item.Item?
 		end)
 	end
 
-	resetThreads[part] = task.delay(Config.NetworkOwnerResetDelay, function(): ()
+	resetThreads[part] = task.delay(InteractionConfig.NetworkOwnerResetDelay, function(): ()
 		resetThreads[part] = nil
 		pcall(function()
 			if part:GetNetworkOwner() == player then

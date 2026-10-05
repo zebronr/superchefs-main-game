@@ -4,12 +4,14 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CharacterService = require(script.Parent.CharacterService)
+local CustomerService = require(script.Parent.CustomerService)
 local LevelService = require(script.Parent.LevelService)
 local OrderService = require(script.Parent.OrderService)
 local TeamService = require(script.Parent.TeamService)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Levels = require(Shared:WaitForChild("Config"):WaitForChild("Levels"))
-local RoundConfig = require(Shared:WaitForChild("Config"):WaitForChild("Round"))
+local Config = require(Shared:WaitForChild("Config"))
+local Levels = Config.Levels
+local RoundConfig = Config.Round
 local Net = require(Shared:WaitForChild("Net"))
 
 local RoundService = {}
@@ -55,6 +57,7 @@ local function endRound(token: number): ()
 	generation += 1
 	local endedToken = generation
 	OrderService.Stop()
+	CustomerService.Stop()
 	ReplicatedStorage:SetAttribute("RoundEndsAt", nil)
 	ReplicatedStorage:SetAttribute("RoundState", "Ended")
 	Net.Event("Round"):FireAllClients("ClearNPCs")
@@ -81,7 +84,11 @@ local function beginPlaying(token: number): ()
 	ReplicatedStorage:SetAttribute("RoundState", "Playing")
 	ReplicatedStorage:SetAttribute("RoundEndsAt", endsAt)
 	OrderService.StartRound(level.Teams, token)
-	broadcastNPCs(token)
+	if RoundConfig.ServeMode == "Manual" then
+		CustomerService.StartRound(token)
+	else
+		broadcastNPCs(token)
+	end
 	task.delay(level.LevelDuration, function(): ()
 		endRound(token)
 	end)
@@ -95,6 +102,7 @@ beginIntro = function(): ()
 	local token = generation
 	local level = Levels.GetCurrent()
 	OrderService.Stop()
+	CustomerService.Stop()
 	TeamService.AssignAll(level.Teams)
 	CharacterService.RefreshColors()
 	for team = 1, level.Teams do
@@ -117,6 +125,7 @@ end
 local function stopForEmptyServer(): ()
 	generation += 1
 	OrderService.Stop()
+	CustomerService.Stop()
 	ReplicatedStorage:SetAttribute("RoundState", "Waiting")
 	ReplicatedStorage:SetAttribute("RoundEndsAt", nil)
 	Net.Event("Round"):FireAllClients("ClearNPCs")
