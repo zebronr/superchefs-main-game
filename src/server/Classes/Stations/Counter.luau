@@ -3,6 +3,7 @@
 local Item = require(script.Parent.Parent.Item)
 local Station = require(script.Parent.Parent.Station)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
+local EffectService = require(script.Parent.Parent.Parent.Services.EffectService)
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
 local Tags = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Tags"))
 
@@ -39,7 +40,8 @@ local function swap(self: Counter, player: Player): boolean
 end
 
 function Counter.Handle(self: Counter, player: Player, held: Item.Item?): boolean
-	-- TODO(layer 9): Interact sound
+	-- Legacy Countertop played this before branching, including interactions that did nothing.
+	EffectService.PlaySound("Interact")
 	local onTop = self.Slot:Get()
 
 	if held == nil then

@@ -2,22 +2,23 @@
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
 local Interactable = require(script.Parent.Interactable)
 local Item = require(script.Parent.Item)
 local Plate = require(script.Parent.Plate)
-local Slot = require(script.Parent.Components.Slot)
 local CarryService = require(script.Parent.Parent.Services.CarryService)
 local FireService = require(script.Parent.Parent.Services.FireService)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction")).Cooking
 local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Recipes"))
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
-local soupTemplate = ServerStorage:WaitForChild("Assets"):WaitForChild("Foods"):WaitForChild("SoupModel")
-
 local CookingTool = setmetatable({}, { __index = Item })
 CookingTool.__index = CookingTool
+
+-- Subclasses (one per tool type) override these.
+CookingTool.Combinations = {} :: { [string]: { string } }
+
+function CookingTool.Display(_self: CookingTool, _content: string): () end
 
 export type CookingTool = Item.Item & {
 	IsCookingTool: boolean,
@@ -26,8 +27,8 @@ export type CookingTool = Item.Item & {
 	Enabled: boolean,
 	CookLoop: thread?,
 	BurnTimer: thread?,
-	Soup: BasePart?,
-	SoupWeld: WeldConstraint?,
+	Combinations: { [string]: { string } },
+	Display: (self: CookingTool, content: string) -> (),
 	IsEnabled: (self: CookingTool) -> boolean,
 	StartCooking: (self: CookingTool) -> (),
 	StopCooking: (self: CookingTool) -> (),
@@ -42,8 +43,6 @@ function CookingTool.new(instance: Instance): CookingTool
 	self.Enabled = false
 	self.CookLoop = nil
 	self.BurnTimer = nil
-	self.Soup = nil
-	self.SoupWeld = nil
 	setmetatable(self :: any, CookingTool)
 	instance:SetAttribute(Config.CookContentAttribute, nil)
 	instance:SetAttribute(Config.CookProgressAttribute, 0)
@@ -132,39 +131,16 @@ function CookingTool.SetEnabled(self: CookingTool, on: boolean): ()
 	end
 end
 
-local function replaceSoup(self: CookingTool, color: Color3): ()
-	if self.SoupWeld ~= nil then
-		self.SoupWeld:Destroy()
-		self.SoupWeld = nil
-	end
-	if self.Soup ~= nil then
-		self.Soup:Destroy()
-		self.Soup = nil
-	end
-	assert(soupTemplate:IsA("BasePart"), "SoupModel must be a BasePart")
-	local soup = soupTemplate:Clone()
-	soup.Color = color
-	soup.CanCollide = false
-	soup.Massless = true
-	soup.Parent = self.Part
-	self.Soup = soup
-	self.SoupWeld = Slot.WeldOnTop(soup, self.Part, -self.Part.Size.Y / 2)
-end
-
 function CookingTool.Accept(self: CookingTool, other: Interactable.Interactable, _player: Player?): boolean
 	local food = Item.Cast(other)
 	if food ~= nil and CollectionService:HasTag(food.Instance, Tags.Food) then
-		if self.Part:GetAttribute("cookingToolClass") ~= "Pot" then
-			return false
-		end
 		local ingredients = if self.Content ~= nil then { self.Content, food.Instance.Name } else { food.Instance.Name }
-		local nextContent = Recipes.Find(ingredients, Recipes.Pot)
+		local nextContent = Recipes.Find(ingredients, self.Combinations)
 		if nextContent == nil then
 			return false
 		end
-		local color = Recipes.SoupColors[nextContent]
 		self:StopCooking()
-		replaceSoup(self, color)
+		self:Display(nextContent)
 		self.Content = nextContent
 		self.Instance:SetAttribute(Config.CookContentAttribute, nextContent)
 		if food.Holder ~= nil then
@@ -176,7 +152,6 @@ function CookingTool.Accept(self: CookingTool, other: Interactable.Interactable,
 		end
 		self.Instance:SetAttribute(Config.CookProgressAttribute, self.Progress)
 		self:StartCooking()
-		-- TODO(layer 9): Interact sound
 		return true
 	end
 	if Plate.Cast(other) ~= nil then
@@ -188,14 +163,6 @@ end
 
 function CookingTool.Destroy(self: CookingTool): ()
 	self:StopCooking()
-	if self.SoupWeld ~= nil then
-		self.SoupWeld:Destroy()
-		self.SoupWeld = nil
-	end
-	if self.Soup ~= nil then
-		self.Soup:Destroy()
-		self.Soup = nil
-	end
 	Item.Destroy(self)
 end
 

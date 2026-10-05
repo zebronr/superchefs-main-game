@@ -7,6 +7,9 @@ local Plate = require(script.Parent.Parent.Plate)
 local Station = require(script.Parent.Parent.Station)
 local PlateTable = require(script.Parent.PlateTable)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
+local EffectService = require(script.Parent.Parent.Parent.Services.EffectService)
+local OrderService = require(script.Parent.Parent.Parent.Services.OrderService)
+local TeamService = require(script.Parent.Parent.Parent.Services.TeamService)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction"))
 local Levels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Levels"))
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
@@ -22,24 +25,27 @@ function ServingCounter.new(instance: Instance): ServingCounter
 	return self
 end
 
-function ServingCounter.Handle(_self: ServingCounter, player: Player, held: Item.Item?): boolean
+function ServingCounter.Handle(self: ServingCounter, player: Player, held: Item.Item?): boolean
 	local plate = Plate.Cast(held)
 	if plate ~= nil then
 		local dish = plate.Content
 		if dish == nil then
 			return false
 		end
-		-- TODO(game loop): complete the order for <dish>.
 		local dropped = CarryService.Drop(player, true)
 		if dropped ~= plate then
 			return false
 		end
+		OrderService.Serve(player, dish, self.Instance)
+		local team = TeamService.GetTeam(player)
 		plate.Instance:Destroy()
 		task.delay(Config.PlateReturnDelay, function(): ()
-			-- TODO(game loop): use the player's team instead of team 1.
-			local tableForTeam = PlateTable.ForTeam(1)
+			if not self.Instance:IsDescendantOf(workspace) then
+				return
+			end
+			local tableForTeam = PlateTable.ForTeam(team)
 			if tableForTeam == nil then
-				warn("Could not return plate: PlateTable_1 is missing")
+				warn(`Could not return plate: PlateTable_{team} is missing`)
 				return
 			end
 			PlateTable.AddPlate(tableForTeam, Levels.GetCurrent().EnableDirtyPlates)
@@ -48,7 +54,7 @@ function ServingCounter.Handle(_self: ServingCounter, player: Player, held: Item
 	end
 
 	if held ~= nil and Tags.ClassOf(held.Instance) == Tags.Food and string.sub(held.Instance.Name, 1, 8) == "chopped_" then
-		-- TODO(layer 9): "NEEDS PLATE!" notification.
+		EffectService.Notify(player, self.Instance, "NEEDS PLATE!")
 		return false
 	end
 	return false

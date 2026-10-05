@@ -149,8 +149,10 @@ local function watchPlayer(player: Player): ()
 	player.CharacterAdded:Connect(function(character: Model): ()
 		watchCharacter(player, character)
 	end)
-	player.CharacterRemoving:Connect(function(): ()
-		CarryService.Drop(player)
+	player.CharacterRemoving:Connect(function(removing: Model): ()
+		if player.Character == removing then
+			CarryService.Drop(player)
+		end
 	end)
 	local character = player.Character
 	if character then

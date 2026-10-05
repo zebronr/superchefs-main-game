@@ -9,6 +9,8 @@ local Item = require(script.Parent.Parent.Classes.Item)
 local Station = require(script.Parent.Parent.Classes.Station)
 local BinderService = require(script.Parent.BinderService)
 local CarryService = require(script.Parent.CarryService)
+local CharacterService = require(script.Parent.CharacterService)
+local EffectService = require(script.Parent.EffectService)
 local ThrowService = require(script.Parent.ThrowService)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -65,7 +67,13 @@ local function interactWithItem(player: Player, target: Item.Item, held: Item.It
 	if target.Holder ~= nil or target.Surface ~= nil then
 		return
 	end
-	-- TODO(layer 9): Interact sound
+	local class = Tags.ClassOf(target.Instance)
+	local heldClass = if held then Tags.ClassOf(held.Instance) else nil
+	-- Legacy routes a held Plate or CookingTool ahead of visible Food.
+	if (class == Tags.Food and heldClass ~= Tags.Plate and heldClass ~= Tags.CookingTool)
+		or (class == Tags.Plate and held == nil) then
+		EffectService.PlaySound("Interact")
+	end
 
 	if held == nil then
 		CarryService.Pickup(player, target)
@@ -77,6 +85,9 @@ local function interactWithItem(player: Player, target: Item.Item, held: Item.It
 	end
 
 	if held:CanSwapWith(target) then
+		if class == Tags.Plate then
+			EffectService.PlaySound("Interact")
+		end
 		CarryService.Drop(player)
 		CarryService.Pickup(player, target)
 	end
@@ -87,7 +98,10 @@ local function interact(player: Player, target: Instance?): ()
 
 	if target == nil then
 		if held ~= nil then
-			-- TODO(layer 9): Interact sound
+			local class = Tags.ClassOf(held.Instance)
+			if class == Tags.Food or class == Tags.Plate then
+				EffectService.PlaySound("Interact")
+			end
 			CarryService.Drop(player)
 		end
 		return
@@ -127,9 +141,15 @@ local function stopUse(player: Player): ()
 		object:StopUse(player)
 		return true
 	end)
+	activeUse[player] = nil
 	if not success then
-		activeUse[player] = nil
 		warn(`Use release by {player.Name} failed: {message}`)
+	end
+end
+
+function InteractionService.StopAllUse(): ()
+	for player in activeUse do
+		stopUse(player)
 	end
 end
 
@@ -157,6 +177,10 @@ local function startUse(player: Player, target: Instance?): ()
 end
 
 local function onRequest(player: Player, action: unknown, target: unknown, node: unknown, heldState: unknown): ()
+	if action == "Dash" then
+		CharacterService.Dash(player)
+		return
+	end
 	if action == "Throw" then
 		if typeof(target) ~= "CFrame" or not consumeRequest(player) or activeUse[player] ~= nil then
 			return
@@ -232,8 +256,10 @@ local function watchPlayer(player: Player): ()
 	player.CharacterAdded:Connect(function(character: Model): ()
 		watchCharacter(player, character)
 	end)
-	player.CharacterRemoving:Connect(function(): ()
-		stopUse(player)
+	player.CharacterRemoving:Connect(function(removing: Model): ()
+		if player.Character == removing then
+			stopUse(player)
+		end
 	end)
 	local character = player.Character
 	if character then

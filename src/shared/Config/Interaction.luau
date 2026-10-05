@@ -44,7 +44,8 @@ Interaction.Cooking = {
 	CookSafeTime = 5,
 	CookAlertDuration = 5,
 	CookProgressDeduction = 50,
-	CookingToolClasses = { "Pot", "Pan" },
+	-- Cooking tool classes the stove heats (legacy cookingToolClassesAllowed); each tool's station keeps its own list.
+	StoveToolClasses = { "Pot", "Pan" },
 	FireSpreadInterval = 8,
 	FireSpreadDistance = 5,
 	FireStart = 100,
@@ -78,8 +79,6 @@ Interaction.Throw = {
 	FallStartedAtAttribute = "FallStartedAt",
 }
 
-Interaction.TargetPriority.CookingTool = 2.5
-
 -- Same-class pairs listed here do not swap on a counter.
 Interaction.AllowInteractionWithSelf = {
 	Plate = true,
@@ -90,6 +89,7 @@ Interaction.Controls = {
 	Interact = Enum.KeyCode.Space,
 	Use = Enum.KeyCode.LeftControl,
 	Throw = Enum.KeyCode.LeftAlt,
+	Dash = Enum.KeyCode.LeftShift,
 }
 
 return Interaction

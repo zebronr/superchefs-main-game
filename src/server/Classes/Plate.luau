@@ -8,6 +8,7 @@ local Interactable = require(script.Parent.Interactable)
 local Item = require(script.Parent.Item)
 local Slot = require(script.Parent.Components.Slot)
 local CarryService = require(script.Parent.Parent.Services.CarryService)
+local EffectService = require(script.Parent.Parent.Services.EffectService)
 local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Recipes"))
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
 
@@ -130,7 +131,7 @@ function Plate.Accept(self: Plate, other: Interactable.Interactable, _player: Pl
 			CarryService.Release(food.Holder)
 		end
 		food.Instance:Destroy()
-		-- TODO(layer 9): Interact sound
+		EffectService.PlaySound("Interact")
 		return true
 	end
 
@@ -151,7 +152,7 @@ function Plate.Accept(self: Plate, other: Interactable.Interactable, _player: Pl
 	installModel(self, template)
 	self.Content = recipe
 	sourcePlate:Clear()
-	-- TODO(layer 9): Interact sound
+	EffectService.PlaySound("Interact")
 	return true
 end
 

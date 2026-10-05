@@ -10,6 +10,7 @@ local Item = require(script.Parent.Parent.Classes.Item)
 local Plate = require(script.Parent.Parent.Classes.Plate)
 local DirtyPlate = require(script.Parent.Parent.Classes.DirtyPlate)
 local CookingTool = require(script.Parent.Parent.Classes.CookingTool)
+local Pot = require(script.Parent.Parent.Classes.CookingTools.Pot)
 local FireExtinguisher = require(script.Parent.Parent.Classes.FireExtinguisher)
 local Counter = require(script.Parent.Parent.Classes.Stations.Counter)
 local ChoppingBoard = require(script.Parent.Parent.Classes.Stations.ChoppingBoard)
@@ -25,6 +26,20 @@ type Bound = Interactable.Interactable & Binder.Destroyable
 
 local BinderService = {}
 local binders: { [string]: Binder.Binder<Bound> } = {}
+
+-- Cooking tool subclasses by the part's cookingToolClass attribute; new tool types register here.
+local cookingTools: { [string]: (Instance) -> CookingTool.CookingTool } = {
+	Pot = Pot.new,
+}
+
+local function newCookingTool(instance: Instance): CookingTool.CookingTool
+	local class = instance:GetAttribute("cookingToolClass")
+	local constructor = if typeof(class) == "string" then cookingTools[class] else nil
+	if constructor == nil then
+		return CookingTool.new(instance)
+	end
+	return constructor(instance)
+end
 
 local function register(tag: string, constructor: (Instance) -> Interactable.Interactable): ()
 	binders[tag] = Binder.new(tag, constructor :: (Instance) -> Bound)
@@ -61,7 +76,7 @@ function BinderService.Init(_self: typeof(BinderService)): ()
 	register(Tags.Food, Item.new)
 	register(Tags.Plate, Plate.new)
 	register(Tags.DirtyPlate, DirtyPlate.new)
-	register(Tags.CookingTool, CookingTool.new)
+	register(Tags.CookingTool, newCookingTool)
 	register(Tags.FireExtinguisher, FireExtinguisher.new)
 end
 

@@ -29,8 +29,8 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 
 ### Still open (later layers)
 
-- `projectileInteractionIgnore` was tagged only in Countertop paths. Items placed any other way (chopping result, `DefObjectOnTop`, the swap) never got the tag. → layer 7 (throw).
-- A server-originated swap (thrown Food landing on a counter that holds Food) did nothing and left the thrown item disabled. → layer 7.
+- ~~`projectileInteractionIgnore` was tagged only in Countertop paths.~~ Resolved in layer 7 (#41).
+- ~~A server-originated swap (thrown Food landing on a counter that holds Food) did nothing and left the thrown item disabled.~~ Resolved in layer 7: a failed landing leaves the food where it fell with interaction enabled (see the layer 7 Notes).
 
 ## Layer 2: ChoppingBoard + Use
 
@@ -119,7 +119,7 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 - Interacting on the wash side while carrying anything other than a DirtyPlate does nothing, matching legacy.
 - The suspected stale `washingProgress` when the count reaches zero mid-wash is not reachable through the legacy paths: only completion decrements the count, and completion first clears progress. It is not listed as a fixed bug.
 - The stack walk could stop at a plated food weld, but legacy only plates the top clean plate. It was not a reachable dirty-plate stack bug; `PlateStack` tracks entries explicitly.
-- The showcase disabled dirty plates. Level1 enables them in the rewrite so the sink cycle can be tested.
+- Level1 keeps dirty plates off, as in the showcase: it is the entry level and has no sink.
 
 ## Not bugs (checked)
 
@@ -160,3 +160,92 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 - No new fixes. The trash crash on a plate with content but no plated model is #21 (layer 3); `Plate.Clear` is safe there.
 - A pot's content can't be trashed, as in legacy (Trash ignores CookingTools), so a wrongly filled pot can't be emptied. Kept for parity; revisit when balancing gameplay.
 - An empty plate, a dirty plate, an extinguisher or empty hands do nothing at the trash, as in legacy.
+
+## Layer 9: Character, movement, camera, sounds
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 42 | The nominal dash effect cooldown was never activated because `onCooldown[player]` was never set. | `EffectsReplicator.server.lua` | `CharacterService.Dash` records each accepted request and enforces 0.3 s before setting `DashedAt`. |
+| 43 | Loading a character for an unmapped username attempted to clone nil. | `CharacterLoader.lua` | The name map falls back to Bill. |
+| 44 | Character loading waited one second before telling the client to load animations. | `CharacterLoader.lua` | Animation tracks load when the local character and Animator are ready, with no fixed delay. |
+| 45 | The color lookup returned nil for a player number beyond four. | `CharacterLoader.lua`, `CharacterColors.lua` | Join order fills the lowest free slot from 1 to 4; extra players wrap through those colors. |
+| 46 | Dash physics kept the first character and root part after respawn. | `PlayerMobility.client.lua` | Each dash reads the current local character. |
+| 47 | Starting FollowUp again leaked its previous camera part and simulation connection. | `CustomCamera.client.lua` `followUp` | One render connection follows the current character, keeping legacy's fixed camera angle. |
+| 48 | `playAnimation` waited for `Stopped` even for looping run and pickup tracks. | `Animate.client.lua` | Track playback never waits for a stop event. |
+| 49 | The character script recreated Animation instances on every respawn. | `Animate.client.lua` | Animation objects are shared for the client session; each character gets one set of tracks. |
+| 50 | Mobile controls waited forever when `MobileControls` was absent. | `MobileControlHandler.client.lua` | The GUI wait times out after ten seconds and warns. |
+| 51 | The sound client set `Looped` after `Play()`, so the first play could use the previous loop setting. | `SoundEffectsHandler.client.lua` | The only server requested sound, Interact, is played directly without changing loop state. |
+| 52 | The dash trail effect yielded its caller until every part finished. | `EffectsHandler.client.lua` `effects.dash` | Trail creation runs in its own task; tween completion destroys each clone. |
+
+### Dead code, not ported
+
+- `CustomCamera.client.lua`'s `coOp` and `coOpLoad` modes were unused by the start flow.
+- `Animate.client.lua`'s `LockCharacter` and `preloaded_choppingAnimation` were unused.
+- The walk and idle animation IDs were loaded but never played by `Animate.client.lua`.
+- The TimeSync remote and `timeOffset` sampling loop were replaced by `workspace:GetServerTimeNow()` and server timestamps. Its client timing bug is #38.
+- `MobileControlHandler.client.lua`'s touch enabled debug print was omitted.
+
+### Notes
+
+- Team assignment remains in the game loop layer. Until then, character colors use team 1.
+- Dash is allowed while carrying or using, as in legacy. The server routes Dash separately from `consumeRequest` so its own 0.3 s effect cooldown is enforced without the interaction request limit.
+- Countertop played Interact after its lock checks but before all action branches, including branches that did nothing. The rewrite retains that sound timing.
+- Food played Interact on entry. Plate played it on pickup, drop, a content swap, and successful plating or mixing. No legacy `PlayRE:FireAllClients("Interact")` call appeared in CookingTool or Sink; neither has an Interact or wash sound here.
+- Chop plays locally when a board's `ChopProgress` increases, matching the legacy progress bar's sound per progress step.
+- FollowUp starts on character spawn because there is no round start in this layer. RenderStepped updates the camera after simulation for the frame being drawn. There is no camera disable path; legacy `DisableFollowUp` also did not restore the previous FOV.
+- StarterCharacterScripts is empty in this project. Its legacy manual clone is replaced by the new client controllers.
+
+### Notes (after the game loop)
+
+- Characters are not frozen during ReadySetGo; legacy did not freeze them either. The missed first countdown on join is tracked in `docs/RELEASE-TODO.md`.
+
+## Game loop (server)
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 53 | `-` always set `orderLock` and waited for a later completion or expiry. If the list was already empty, the generator waited forever. | `MainGame.server.lua` `orderSequence` | `OrderService` checks the team's current orders before waiting, so an empty list advances immediately. |
+| 54 | `*` and `/` changed `loadedLevelData.orderDelay` on the shared required level table, carrying the change into later generators or starts. | `MainGame.server.lua` `orderSequence` | Each team's generator keeps its own delay, initialized from config for each round. |
+| 55 | `StartGame` had no server re-entry guard, so another request could start a second order loop for the same team. | `MainGame.server.lua` `StartGame`, `startOrders` | `RoundService` starts only from Waiting and invalidates every prior round task with a generation token. `OrderService` also stops its previous generators and timers on each start. |
+
+### Dead code, not ported
+
+- `ClearOrders` and `EndTimer` were declared but never fired. Round reset uses `Orders` with an empty list; the timer follows `RoundEndsAt`.
+- `teamPoints` and `comboMultiplier` were registered but never used.
+- `CacheOrders` is replaced by shared recipe config.
+- The TESTING start button and remote are replaced by automatic start on the first join.
+
+### Notes
+
+- Wrong dishes still destroy the plate and food, return a plate, and show the error effect and notification. Expired orders still have no penalty.
+- The server now sends `ExpireOrder` when it removes an order; legacy left card expiry to each client's timer.
+- Legacy's `teams = {} or teamOverwrite` ignored an overwrite. The rewrite has no overwrite path, so this is not listed as a fixed bug.
+- The beyond-four-player color bug was already fixed as #45; colors now use the player's team and wrap within that team's palette.
+- Legacy had no round end. The new timer stops generators and NPCs, shows team coins, and restarts after ten seconds.
+- Reset snapshots the children of `$GAME` before the first map clone. It destroys all current children, then clones those hand-placed snapshots and a fresh map. Destroying the old objects lets the Binder clean their state; `FireService` untracks destroyed burning instances.
+
+## Game loop (client)
+
+### Fixed
+
+| # | Bug | Where | Rewrite |
+|---|---|---|---|
+| 56 | `AddOrder` edited the cached recipe's order number and subtracted latency from its `time`, so repeated orders of the same recipe started with progressively shorter timers. | `OrdersUIHandler.client.lua` `AddOrder` | Cards read immutable shared recipe data and use each order's own server timestamp and duration. |
+| 57 | `completeOrder` cancelled an order UI thread that might already have finished, which could error. | `OrdersUIHandler.client.lua` `completeOrder` | Cards cancel only their active tweens and use a generation to stop pending entrance work. |
+| 58 | A second `StartTimer` event started another countdown loop because both loops shared only `countingDown`. | `TimerHandler.client.lua` `StartTimer` | One timer view reads replicated round attributes and server time. |
+| 59 | `calculatePath` accepted paths with failed status; later movement could iterate nil path entries and error. | `NPCHandler.client.lua` `calculatePath`, `spawnNpc` | Only successful paths are stored and spawned. |
+| 60 | The NPC clear remote was declared but never handled or fired, leaving NPCs active across a reset. | `NPCHandler.client.lua`, `MainGame.server.lua` | `ClearNPCs` stops active movement and destroys models; paths are reloaded for the replacement map. |
+| 61 | `orderFinish` passed fractional bounds to `math.random`, truncating its intended smoke spread and size multipliers. | `EffectsHandler.client.lua` `orderFinish` | `Random:NextNumber` samples the full fractional ranges. |
+
+### Dead code, not ported
+
+- `GIFModule` multiplied `ImageRectSize` just before replacing it with a fixed size on every frame. Its deprecated `wait` was replaced with frame updates driven by `RenderStepped`.
+
+### Notes
+
+- The server now decides order expiry; the client animates card failure only after `ExpireOrder`.
+- `Instructions` remains hidden. The legacy start flow disabled it and never enabled it.
+- The order and round timers use `workspace:GetServerTimeNow()`; the `timeOffset` read before initialization was already recorded in #38.

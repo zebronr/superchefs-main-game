@@ -30,8 +30,8 @@ local function syncTool(before: Item.Item?, after: Item.Item?): ()
 	end
 	local newTool = CookingTool.Cast(after)
 	if newTool ~= nil then
-		local class = newTool.Part:GetAttribute("cookingToolClass")
-		if typeof(class) == "string" and table.find(Config.CookingToolClasses, class) ~= nil then
+		local class = newTool.Instance:GetAttribute("cookingToolClass")
+		if typeof(class) == "string" and table.find(Config.StoveToolClasses, class) ~= nil then
 			newTool:SetEnabled(true)
 		end
 	end

@@ -76,7 +76,10 @@ local function updateDisplays(self: Sink): ()
 end
 
 function Sink.Handle(self: Sink, player: Player, held: Item.Item?): boolean
-	-- TODO(layer 9): Interact and wash sounds.
+	-- Legacy useLock: nobody can interact with a sink while it is being washed at.
+	if self.Session ~= nil then
+		return false
+	end
 	local side = washSide(self, player)
 	if side == nil then
 		return false

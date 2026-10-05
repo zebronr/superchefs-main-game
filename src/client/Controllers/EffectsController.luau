@@ -3,6 +3,9 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Interaction")).Cooking
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
@@ -24,6 +27,59 @@ local tracked: { [Instance]: Tracked } = {}
 local finishedTemplate: BillboardGui
 local warningTemplate: BillboardGui
 local fireTemplate: BasePart
+local smokeTemplate: BasePart
+local errorTemplate: Highlight
+local random = Random.new()
+local directions = {
+	Vector3.new(1, 0, 1), Vector3.new(-1, 0, 1),
+	Vector3.new(1, 0, -1), Vector3.new(-1, 0, -1),
+	Vector3.new(0, 0, -1), Vector3.new(0, 0, 1),
+	Vector3.new(-1, 0, 0), Vector3.new(1, 0, 0),
+}
+
+local function orderFinish(instance: Instance): ()
+	if not instance:IsA("BasePart") or not instance:IsDescendantOf(workspace) then
+		return
+	end
+	for _, direction in directions do
+		local smoke = smokeTemplate:Clone()
+		smoke.Size = Vector3.new(0.974, 0.452, 0.841)
+		smoke.Position = instance.Position
+		smoke.Transparency = 0
+		smoke.Material = Enum.Material.Neon
+		smoke.BrickColor = BrickColor.new("Fossil")
+		smoke.Parent = workspace:FindFirstChild("$Temp") or workspace
+		TweenService:Create(smoke, TweenInfo.new(1, Enum.EasingStyle.Circular), {
+			Position = smoke.Position + direction * random:NextNumber(2.2, 2.7),
+			Size = smoke.Size * random:NextNumber(1.7, 2.5),
+		}):Play()
+		task.delay(0.5, function(): ()
+			if smoke.Parent == nil then
+				return
+			end
+			local fade = TweenService:Create(smoke, TweenInfo.new(0.5, Enum.EasingStyle.Cubic), { Transparency = 1 })
+			fade.Completed:Once(function(): ()
+				smoke:Destroy()
+			end)
+			fade:Play()
+		end)
+	end
+end
+
+local function objError(instance: Instance): ()
+	if not instance:IsDescendantOf(workspace) then
+		return
+	end
+	task.spawn(function(): ()
+		local highlight = errorTemplate:Clone()
+		highlight.Parent = instance
+		for _ = 1, 6 do
+			highlight.Enabled = not highlight.Enabled
+			task.wait(0.05)
+		end
+		highlight:Destroy()
+	end)
+end
 
 local function removeVisuals(state: Tracked): ()
 	if state.CookingFinished ~= nil then
@@ -206,12 +262,25 @@ function EffectsController.Start(_self: typeof(EffectsController)): ()
 	local finished = assets:WaitForChild("CookingFinished")
 	local warning = assets:WaitForChild("BurningWarning")
 	local fire = assets:WaitForChild("FireEmitter")
+	local smoke = assets:WaitForChild("DashTrail")
+	local errorHighlight = assets:WaitForChild("ErrorHighlight")
 	assert(finished:IsA("BillboardGui"), "CookingFinished must be a BillboardGui")
 	assert(warning:IsA("BillboardGui"), "BurningWarning must be a BillboardGui")
 	assert(fire:IsA("BasePart"), "FireEmitter must be a BasePart")
+	assert(smoke:IsA("BasePart"), "DashTrail must be a BasePart")
+	assert(errorHighlight:IsA("Highlight"), "ErrorHighlight must be a Highlight")
 	finishedTemplate = finished
 	warningTemplate = warning
 	fireTemplate = fire
+	smokeTemplate = smoke
+	errorTemplate = errorHighlight
+	Net.Event("Effect").OnClientEvent:Connect(function(message: unknown, value: unknown): ()
+		if message == "OrderFinish" and typeof(value) == "Instance" then
+			orderFinish(value)
+		elseif message == "ObjError" and typeof(value) == "Instance" then
+			objError(value)
+		end
+	end)
 	for _, tag in { Tags.CookingTool, Tags.Countertop, Tags.ChoppingBoard, Tags.Stove, Tags.FireExtinguisher } do
 		CollectionService:GetInstanceAddedSignal(tag):Connect(track)
 		CollectionService:GetInstanceRemovedSignal(tag):Connect(untrack)
