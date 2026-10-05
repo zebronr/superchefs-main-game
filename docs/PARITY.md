@@ -1,5 +1,7 @@
 # Legacy parity checklist
 
+> The refactor is complete, and `legacy/` was removed from the tree. To read the `legacy/...` paths below, check out the tag `legacy-snapshot`, for example `git show legacy-snapshot:legacy/server/MainGame.server.lua`.
+
 ## Final audit (2026-10-05)
 
 All 172 checklist items audited against `src/`.

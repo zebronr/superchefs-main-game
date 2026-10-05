@@ -1,5 +1,7 @@
 # Legacy bugs
 
+> The refactor is complete, and `legacy/` was removed from the tree. To read the `legacy/...` paths below, check out the tag `legacy-snapshot`, for example `git show legacy-snapshot:legacy/server/MainGame.server.lua`.
+
 Bugs found in `legacy/` while porting, and what the rewrite does instead. Grouped by port layer, updated as each layer lands. Open suspicions for later layers stay in `docs/PARITY.md` under "Suspected bugs".
 
 ## Layer 1: pickup/drop + Counter
