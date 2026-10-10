@@ -19,7 +19,7 @@ Builds on Manual serve mode (customers at tables). Expands the "dine-and-dasher"
 - How do you catch one? Touch, interact, a dash-tackle (the existing dash), or a thrown item that knocks them over. Throwing a tomato at a runner fits the game.
 - Do they leave the plate behind, or run off with it so the team loses a plate?
 - How often? Rare at first, more in later levels, maybe a "dasher gang" event.
-- Super-skill ties: Gecko's Tongue Grab yanks them back; the Sprint character is the natural chaser.
+- Superskill ties: Gecko's Tongue Grab yanks them back; the Sprint character is the natural chaser.
 
 **Builds on:**
 - `CustomerService` state machine: add a `Dashing` state after `Eating`.

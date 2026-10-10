@@ -6,9 +6,11 @@ local Interaction = {}
 Interaction.TargetRadius = 8
 Interaction.DefaultMinDistance = 6
 Interaction.MinDistance = {} :: { [string]: number }
+Interaction.MinDistance.Runner = 7
 Interaction.TargetPriority = {
 	Food = 1.15,
 	ServingCounter = 1.3,
+	Runner = 2,
 } :: { [string]: number }
 Interaction.DefaultPriority = 1
 Interaction.PriorityWeight = 100

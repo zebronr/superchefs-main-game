@@ -9,6 +9,7 @@ local TargetController = require(script.Parent.TargetController)
 local MovementController = require(script.Parent.MovementController)
 local ProjectileController = require(script.Parent.ProjectileController)
 local SkillController = require(script.Parent.SkillController)
+local CashController = require(script.Parent.CashController)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -58,6 +59,8 @@ local function interact(): ()
 	if SkillController.IsBusy() then
 		return
 	end
+	local target = TargetController.GetTarget()
+	CashController.Predict(target)
 	fire("Interact")
 end
 

@@ -83,8 +83,12 @@ local function highlight(newTarget: Instance): ()
 		clone.Parent = parent
 		table.insert(highlights, clone)
 	end
-	attach(newTarget)
-	for _, descendant in newTarget:GetDescendants() do
+	local adornTarget = if Tags.IsClass(newTarget, Tags.Runner) and newTarget.Parent ~= nil then newTarget.Parent else newTarget
+	attach(adornTarget)
+	if adornTarget ~= newTarget then
+		return
+	end
+	for _, descendant in adornTarget:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			attach(descendant)
 		end

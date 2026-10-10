@@ -55,6 +55,7 @@ local function removeAt(self: PlateStack, index: number, clearInteraction: boole
 	unweld(entry)
 	entry.Item.Surface = nil
 	entry.Item.Detach = nil
+	entry.Item.Part.CanCollide = true
 	if clearInteraction then
 		Tags.SetInteractionDisabled(entry.Item.Instance, false)
 	end
@@ -85,6 +86,8 @@ local function addAt(self: PlateStack, item: Item.Item, index: number): boolean
 	end
 	local surface = surfaceBelow(self, index)
 	local weld = Slot.WeldOnTop(item.Part, surface)
+	-- Stacked plates ride on the base; when it's carried they must not catch on walls and pin the player.
+	item.Part.CanCollide = false
 	local entry: Entry
 	item.Surface = surface
 	item.Detach = function(): boolean

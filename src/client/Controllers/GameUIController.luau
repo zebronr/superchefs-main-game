@@ -7,6 +7,8 @@ local TweenService = game:GetService("TweenService")
 
 local Gif = require(script.Parent.Parent.Util.Gif)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local BitmapFont = require(Shared:WaitForChild("Util"):WaitForChild("BitmapFont"))
+local Jersey15 = require(Shared:WaitForChild("Fonts"):WaitForChild("Jersey15"))
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
 
@@ -18,6 +20,8 @@ local orderList = gui:WaitForChild("OrderList") :: ScreenGui
 local instructions = gui:WaitForChild("Instructions") :: ScreenGui
 local readyGui = gui:WaitForChild("ReadySetGo") :: ScreenGui
 local roundEnd = gui:WaitForChild("RoundEnd") :: ScreenGui
+local startGui = gui:WaitForChild("StartRound") :: ScreenGui
+local startButton = startGui:WaitForChild("Button") :: GuiButton
 local infoFrame = gameInfo:WaitForChild("InfoFrame")
 local coinsFrame = infoFrame:WaitForChild("CoinsFrame")
 local coinsLabel = coinsFrame:WaitForChild("TextLabel") :: TextLabel
@@ -28,6 +32,8 @@ local endCoins = roundEnd:WaitForChild("Frame"):WaitForChild("Coins") :: TextLab
 local ready = readyGui:WaitForChild("Ready") :: GuiObject
 local set = readyGui:WaitForChild("Set") :: GuiObject
 local go = readyGui:WaitForChild("Go") :: GuiObject
+local readyFrames = { ready, set, go }
+local readySizes = { ready.Size, set.Size, go.Size }
 local lastCoins: number? = nil
 local coinConnection: RBXScriptConnection? = nil
 local readyGeneration = 0
@@ -122,28 +128,70 @@ local function hideReady(): ()
 	readyGui.Enabled = false
 end
 
+-- Size of a word at `t` seconds into its one-second slot: back-eased pop in, then a quick shrink out.
+local function wordScale(t: number): number
+	local tuning = Config.UI.ReadySetGo
+	local scale = 1
+	if t < tuning.PopTime then
+		local p = t / tuning.PopTime - 1
+		local c = tuning.PopOvershoot
+		scale = 1 + (c + 1) * p ^ 3 + c * p ^ 2
+	end
+	local left = 1 - t
+	if left < tuning.OutTime then
+		scale *= (left / tuning.OutTime) ^ 4
+	end
+	return math.max(scale, 0)
+end
+
 local function startReady(startsAt: number): ()
 	readyGeneration += 1
 	local generation = readyGeneration
+	local tuning = Config.UI.ReadySetGo
+	local tilts = { -tuning.Tilt, tuning.Tilt, 0 }
 	roundEnd.Enabled = false
-	task.spawn(function(): ()
-		local frames = { ready, set, go }
-		while generation == readyGeneration do
-			local elapsed = workspace:GetServerTimeNow() - startsAt
-			local index = math.floor(elapsed) + 1
-			if index > 3 then
-				break
+	local connection: RBXScriptConnection
+	connection = RunService.RenderStepped:Connect(function(): ()
+		local elapsed = workspace:GetServerTimeNow() - startsAt
+		local index = math.floor(elapsed) + 1
+		if generation ~= readyGeneration or index > #readyFrames then
+			connection:Disconnect()
+			if generation == readyGeneration then
+				hideReady()
 			end
-			readyGui.Enabled = index >= 1
-			for frameIndex, frame in frames do
-				frame.Visible = frameIndex == index
-			end
-			task.wait(math.clamp(startsAt + math.max(index, 1) - workspace:GetServerTimeNow(), 0.01, 0.1))
+			return
 		end
-		if generation == readyGeneration then
-			hideReady()
+		readyGui.Enabled = index >= 1
+		for frameIndex, frame in readyFrames do
+			frame.Visible = frameIndex == index
+		end
+		if index >= 1 then
+			local frame = readyFrames[index]
+			local base = readySizes[index]
+			local scale = wordScale(elapsed - (index - 1)) * (if index == #readyFrames then tuning.GoScale else 1)
+			frame.Size = UDim2.new(base.X.Scale * scale, base.X.Offset * scale, base.Y.Scale * scale, base.Y.Offset * scale)
+			frame.Rotation = tilts[index]
 		end
 	end)
+end
+
+-- Draws each banner's word in Jersey 15 from the bitmap font, inside its TextLabel and in its
+-- text color; the label's own text is hidden. Banner colors and layout live in Studio.
+local function buildWords(): ()
+	if not BitmapFont.IsReady(Jersey15) then
+		return
+	end
+	for _, frame in readyFrames do
+		local label = frame:FindFirstChildWhichIsA("TextLabel")
+		if label ~= nil then
+			label.TextTransparency = 1
+			BitmapFont.Render(Jersey15, label.Text, label, { Name = "Word", Color = label.TextColor3 })
+		end
+	end
+end
+
+local function refreshStart(): ()
+	startGui.Enabled = Config.Round.StartButton and ReplicatedStorage:GetAttribute("RoundState") == "Waiting"
 end
 
 local function refreshVisibility(): ()
@@ -152,6 +200,7 @@ local function refreshVisibility(): ()
 	orderList.Enabled = gameInfo.Enabled
 	-- Instructions was never shown by the legacy start flow.
 	instructions.Enabled = false
+	refreshStart()
 	refreshTimer()
 end
 
@@ -160,6 +209,13 @@ function GameUIController.Start(_self: typeof(GameUIController)): ()
 	orderList.Enabled = false
 	instructions.Enabled = false
 	hideReady()
+	buildWords()
+	startGui.Enabled = false
+	startButton.Activated:Connect(function(): ()
+		-- Hide at once; the button comes back if the server returns to Waiting.
+		startGui.Enabled = false
+		Net.Event("Round"):FireServer("Start")
+	end)
 	Gif.Reset(coinSprite)
 	player:GetAttributeChangedSignal("Team"):Connect(watchTeam)
 	watchTeam()

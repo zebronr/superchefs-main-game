@@ -8,13 +8,15 @@ local Plate = require(script.Parent.Parent.Plate)
 local Station = require(script.Parent.Parent.Station)
 local CarryService = require(script.Parent.Parent.Parent.Services.CarryService)
 local EffectService = require(script.Parent.Parent.Parent.Services.EffectService)
+local OrderService = require(script.Parent.Parent.Parent.Services.OrderService)
+local TeamService = require(script.Parent.Parent.Parent.Services.TeamService)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local RoundConfig = Config.Round
 local Net = require(Shared:WaitForChild("Net"))
 local Tags = require(Shared:WaitForChild("Tags"))
 
-export type CustomerState = "Walking" | "WaitingToOrder" | "WaitingForFood" | "Eating" | "Leaving"
+export type CustomerState = "Walking" | "WaitingToOrder" | "WaitingForFood" | "Eating" | "Dashing" | "Caught" | "Leaving"
 
 -- What CustomerService hands the table; kept as callbacks so this class never requires the service.
 export type Customer = {
@@ -83,6 +85,21 @@ function CustomerTable.IsFree(self: CustomerTable): boolean
 	return self.Customer == nil and self.Slot:Get() == nil
 end
 
+function CustomerTable.AddCash(self: CustomerTable, amount: number): ()
+	local current = self.Instance:GetAttribute("Cash")
+	self.Instance:SetAttribute("Cash", (if typeof(current) == "number" then current else 0) + amount)
+	self.Instance:SetAttribute("CashAt", workspace:GetServerTimeNow())
+	CustomerTable.RefreshInteraction(self)
+end
+
+function CustomerTable.ClearCash(self: CustomerTable): ()
+	self.Instance:SetAttribute("Cash", nil)
+	self.Instance:SetAttribute("CashAt", nil)
+	self.Instance:SetAttribute("CashCollectedBy", nil)
+	self.Instance:SetAttribute("CashCollectedAt", nil)
+	CustomerTable.RefreshInteraction(self)
+end
+
 local function serve(self: CustomerTable, customer: Customer, player: Player, plate: Plate.Plate): boolean
 	local dish = customer.GetDish()
 	if dish == nil or plate.Content ~= dish then
@@ -131,7 +148,8 @@ function CustomerTable.RefreshInteraction(self: CustomerTable): ()
 			local state = customer.GetState()
 			enabled = state == "WaitingToOrder" or state == "WaitingForFood"
 		end
-		enabled = enabled or DirtyPlate.Cast(self.Slot:Get()) ~= nil
+		local cash = self.Instance:GetAttribute("Cash")
+		enabled = enabled or (typeof(cash) == "number" and cash > 0) or DirtyPlate.Cast(self.Slot:Get()) ~= nil
 	end
 	Tags.SetInteractionDisabled(self.Instance, not enabled)
 end
@@ -149,13 +167,24 @@ function CustomerTable.Handle(self: CustomerTable, player: Player, held: Item.It
 			return true
 		elseif state == "WaitingForFood" then
 			local plate = Plate.Cast(held)
-			if plate == nil then
-				return false
+			if plate ~= nil then
+				return serve(self, customer, player, plate)
 			end
-			return serve(self, customer, player, plate)
 		end
 	end
-	return takeDirtyPlate(self, player, held)
+	-- One press clears the table: the cash is collected along with the dirty plate.
+	local cash = self.Instance:GetAttribute("Cash")
+	local amount = if typeof(cash) == "number" then cash else 0
+	local collected = amount > 0
+	if collected then
+		OrderService.Pay(TeamService.GetTeam(player), amount, self.Instance)
+		self.Instance:SetAttribute("CashCollectedBy", player.UserId)
+		self.Instance:SetAttribute("CashCollectedAt", workspace:GetServerTimeNow())
+		self.Instance:SetAttribute("Cash", nil)
+		self.Instance:SetAttribute("CashAt", nil)
+		CustomerTable.RefreshInteraction(self)
+	end
+	return takeDirtyPlate(self, player, held) or collected
 end
 
 function CustomerTable.Destroy(self: CustomerTable): ()

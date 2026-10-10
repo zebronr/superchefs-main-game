@@ -77,7 +77,8 @@ function InstantSkill.Burst(template: ParticleEmitter?, cframe: CFrame, count: n
 end
 
 -- Highlights and surface GUIs (the outline, the "you" ring) that SetHidden turned off, to turn back on.
-local switchedOff: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+-- A strong table: Roblox can collect Instance keys out of weak tables while the Instance still exists.
+local switchedOff: { [Instance]: boolean } = {}
 
 -- Hides or shows a character for this client (LocalTransparencyModifier leaves the real values alone).
 function InstantSkill.SetHidden(character: Model, hidden: boolean): ()
@@ -95,6 +96,14 @@ function InstantSkill.SetHidden(character: Model, hidden: boolean): ()
 			elseif not hidden and switchedOff[descendant] then
 				toggle.Enabled = true
 				switchedOff[descendant] = nil
+			end
+		end
+	end
+	-- Drop entries for instances destroyed while hidden.
+	if not hidden then
+		for instance in switchedOff do
+			if instance.Parent == nil then
+				switchedOff[instance] = nil
 			end
 		end
 	end

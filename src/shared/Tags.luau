@@ -8,6 +8,7 @@ Tags.FoodContainer = "FoodContainer"
 Tags.PlateTable = "PlateTable"
 Tags.ServingCounter = "ServingCounter"
 Tags.CustomerTable = "CustomerTable"
+Tags.Runner = "Runner"
 Tags.Trash = "Trash"
 Tags.Food = "Food"
 Tags.Plate = "Plate"
@@ -36,6 +37,7 @@ Tags.Classes = {
 	Tags.PlateTable,
 	Tags.ServingCounter,
 	Tags.CustomerTable,
+	Tags.Runner,
 	Tags.Trash,
 	Tags.Food,
 	Tags.Plate,

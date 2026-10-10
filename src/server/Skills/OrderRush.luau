@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CustomerService = require(script.Parent.Parent.Services.CustomerService)
+local CharacterService = require(script.Parent.Parent.Services.CharacterService)
 local Types = require(script.Parent.Types)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -29,6 +30,7 @@ local function clear(player: Player, character: Model): ()
 	character:SetAttribute(Attribute.RushStartedAt, nil)
 	character:SetAttribute(Attribute.RushOrigin, nil)
 	character:SetAttribute(Attribute.RushStops, nil)
+	CharacterService.SetPhased(character, false)
 end
 
 local OrderRush: Types.InstantSkill = {
@@ -64,6 +66,7 @@ local OrderRush: Types.InstantSkill = {
 		character:SetAttribute(Attribute.RushStartedAt, startedAt)
 		character:SetAttribute(Attribute.RushOrigin, origin)
 		character:SetAttribute(Attribute.RushStops, SkillEffects.EncodeStops(stops))
+		CharacterService.SetPhased(character, true)
 
 		local player = ctx.Player
 		local list: { thread } = {}

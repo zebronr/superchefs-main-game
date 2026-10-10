@@ -1,14 +1,17 @@
 --!strict
 
 local PathfindingService = game:GetService("PathfindingService")
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Item = require(script.Parent.Parent.Classes.Item)
+local Runner = require(script.Parent.Parent.Classes.Runner)
 local CustomerTable = require(script.Parent.Parent.Classes.Stations.CustomerTable)
 local PlateTable = require(script.Parent.Parent.Classes.Stations.PlateTable)
 local LevelService = require(script.Parent.LevelService)
 local OrderService = require(script.Parent.OrderService)
+local TeamService = require(script.Parent.TeamService)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local InteractionConfig = Config.Interaction
@@ -17,6 +20,7 @@ local RoundConfig = Config.Round
 local CustomerConfig = Config.Customers
 local FrozenAttribute = Config.Skills.Attribute.FrozenAt
 local Net = require(Shared:WaitForChild("Net"))
+local Tags = require(Shared:WaitForChild("Tags"))
 
 type CustomerState = CustomerTable.CustomerState
 
@@ -31,6 +35,8 @@ type Session = {
 	State: CustomerState,
 	Recipe: Config.Recipe?,
 	OrderNumber: number?,
+	PaymentAmount: number?,
+	WalkSpeed: number,
 	Thread: thread?,
 	PatienceStartedAt: number?,
 	-- Server time the Penguin's Deep Freeze paused this customer's patience (nil when not frozen).
@@ -111,42 +117,24 @@ local function flatDistance(from: Vector3, to: Vector3): number
 	return (Vector3.new(from.X, 0, from.Z) - Vector3.new(to.X, 0, to.Z)).Magnitude
 end
 
-local function loadWalkTrack(humanoid: Humanoid): AnimationTrack?
-	local animator: Animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator")
-	animator.Parent = humanoid
-	local animation = Instance.new("Animation")
-	animation.AnimationId = CustomerConfig.WalkAnimation
-	local track = animator:LoadAnimation(animation)
-	animation:Destroy()
-	track.Looped = true
-	return track
-end
-
 -- Walks along a computed path, or straight at the target when no path exists. True once close to the target.
-local function walkTo(session: Session, target: Vector3): boolean
+local function walkTo(session: Session, target: Vector3, expectedState: CustomerState?): boolean
 	local humanoid = session.Humanoid
-	local track = loadWalkTrack(humanoid)
-	if track ~= nil then
-		track:Play()
-	end
 
 	local waypoints = computePath(session.Root.Position, target)
 	if waypoints ~= nil then
 		for _, waypoint in waypoints do
-			if not isActive(session) then
+			if not isActive(session) or (expectedState ~= nil and stateOf(session) ~= expectedState) then
 				break
 			end
 			moveTo(humanoid, waypoint.Position, CustomerConfig.WaypointTimeout)
 		end
 	end
-	if isActive(session) and flatDistance(session.Root.Position, target) > CustomerConfig.ArriveDistance then
+	if isActive(session) and (expectedState == nil or stateOf(session) == expectedState) and flatDistance(session.Root.Position, target) > CustomerConfig.ArriveDistance then
 		moveTo(humanoid, target, CustomerConfig.WaypointTimeout * 2)
 	end
 
-	if track ~= nil then
-		track:Stop()
-	end
-	return isActive(session) and flatDistance(session.Root.Position, target) <= CustomerConfig.ArriveDistance
+	return isActive(session) and (expectedState == nil or stateOf(session) == expectedState) and flatDistance(session.Root.Position, target) <= CustomerConfig.ArriveDistance
 end
 
 local function findSpawn(): BasePart?
@@ -162,6 +150,7 @@ local function leave(session: Session, angry: boolean): ()
 	setState(session, "Leaving")
 	setPatience(session, nil, nil)
 	session.Root.Anchored = false
+	session.Humanoid.WalkSpeed = session.WalkSpeed
 	if angry then
 		Net.Event("Effect"):FireAllClients("ObjError", session.Table.Instance)
 	end
@@ -246,10 +235,40 @@ local function serveCustomer(session: Session): ()
 	if stateOf(session) ~= "WaitingForFood" or number == nil then
 		return
 	end
-	OrderService.Close(session.Team, number, true, session.Table.Instance)
+	local level = Levels.GetCurrent()
+	if level.EnableTableCash then
+		-- Paid later: as cash on the table, or by catching them if they run.
+		session.PaymentAmount = level.CoinsPerOrder
+	end
+	OrderService.Close(session.Team, number, true, session.Table.Instance, not level.EnableTableCash)
 	setPatience(session, nil, nil)
 	setState(session, "Eating")
 end
+
+local function setRunner(session: Session, enabled: boolean): ()
+	if enabled then
+		session.Root:SetAttribute(Tags.ClassAttribute, Tags.Runner)
+		CollectionService:AddTag(session.Root, Tags.ClassTag(Tags.Runner))
+	else
+		CollectionService:RemoveTag(session.Root, Tags.ClassTag(Tags.Runner))
+		session.Root:SetAttribute(Tags.ClassAttribute, nil)
+	end
+end
+
+Runner.SetCatchHandler(function(model: Model, player: Player): boolean
+	local session = sessions[model]
+	if session == nil or not isActive(session) or stateOf(session) ~= "Dashing" then
+		return false
+	end
+	setRunner(session, false)
+	setState(session, "Caught")
+	session.Humanoid:MoveTo(session.Root.Position)
+	session.Root.Anchored = true
+	OrderService.Pay(TeamService.GetTeam(player), session.PaymentAmount or 0, model)
+	model:SetAttribute("CaughtBy", player.UserId)
+	model:SetAttribute("CaughtAt", workspace:GetServerTimeNow())
+	return true
+end)
 
 local function run(session: Session, tuning: Config.CustomerTuning): ()
 	local seat = CustomerTable.GetSeat(session.Table)
@@ -272,7 +291,13 @@ local function run(session: Session, tuning: Config.CustomerTuning): ()
 	session.Root.Anchored = true
 
 	setState(session, "WaitingToOrder")
-	setPatience(session, workspace:GetServerTimeNow(), tuning.OrderPatience)
+	local satAt = workspace:GetServerTimeNow()
+	setPatience(session, satAt, tuning.OrderPatience)
+	if session.FrozenAt ~= nil then
+		-- Frozen on the way in: the patience clock starts paused now, not when they froze.
+		session.FrozenAt = satAt
+		session.Model:SetAttribute(FrozenAttribute, satAt)
+	end
 	-- Deep Freeze pauses the clock (FrozenAt) and shifts PatienceStartedAt when it lets go.
 	while
 		isActive(session)
@@ -311,6 +336,44 @@ local function run(session: Session, tuning: Config.CustomerTuning): ()
 	if not isActive(session) then
 		return
 	end
+	if session.PaymentAmount == nil then
+		-- Paid when served (table cash is off for this level).
+		leave(session, false)
+		return
+	end
+	if math.random() < tuning.DashChance then
+		setPatience(session, nil, nil)
+		setState(session, "Dashing")
+		session.Root.Anchored = false
+		session.Humanoid.WalkSpeed = CustomerConfig.DashSpeed
+		setRunner(session, true)
+		clearTable(session)
+		local spawnPart = findSpawn()
+		while spawnPart ~= nil and isActive(session) and stateOf(session) == "Dashing" do
+			if walkTo(session, spawnPart.Position, "Dashing") then
+				break
+			end
+			task.wait(CustomerConfig.Poll)
+		end
+		if not isActive(session) then
+			return
+		end
+		if stateOf(session) == "Caught" then
+			task.wait(CustomerConfig.CaughtPause)
+			if isActive(session) then
+				leave(session, false)
+			end
+		else
+			setRunner(session, false)
+			if spawnPart ~= nil then
+				Net.Event("Effect"):FireAllClients("ObjError", spawnPart)
+			end
+			release(session)
+			session.Model:Destroy()
+		end
+		return
+	end
+	CustomerTable.AddCash(session.Table, session.PaymentAmount or 0)
 	leave(session, false)
 end
 
@@ -361,6 +424,8 @@ local function spawnCustomer(customerTable: CustomerTable.CustomerTable, tuning:
 		State = "Walking",
 		Recipe = nil,
 		OrderNumber = nil,
+		PaymentAmount = nil,
+		WalkSpeed = humanoid.WalkSpeed,
 		Thread = nil,
 		PatienceStartedAt = nil,
 		FrozenAt = nil,
@@ -438,6 +503,9 @@ end
 
 function CustomerService.Stop(): ()
 	activeGeneration = nil
+	for _, customerTable in CustomerTable.All() do
+		CustomerTable.ClearCash(customerTable :: any)
+	end
 	local models: { Model } = {}
 	for model in sessions do
 		table.insert(models, model)
@@ -446,6 +514,9 @@ function CustomerService.Stop(): ()
 		local session = sessions[model]
 		if session == nil then
 			continue
+		end
+		if stateOf(session) == "Dashing" then
+			setRunner(session, false)
 		end
 		local thread = session.Thread
 		-- An eating customer may be parked in Item.Await, which resumes its thread later; that thread

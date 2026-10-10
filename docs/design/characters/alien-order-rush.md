@@ -1,6 +1,6 @@
 # Alien: Order Rush
 
-Status: **code written and smoke-tested (2026-10-05);** placeholder VFX and a stand-in character model (see HANDOFF). The user's idea. Job: Waiter (order taking). Shape: **instant chain**. The character is a **little alien** (not an animal). Follows the [general skill rules](../characters.md#general-skill-rules) and the [art style](../art-style.md).
+Status: **code written and smoke-tested (2026-10-05);** placeholder VFX and a stand-in character model (see HANDOFF). The user's idea. Job: Waiter (order taking). Shape: **instant chain**. The character is a **little alien** (not an animal). Follows the [general superskill rules](../characters.md#general-superskill-rules) and the [art style](../art-style.md).
 
 ## Fantasy
 
@@ -11,19 +11,19 @@ The dining room is full of customers waving for service. The Alien vanishes in a
 - **Press Q** (no aiming). Only works if at least 1 customer is waiting to order; otherwise the button is greyed out.
 - The Alien blinks to each waiting customer in turn, takes their order very fast (~0.3 s each), then **blinks back to where it started**.
 - **Order of visits:** lowest patience first, so the most urgent customers are served first.
-- **Cap:** up to 4 customers per use (raising the cap is a candidate for skill upgrades, a future feature).
+- **Cap:** up to 4 customers per use (raising the cap is a candidate for superskill upgrades, a future feature).
 - While the chain runs, the player has no control. It's short (a 4-table chain takes ~1.5 s).
 - Anything in your hands stays in your hands.
 
 ## Why it returns to the start
 
-The skill saves the walk to the dining room *and back*. Returning keeps the Alien in the kitchen, so it's a pure time-saver and doesn't strand them across the map.
+The superskill saves the walk to the dining room *and back*. Returning keeps the Alien in the kitchen, so it's a pure time-saver and doesn't strand them across the map.
 
 Variant to test: end at the **last table** instead. That's better if the Alien is also the one serving food.
 
 ## Camera
 
-Teleporting the camera 4 times in 1.5 s would be disorienting. The camera **stays where the skill was used**. The player watches their own afterimages pop up at each table, and the order tickets appear one by one. *(Changed 2026-10-05: with the UFO there are no jumps, so the camera eases along after the UFO instead.)*
+Teleporting the camera 4 times in 1.5 s would be disorienting. The camera **stays where the superskill was used**. The player watches their own afterimages pop up at each table, and the order tickets appear one by one. *(Changed 2026-10-05: with the UFO there are no jumps, so the camera eases along after the UFO instead.)*
 
 ## Interrupt
 
@@ -48,7 +48,7 @@ The cooldown is long because the value scales with how many tables are waiting. 
 
 ## Versus (later)
 
-If customers are shared between teams, taking an order claims that customer for your team. This skill would claim 4 at once, which is very strong. Options: a lower cap in Versus, or only customers on your side of the room.
+If customers are shared between teams, taking an order claims that customer for your team. This superskill would claim 4 at once, which is very strong. Options: a lower cap in Versus, or only customers on your side of the room.
 
 ## VFX (art style: squishy, elastic, with a UFO-beam theme)
 

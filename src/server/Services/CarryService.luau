@@ -15,6 +15,8 @@ type Hold = {
 	Item: Item.Item,
 	Weld: WeldConstraint,
 	Destroyed: RBXScriptConnection,
+	-- Child parts of the item that collided before pickup; restored on release.
+	Collidable: { BasePart },
 }
 
 local holds: { [Player]: Hold } = {}
@@ -28,7 +30,7 @@ function CarryService.GetHeld(player: Player): Item.Item?
 	return nil
 end
 
--- Clears the hold state without any physics side effects.
+-- Clears the hold state; the only physics it touches is restoring the item's child part collisions.
 function CarryService.Release(player: Player): Item.Item?
 	local hold = holds[player]
 	if hold == nil then
@@ -37,6 +39,9 @@ function CarryService.Release(player: Player): Item.Item?
 	holds[player] = nil
 	hold.Destroyed:Disconnect()
 	hold.Weld:Destroy()
+	for _, child in hold.Collidable do
+		child.CanCollide = true
+	end
 	hold.Item.Holder = nil
 	return hold.Item
 end
@@ -76,7 +81,15 @@ function CarryService.Pickup(player: Player, item: Item.Item): boolean
 	weld.Parent = rootPart
 	weld.Part0 = rootPart
 
+	-- Nothing carried may collide, or an item caught in a wall pins the player (e.g. the extinguisher's Emitter).
 	part.CanCollide = false
+	local collidable: { BasePart } = {}
+	for _, descendant in part:GetDescendants() do
+		if descendant:IsA("BasePart") and descendant.CanCollide then
+			descendant.CanCollide = false
+			table.insert(collidable, descendant)
+		end
+	end
 	part.CFrame = rootPart.CFrame
 		* CFrame.new(0, 0, -InteractionConfig.CarryDistance)
 		* CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
@@ -94,6 +107,7 @@ function CarryService.Pickup(player: Player, item: Item.Item): boolean
 		Item = item,
 		Weld = weld,
 		Destroyed = destroyed,
+		Collidable = collidable,
 	}
 	return true
 end

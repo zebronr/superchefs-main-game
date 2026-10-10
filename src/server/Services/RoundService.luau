@@ -18,6 +18,8 @@ local RoundService = {}
 local generation = 0
 local startsAt = 0
 local starting = false
+-- Players whose client has connected its listeners; only they get round messages.
+local readyPlayers: { [Player]: true } = {}
 
 local function isCurrent(token: number): boolean
 	return generation == token and #Players:GetPlayers() > 0
@@ -41,7 +43,8 @@ local function broadcastNPCs(token: number): ()
 			if starters ~= nil then
 				local children = starters:GetChildren()
 				if #children > 0 then
-					Net.Event("Round"):FireAllClients("SpawnNPC", children[math.random(#children)].Name)
+					-- The seed picks the NPC model and route, so every client shows the same one.
+					Net.Event("Round"):FireAllClients("SpawnNPC", children[math.random(#children)].Name, math.random(1, 2 ^ 30))
 				end
 			end
 		end
@@ -61,7 +64,7 @@ local function endRound(token: number): ()
 	ReplicatedStorage:SetAttribute("RoundEndsAt", nil)
 	ReplicatedStorage:SetAttribute("RoundState", "Ended")
 	Net.Event("Round"):FireAllClients("ClearNPCs")
-	for _, player in Players:GetPlayers() do
+	for player in readyPlayers do
 		Net.Event("Round"):FireClient(player, "RoundEnd", coinsFor(TeamService.GetTeam(player)))
 	end
 	task.delay(RoundConfig.RoundEndDuration, function(): ()
@@ -111,12 +114,14 @@ beginIntro = function(): ()
 	ReplicatedStorage:SetAttribute("RoundDuration", level.LevelDuration)
 	ReplicatedStorage:SetAttribute("RoundEndsAt", nil)
 	ReplicatedStorage:SetAttribute("RoundState", "Intro")
-	for _, player in Players:GetPlayers() do
+	for player in readyPlayers do
 		OrderService.SendSnapshot(player)
 	end
 	LevelService.MoveAllToSpawns()
 	startsAt = workspace:GetServerTimeNow() + RoundConfig.IntroLead
-	Net.Event("Round"):FireAllClients("ReadySetGo", startsAt)
+	for player in readyPlayers do
+		Net.Event("Round"):FireClient(player, "ReadySetGo", startsAt)
+	end
 	task.delay(RoundConfig.IntroLead + RoundConfig.ReadySetGoDuration, function(): ()
 		beginPlaying(token)
 	end)
@@ -149,15 +154,32 @@ local function startIfWaiting(): ()
 end
 
 local function onPlayerAdded(player: Player): ()
-	local state = ReplicatedStorage:GetAttribute("RoundState")
 	TeamService.AssignJoin(player, Levels.GetCurrent().Teams)
 	CharacterService.RefreshColors()
+end
+
+-- The join-time messages wait for the client's listeners, or they arrive too late to show.
+local function markReady(player: Player): ()
+	if readyPlayers[player] ~= nil or player.Parent ~= Players then
+		return
+	end
+	readyPlayers[player] = true
+	local state = ReplicatedStorage:GetAttribute("RoundState")
 	OrderService.SendSnapshot(player)
 	if state == "Ended" then
 		Net.Event("Round"):FireClient(player, "RoundEnd", coinsFor(TeamService.GetTeam(player)))
 	elseif state == "Intro" then
 		Net.Event("Round"):FireClient(player, "ReadySetGo", startsAt)
-	elseif state == "Waiting" then
+	elseif state == "Waiting" and not RoundConfig.StartButton then
+		startIfWaiting()
+	end
+end
+
+local function onRequest(player: Player, message: unknown): ()
+	if message == "Ready" then
+		markReady(player)
+	elseif message == "Start" and RoundConfig.StartButton then
+		markReady(player)
 		startIfWaiting()
 	end
 end
@@ -171,7 +193,9 @@ function RoundService.Start(_self: typeof(RoundService)): ()
 		ReplicatedStorage:SetAttribute(`Coins_{team}`, 0)
 	end
 	Players.PlayerAdded:Connect(onPlayerAdded)
-	Players.PlayerRemoving:Connect(function(): ()
+	Net.Event("Round").OnServerEvent:Connect(onRequest)
+	Players.PlayerRemoving:Connect(function(player: Player): ()
+		readyPlayers[player] = nil
 		if #Players:GetPlayers() <= 1 then
 			stopForEmptyServer()
 		end

@@ -244,6 +244,7 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 | 59 | `calculatePath` accepted paths with failed status; later movement could iterate nil path entries and error. | `NPCHandler.client.lua` `calculatePath`, `spawnNpc` | Only successful paths are stored and spawned. |
 | 60 | The NPC clear remote was declared but never handled or fired, leaving NPCs active across a reset. | `NPCHandler.client.lua`, `MainGame.server.lua` | `ClearNPCs` stops active movement and destroys models; paths are reloaded for the replacement map. |
 | 61 | `orderFinish` passed fractional bounds to `math.random`, truncating its intended smoke spread and size multipliers. | `EffectsHandler.client.lua` `orderFinish` | `Random:NextNumber` samples the full fractional ranges. |
+| 62 | Each client picked the NPC model and its route with its own `math.random`, so players saw different customers walking different paths. | `NPCHandler.client.lua` `spawnNpc`, `MainGame.server.lua` | `SpawnNPC` carries a server seed; every client picks the model and the filler route (by name) from it, falling back to its first route only if its own pathfinding failed for that filler. |
 
 ### Dead code, not ported
 

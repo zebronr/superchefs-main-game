@@ -1,6 +1,6 @@
 # Gecko: Tongue Grab
 
-Status: **prototype built (v2), first playtest passed** (2026-10-05: "feels better"). Job: Fetcher. Follows the [general skill rules](../characters.md#general-skill-rules).
+Status: **prototype built (v2), first playtest passed** (2026-10-05: "feels better"). Job: Fetcher. Follows the [general superskill rules](../characters.md#general-superskill-rules).
 
 Grabs must be intentional, but there's no mouse aiming.
 
@@ -10,7 +10,7 @@ Grabs must be intentional, but there's no mouse aiming.
 - On press, the Gecko snaps toward the best reachable item, balancing distance and turning angle, and locks onto it. Steering starts when movement input changes.
 - **Point to select:** while WASD (or the stick) is held, the lock goes to the reachable item whose direction is closest to the input direction, camera-relative like movement. There is no hidden aim, so pressing the same way twice never drifts: left is always the left item and one press of right goes right. Letting go keeps the lock. The Gecko quickly turns to face the lock.
 - With nothing in reach, WASD spins the Gecko freely (the shorter way, at the spin speed).
-- **Mobile:** hold the skill button. The joystick gives a full 360° target direction, with the same spin speed and rules.
+- **Mobile:** hold the superskill button. The joystick gives a full 360° target direction, with the same spin speed and rules.
 - **Camera:** eases a few studs out in the aim direction and tilts slightly lower, so you can see down the line. It stays top-down enough to keep the room in view, and eases back on release.
 - **Hold limit:** ~3 s, restarted every time the lock switches items. Holding until time runs out cancels the aim with a short cooldown and no tongue shot.
 
@@ -28,7 +28,7 @@ Grabs must be intentional, but there's no mouse aiming.
 - Anything in another player's hands
 - Crates (v1). Grabbing from crates might make walking pointless; test it later.
 
-**Hands:** must be empty. With full hands the skill button greys out. (Later idea: grab food straight onto the plate you're holding.)
+**Hands:** must be empty. With full hands the superskill button greys out. (Later idea: grab food straight onto the plate you're holding.)
 
 ## Firing (release Q)
 

@@ -130,6 +130,8 @@ local function interact(player: Player, target: Instance?): ()
 		local item = Item.Cast(object)
 		if item ~= nil then
 			interactWithItem(player, item, held)
+		elseif object.Kind == "Runner" then
+			object:Interact(player, held)
 		end
 		return true
 	end)

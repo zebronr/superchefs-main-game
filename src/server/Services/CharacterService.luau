@@ -10,7 +10,6 @@ local CharacterConfig = Config.Character
 local TeamService = require(script.Parent.TeamService)
 
 local CharacterService = {}
-local COLLISION_GROUP = "Character"
 local tracked: { [Player]: boolean } = {}
 local lastDash: { [Player]: number } = {}
 
@@ -29,9 +28,17 @@ function CharacterService.RefreshColors(): ()
 	end
 end
 
-local function setGroup(instance: Instance): ()
+local function setGroup(character: Model, instance: Instance): ()
 	if instance:IsA("BasePart") then
-		instance.CollisionGroup = COLLISION_GROUP
+		instance.CollisionGroup = if character:GetAttribute("Phased") == true
+			then CharacterConfig.PhasedCollisionGroup else CharacterConfig.CollisionGroup
+	end
+end
+
+function CharacterService.SetPhased(character: Model, phased: boolean): ()
+	character:SetAttribute("Phased", if phased then true else nil)
+	for _, descendant in character:GetDescendants() do
+		setGroup(character, descendant)
 	end
 end
 
@@ -59,10 +66,12 @@ local function setupCharacter(player: Player, character: Model): ()
 		return
 	end
 	for _, descendant in character:GetDescendants() do
-		setGroup(descendant)
+		setGroup(character, descendant)
 	end
 	-- Accessories and tools add parts after spawn.
-	character.DescendantAdded:Connect(setGroup)
+	character.DescendantAdded:Connect(function(descendant: Instance): ()
+		setGroup(character, descendant)
+	end)
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid ~= nil then

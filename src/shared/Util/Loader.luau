@@ -6,6 +6,8 @@ export type Module = {
 }
 
 local Loader = {}
+-- Run waits this long at most for every Start to return before it gives up waiting.
+local START_TIMEOUT = 10
 
 function Loader.LoadChildren(parent: Instance): { [string]: any }
 	local children = parent:GetChildren()
@@ -43,10 +45,12 @@ function Loader.Run(modules: { [string]: any }): ()
 		end
 	end
 
+	local pending = 0
 	for _, name in names do
 		local module: Module = modules[name]
 		local start = module.Start
 		if start ~= nil then
+			pending += 1
 			task.spawn(function(): ()
 				local success, message = xpcall(function()
 					start(module)
@@ -54,8 +58,19 @@ function Loader.Run(modules: { [string]: any }): ()
 				if not success then
 					warn(`Module {name} Start failed: {message}`)
 				end
+				pending -= 1
 			end)
 		end
+	end
+
+	-- Starts run side by side, but Run returns only once they have all returned (or timed out),
+	-- so callers know every module has connected its listeners.
+	local deadline = os.clock() + START_TIMEOUT
+	while pending > 0 and os.clock() < deadline do
+		task.wait()
+	end
+	if pending > 0 then
+		warn(`{pending} module Start calls were still running after {START_TIMEOUT} seconds`)
 	end
 end
 

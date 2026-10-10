@@ -62,8 +62,57 @@ export type DeepFreezeTuning = {
 	IceResponse: number,
 	PenguinIceSpeed: number,
 	Visuals: {
+		StompTime: number,
+		StompDip: number,
 		GrowTime: number,
+		GrowWobble: number,
+		FrostScale: number,
+		SpikeCount: number,
+		SpikeClearance: number,
+		SpikeLean: number,
+		SpikeScaleMin: number,
+		SpikeScaleMax: number,
+		SpikeSpreadTime: number,
+		SpikeRiseTime: number,
+		SpikeBurstCount: number,
+		SpikeShards: number,
+		ShockwaveTime: number,
+		ShockwaveScale: number,
+		IdleBreathe: number,
+		IdleBreatheSpeed: number,
+		FreezeFlashTime: number,
+		HighlightOutTime: number,
+		FrostCapFit: number,
+		FrostCapTime: number,
+		FrostCapOutTime: number,
+		IceBlockPad: number,
+		IceBlockSnapTime: number,
+		ShiverInterval: number,
+		ShiverTime: number,
+		ShiverAmount: number,
+		IceBlockOutTime: number,
+		IceBlockChunks: number,
+		IceBlockBurstCount: number,
+		BreathInterval: number,
+		GlintInterval: number,
 		CrackTime: number,
+		CrackSpread: number,
+		MeltShrink: number,
+		SnowfallHeight: number,
+		StationFrostFit: number,
+		CrackShake: number,
+		CrackSteps: number,
+		ShatterTime: number,
+		CutFadeTime: number,
+		ShatterPop: number,
+		ShardCount: number,
+		ShardTime: number,
+		ShardSizeMin: number,
+		ShardSizeMax: number,
+		ShardSpeed: number,
+		ShardUpSpeed: number,
+		ShardGravity: number,
+		UnfreezeChunkCount: number,
 		BurstCount: number,
 		ShatterCount: number,
 		GroundOffset: number,
@@ -280,11 +329,60 @@ local Skills = {
 		-- Walk speed multiplier for the Penguin on its own ice.
 		PenguinIceSpeed = 1.15,
 		Visuals = {
-			GrowTime = 0.35, -- seconds for the circle to burst out (with overshoot)
-			CrackTime = 1, -- seconds before the end that the circle shows cracks
+			StompTime = 0.35, -- seconds for the root joint dip and recovery
+			StompDip = 0.6, -- studs of root joint dip
+			GrowTime = 0.45, -- seconds for the frost burst
+			GrowWobble = 0.12, -- relative elastic overshoot
+			FrostScale = 1.28, -- art diameter relative to the gameplay circle
+			SpikeCount = 12, -- ice spikes around the superskill circle; 0 disables them
+			SpikeClearance = 3.5, -- minimum studs from the centre
+			SpikeLean = 20, -- maximum outward lean in degrees
+			SpikeScaleMin = 0.7, -- smallest uniform spike scale
+			SpikeScaleMax = 1.5, -- largest uniform spike scale
+			SpikeSpreadTime = 0.3, -- seconds for the rise to reach the edge
+			SpikeRiseTime = 0.3, -- seconds for each spike to grow
+			SpikeBurstCount = 3, -- snow particles at each spike's base; 0 disables
+			SpikeShards = 2, -- ice chunks thrown by each spike at shatter; 0 disables
+			ShockwaveTime = 0.4, -- seconds for the ring to spread and fade
+			ShockwaveScale = 1.4, -- ring diameter relative to the frost circle
+			IdleBreathe = 0.015, -- relative circle size pulse
+			IdleBreatheSpeed = 3, -- radians per second for the circle pulse
+			FreezeFlashTime = 0.25, -- seconds for frozen highlights to settle
+			HighlightOutTime = 0.15, -- seconds for thawed highlights to fade
+			FrostCapFit = 0.9, -- cap width relative to the smaller tool footprint
+			FrostCapTime = 0.3, -- seconds for cap pop in
+			FrostCapOutTime = 0.15, -- seconds for cap shrink out
+			IceBlockPad = 0.25, -- studs around customer sides and above the head
+			IceBlockSnapTime = 0.3, -- seconds for the ice shell to snap on
+			ShiverInterval = 2, -- seconds between small shell shivers
+			ShiverTime = 0.16, -- seconds each shell shiver lasts
+			ShiverAmount = 0.08, -- studs of side-to-side shell movement
+			IceBlockOutTime = 0.22, -- seconds for the shell to crack and shrink away
+			IceBlockChunks = 5, -- chunks shed by a thawing customer shell
+			IceBlockBurstCount = 4, -- snow particles when a customer shell appears
+			BreathInterval = 1.2, -- seconds between customer breath puffs
+			GlintInterval = 0.5, -- seconds between frozen sparkles
+			CrackTime = 1, -- seconds before the end that the cracks finish showing fully
+			CrackSpread = 0.6, -- crack opacity reached by spreading over the whole freeze (the last CrackTime adds the rest)
+			StationFrostFit = 1.02, -- frost slab footprint relative to each station inside the circle (0 = none)
+			SnowfallHeight = 9, -- studs above the floor that snow starts falling from inside the circle (0 = none)
+			MeltShrink = 0.12, -- fraction of the circle's size that melts away from the rim by the end
+			CrackShake = 0.08, -- studs of final circle shiver
+			CrackSteps = 20, -- shiver poses per second
+			ShatterTime = 0.2, -- seconds for the circle to pop and fade
+			CutFadeTime = 0.12, -- seconds for a cancelled circle to fade
+			ShatterPop = 0.06, -- extra circle scale as it breaks
+			ShardCount = 10, -- flying chunks when a circle ends
+			ShardTime = 0.6, -- seconds each flying chunk remains
+			ShardSizeMin = 0.5, -- each chunk gets a random size between these (x the IceChunk template)
+			ShardSizeMax = 1.5,
+			ShardSpeed = 12, -- studs per second outward
+			ShardUpSpeed = 9, -- studs per second upward
+			ShardGravity = 30, -- studs per second squared downward
+			UnfreezeChunkCount = 3, -- chunks shed by a thawing cap
 			BurstCount = 16, -- snow puff particles on the stomp
 			ShatterCount = 20, -- ice chunks when it ends
-			GroundOffset = 0.05, -- studs the circle floats above the floor
+			GroundOffset = 0.05, -- studs the circle's top face sits above the floor (kept under the player indicator)
 		},
 	} :: DeepFreezeTuning,
 

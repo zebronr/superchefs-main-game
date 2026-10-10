@@ -8,7 +8,9 @@ local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
 
 type Route = { { PathWaypoint } }
-type Starter = { Position: Vector3, Routes: { Route } }
+-- Routes are keyed by filler name, so every client can pick the same one from the server's seed
+-- even if pathfinding failed for some filler on one client. `Keys` lists every candidate in name order.
+type Starter = { Position: Vector3, Routes: { [string]: Route }, Keys: { string } }
 
 local NPCController = {}
 local npcTemplates = ReplicatedStorage:WaitForChild("NPCs")
@@ -60,28 +62,38 @@ local function buildPaths(waypoints: Instance, token: number): ()
 		if endPoint == nil or not endPoint:IsA("BasePart") then
 			continue
 		end
-		local routes: { Route } = {}
+		local routes: { [string]: Route } = {}
+		local keys: { string } = {}
+		local found = false
 		if string.find(starter.Name, "_direct") ~= nil then
+			table.insert(keys, "")
 			local direct = calculatePath(starter.Position, endPoint.Position)
 			if direct ~= nil then
-				table.insert(routes, { direct })
+				routes[""] = { direct }
+				found = true
 			end
 		else
-			for _, filler in fillers:GetChildren() do
+			local sorted = fillers:GetChildren()
+			table.sort(sorted, function(left: Instance, right: Instance): boolean
+				return left.Name < right.Name
+			end)
+			for _, filler in sorted do
 				if token ~= generation then
 					return
 				end
 				if filler:IsA("BasePart") then
+					table.insert(keys, filler.Name)
 					local first = calculatePath(starter.Position, filler.Position)
 					local second = calculatePath(filler.Position, endPoint.Position)
 					if first ~= nil and second ~= nil then
-						table.insert(routes, { first, second })
+						routes[filler.Name] = { first, second }
+						found = true
 					end
 				end
 			end
 		end
-		if #routes > 0 then
-			built[starter.Name] = { Position = starter.Position, Routes = routes }
+		if found then
+			built[starter.Name] = { Position = starter.Position, Routes = routes, Keys = keys }
 		end
 	end
 	if token == generation and waypoints:IsDescendantOf(workspace) then
@@ -128,14 +140,19 @@ local function walkTo(humanoid: Humanoid, position: Vector3, token: number): boo
 	return finished and reached and token == generation
 end
 
-local function spawnNPC(starterName: string): ()
+local function spawnNPC(starterName: string, seed: number): ()
 	local starter = paths[starterName]
 	local choices = npcTemplates:GetChildren()
+	table.sort(choices, function(left: Instance, right: Instance): boolean
+		return left.Name < right.Name
+	end)
 	local temp = workspace:FindFirstChild("$Temp")
 	if starter == nil or #choices == 0 or temp == nil then
 		return
 	end
-	local template = choices[math.random(#choices)]
+	-- Seeded by the server so every client shows the same NPC on the same route.
+	local random = Random.new(seed)
+	local template = choices[random:NextInteger(1, #choices)]
 	if not template:IsA("Model") then
 		return
 	end
@@ -146,7 +163,22 @@ local function spawnNPC(starterName: string): ()
 		return
 	end
 	local token = generation
-	local route = starter.Routes[math.random(#starter.Routes)]
+	local key = starter.Keys[random:NextInteger(1, #starter.Keys)]
+	local route = starter.Routes[key]
+	if route == nil then
+		-- This client's pathfinding failed for that filler: fall back to the first route it has.
+		for _, candidate in starter.Keys do
+			route = starter.Routes[candidate]
+			if route ~= nil then
+				break
+			end
+		end
+	end
+	if route == nil then
+		npc:Destroy()
+		return
+	end
+	local chosen: Route = route
 	local runner = task.spawn(function(): ()
 		npc.Parent = temp
 		npc:MoveTo(starter.Position)
@@ -159,7 +191,7 @@ local function spawnNPC(starterName: string): ()
 			track:Play()
 			animation:Destroy()
 		end
-		for _, segment in route do
+		for _, segment in chosen do
 			for _, waypoint in segment do
 				if not walkTo(humanoid, waypoint.Position, token) then
 					npc:Destroy()
@@ -184,9 +216,9 @@ function NPCController.Start(_self: typeof(NPCController)): ()
 		task.defer(refreshMap, container)
 	end)
 	refreshMap(container)
-	Net.Event("Round").OnClientEvent:Connect(function(message: unknown, value: unknown): ()
+	Net.Event("Round").OnClientEvent:Connect(function(message: unknown, value: unknown, seed: unknown): ()
 		if message == "SpawnNPC" and typeof(value) == "string" then
-			spawnNPC(value)
+			spawnNPC(value, if typeof(seed) == "number" then seed else 0)
 		elseif message == "ClearNPCs" then
 			clearNPCs()
 			refreshMap(container)

@@ -14,9 +14,13 @@ export type CustomerTuning = {
 	OrderPatience: number,
 	-- Seconds a customer eats, picked at random per customer.
 	EatDuration: NumberRange,
+	-- Probability a customer runs off after eating without paying (needs EnableTableCash; 0 = never).
+	DashChance: number,
 }
 export type LevelData = {
 	EnableDirtyPlates: boolean,
+	-- Table customers leave their coins as cash on the table to pick up; off = paid when served.
+	EnableTableCash: boolean,
 	LevelDuration: number,
 	OrderDelay: number,
 	Teams: number,
@@ -57,6 +61,7 @@ local recipes: { Recipe } = {
 local level1: LevelData = {
 	-- Entry level: no sink, so served plates come back clean.
 	EnableDirtyPlates = false,
+	EnableTableCash = false,
 	LevelDuration = 180,
 	OrderDelay = 5,
 	Teams = 1,
@@ -69,6 +74,7 @@ local level1: LevelData = {
 -- Manual serve mode test level: customers sit at tables instead of using the serving window.
 local tables: LevelData = {
 	EnableDirtyPlates = true,
+	EnableTableCash = true,
 	LevelDuration = 180,
 	OrderDelay = level1.OrderDelay,
 	Teams = level1.Teams,
@@ -81,6 +87,7 @@ local tables: LevelData = {
 		MaxCustomers = 3,
 		OrderPatience = 25,
 		EatDuration = NumberRange.new(4, 9),
+		DashChance = 0.25,
 	},
 }
 

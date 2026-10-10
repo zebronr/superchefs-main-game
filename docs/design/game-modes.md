@@ -4,7 +4,7 @@ Status: **proposal.**
 
 Don't put everything in one mode, but don't launch many modes on day one either. A small player base spread across empty queues kills Roblox games.
 
-**Core (every mode):** super skills, customers at tables, tag orders mixed in with fixed recipes, cooking quality, plus the existing chop/cook/plate, fire, dirty plates, throwing and dash.
+**Core (every mode):** superskills, customers at tables, tag orders mixed in with fixed recipes, cooking quality, plus the existing chop/cook/plate, fire, dirty plates, throwing and dash.
 
 | Mode | Players | What's unique | Launch |
 |---|---|---|---|

@@ -9,7 +9,7 @@ local Trove = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("T
 local Interactable = {}
 Interactable.__index = Interactable
 
-export type Kind = "Station" | "Item"
+export type Kind = "Station" | "Item" | "Runner"
 
 export type Interactable = {
 	Instance: Instance,

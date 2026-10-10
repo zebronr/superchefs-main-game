@@ -28,6 +28,7 @@ Each `objectClass` value (listed in `Tags.Classes`; the generated tag is `Class_
 | `PlateTable` | `PlateTable_<team>` | `Stations/PlateTable` |
 | `ServingCounter` | serving window (Window mode maps) | `Stations/ServingCounter` |
 | `CustomerTable` | customer tables (child `Seat` part; Manual mode maps) | `Stations/CustomerTable` |
+| `Runner` | customer model's `HumanoidRootPart` while dashing (set by code) | `Runner` |
 | `Trash` | trash cans | `Stations/Trash` |
 | `Stove` | stoves | `Stations/Stove` |
 | `Sink` | sinks (children `WashPartMarker`, `DrainBoard`, `PlateDisplays`) | `Stations/Sink` |
@@ -53,7 +54,7 @@ Each `objectClass` value (listed in `Tags.Classes`; the generated tag is `Class_
 |-----|----------|---------|
 | `LOCKED` | `ChoppingBoard` while chopping | Station (or the item on it) can't be interacted with. |
 | `FIRELOCKED` | `FireService` while on fire | Station can't be interacted with until the fire is out. |
-| `Grabbed` | `TongueGrab` (server skill) on an item the Gecko's tongue is pulling back | Clients move the anchored item from `GrabFrom` to the grabber's mouth (`GrabByUserId`); the sphere sweeps and LOS rays ignore it, and it can't be grabbed again. |
+| `Grabbed` | `TongueGrab` (server superskill) on an item the Gecko's tongue is pulling back | Clients move the anchored item from `GrabFrom` to the grabber's mouth (`GrabByUserId`); the sphere sweeps and LOS rays ignore it, and it can't be grabbed again. |
 | `Projectile` | `ThrowService` on a flying item | Client `ProjectileController` animates it. The thrower's client predicts the flight before this tag arrives. Other in-flight items are excluded from the sweep. |
 
 ## Other tags in the place
@@ -82,20 +83,24 @@ Legacy cleanup on 2026-10-05 removed every raw class tag (131), `VISIBLE` (132),
 | Attribute | On | Meaning |
 |-----------|----|---------|
 | `interactionDisabled` | items, CustomerTable stations | Not targetable (e.g. food while being handed out). `CustomerTable` sets it when there is nothing to do at the table. |
+| `objectClass = "Runner"` | dashing customer HumanoidRootPart | Set and removed by `CustomerService` with the generated `Class_Runner` tag so the normal interaction binder can catch runners. |
 | `ChopProgress`, `WashProgress` | chopping boards, sinks | Progress bars. |
 | `ActionAnimation` | characters | Current chop/wash animation; also signals the owning client that auto-use is running, so movement or dash sends `StopUse`. |
 | `CookContent`, `CookProgress`, `CookStartedAt`, `CookedAt`, `Fire`, `Spraying` | cooking tools, stations, extinguisher | Cooking, fire and spray state. |
 | `ThrowStart`, `ThrowEnd`, `ThrowStartedAt`, `FallFrom`, `FallTo`, `FallStartedAt` | thrown items | Projectile animation. `ThrowStartedAt` is back-dated by the thrower's half-ping; the fall accelerates (`FallGravity`) from `FallFrom` to `FallTo`. |
 | `DashedAt` | characters | Dash cooldown. |
-| `CharacterModel` | characters | Name of the cloned character model (honours `Character.StudioOverride`). `Config.Skills.ByCharacter` maps it to a skill. |
+| `CharacterModel` | characters | Name of the cloned character model (honours `Character.StudioOverride`). `Config.Skills.ByCharacter` maps it to a superskill. |
 | `SkillState` | characters | nil, `"Aiming"` or `"Active"`. While set, Interact/Use/Throw/Dash are rejected (server) and skipped (client). |
-| `SkillReadyAt`, `SkillCooldown` | characters | `GetServerTimeNow` when the skill is ready again, and the cooldown's total length (HUD ring fraction). |
+| `SkillReadyAt`, `SkillCooldown` | characters | `GetServerTimeNow` when the superskill is ready again, and the cooldown's total length (HUD ring fraction). |
 | `TongueState`, `TongueStartedAt`, `TongueTip` | characters | Gecko tongue: nil, `"Extending"` or `"Retracting"`, when that phase began, and where the tongue reaches. Extending `TongueStartedAt` is backdated by up to `MaxLagCompensation` for the actor's network delay; retracting is not. Every client draws from these after the actor's local prediction hands off. |
 | `GrabFrom`, `GrabStartedAt`, `GrabByUserId` | items tagged `Grabbed` | Where the pulled item started, when the pull began, and whose tongue pulls it. |
 | `CustomCharacter`, `PlayerColor`, `Team` | players / characters | Character model, outline color, team number. |
 | `CustomerState`, `PatienceStartedAt`, `PatienceDuration`, `Recipe`, `Team` | customer models | Manual serve mode customer state for the bubble. |
+| `Cash`, `CashAt`, `CashCollectedBy`, `CashCollectedAt` | CustomerTable parts | Uncollected coins, server time last placed, collector UserId and server time collected. Cleared at round reset. |
+| `CaughtAt`, `CaughtBy` | customer models | Server time and player UserId when a dashing customer is caught. `CustomerState` also gains `Dashing` and `Caught`. |
 | `HustleUntil` | characters (Bill) | `GetServerTimeNow` when Hustle ends. Server chop/wash speed and every client's Hustle visuals read it (`SkillEffects`). |
 | `FreezeCenter`, `FreezeStartedAt`, `FreezeUntil` | characters (Penguin) | The running frost circle: centre (Vector3) and its start and end. `FreezeService`, `FireService` and every client read the circles through `SkillEffects.FreezeZones`. Cleared when it ends. |
 | `FrozenAt` | cooking tools, customer models | `GetServerTimeNow` when Deep Freeze froze it (nil when not frozen). Clients hold the progress/burn warning and patience bar at this time and tint the object. |
 | `RushStartedAt`, `RushOrigin`, `RushStops` | characters (Alien) | Order Rush chain: lag-compensated start, where the Alien stood, and the stops (`"x,y,z,yaw;x,y,z,yaw"`, radians for facing, `SkillEffects.EncodeStops`). Clients draw the afterimages from these; they draw the origin at the hidden Alien's live position (RushOrigin is a fallback, since it lags when pressed while moving). Cleared when the chain ends. |
+| `Phased` | characters (Alien) | True during Order Rush. `CharacterService` puts all current and newly added parts in the `Phased` collision group; cleared when the chain finishes or is canceled. |
 | `RoundState`, `RoundEndsAt`, `RoundDuration`, `Coins_<team>`, `ServeMode`, `LevelPath` | ReplicatedStorage | Round, coins and level info for clients. |

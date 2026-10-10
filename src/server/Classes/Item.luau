@@ -40,8 +40,9 @@ function Item.new(instance: Instance): Item
 	local threads = waiting[instance]
 	if threads then
 		waiting[instance] = nil
+		-- Deferred so a subclass constructor (DirtyPlate, Plate, ...) finishes before the waiter sees the item.
 		for _, thread in threads do
-			task.spawn(thread, self)
+			task.defer(thread, self)
 		end
 	end
 	return self

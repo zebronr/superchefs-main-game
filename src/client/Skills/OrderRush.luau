@@ -43,6 +43,8 @@ type ImageData = {
 	Root: BasePart,
 	Parts: { ImagePart },
 	FootHeight: number,
+	Indicator: BasePart?,
+	Highlight: Highlight?,
 }
 
 type Visual = {
@@ -58,10 +60,16 @@ type Visual = {
 	ImageRoot: BasePart?,
 	ImageParts: { ImagePart },
 	ImageFootHeight: number,
+	ImageIndicator: BasePart?,
+	ImageIndicatorRotation: CFrame?,
+	ImageHighlight: Highlight?,
+	ImageFillTransparency: number,
+	ImageOutlineTransparency: number,
 	ImageAtRest: boolean,
 	ImageRestIndex: number?,
 	ImageRestFrame: CFrame?,
 	ImageFade: number,
+	ImageGlow: number,
 	-- Ground height under each anchor (0 = the origin), found once.
 	Grounds: { [number]: number },
 	-- Beam landings already sparkled (0 = origin at the start, n + 1 = origin at the return).
@@ -231,6 +239,7 @@ local function makeImage(character: Model): ImageData?
 		return nil
 	end
 	local parts: { ImagePart } = {}
+	local indicator: BasePart? = nil
 	local lowest = math.huge
 	for _, descendant in clone:GetDescendants() do
 		if descendant:IsA("Script") or descendant:IsA("LocalScript") or descendant:IsA("ModuleScript") then
@@ -241,9 +250,10 @@ local function makeImage(character: Model): ImageData?
 			descendant.CanCollide = false
 			descendant.CanQuery = false
 			descendant.CanTouch = false
-			descendant.CastShadow = false
 			descendant.LocalTransparencyModifier = 0
-			if descendant ~= root then
+			if descendant.Name == "PlayerIndicator" then
+				indicator = descendant
+			elseif descendant ~= root then
 				descendant.Transparency = math.max(descendant.Transparency, visuals.AfterimageTransparency)
 				local offset = root.CFrame:ToObjectSpace(descendant.CFrame)
 				local size = descendant.Size
@@ -267,34 +277,48 @@ local function makeImage(character: Model): ImageData?
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	end
+	local imageHighlight: Highlight? = nil
 	if afterimageHighlight ~= nil then
 		local highlight = afterimageHighlight:Clone()
 		highlight.Adornee = clone
 		highlight.Parent = clone
+		imageHighlight = highlight
 	end
 	clone.Name = `{character.Name}Afterimage`
 	clone.Parent = workspace.CurrentCamera
-	return { Model = clone, Root = root, Parts = parts, FootHeight = if lowest < math.huge then math.max(-lowest, 0) else 0 }
+	return { Model = clone, Root = root, Parts = parts, FootHeight = if lowest < math.huge then math.max(-lowest, 0) else 0, Indicator = indicator, Highlight = imageHighlight }
 end
 
-local function setImageFade(visual: Visual, fade: number): ()
+local function setImageFade(visual: Visual, fade: number, glow: number): ()
 	local image = visual.Image
-	if image == nil or math.abs(visual.ImageFade - fade) < 0.01 then
+	if image == nil then
 		return
 	end
-	visual.ImageFade = fade
-	for _, descendant in image:GetDescendants() do
-		if descendant:IsA("BasePart") then
-			descendant.LocalTransparencyModifier = fade
-		elseif descendant:IsA("Decal") then
-			descendant.LocalTransparencyModifier = fade
-		elseif descendant:IsA("Highlight") then
-			descendant.FillTransparency = 0.5 + 0.5 * fade
-			descendant.OutlineTransparency = fade
-		elseif descendant:IsA("SurfaceGui") then
-			-- The "you" ring ignores LocalTransparencyModifier, so it goes with the copy.
-			descendant.Enabled = fade < 0.5
+	local fadeChanged = math.abs(visual.ImageFade - fade) >= 0.01
+	local glowChanged = math.abs(visual.ImageGlow - glow) >= 0.01
+	if not fadeChanged and not glowChanged then
+		return
+	end
+	if fadeChanged then
+		visual.ImageFade = fade
+		for _, descendant in image:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				descendant.LocalTransparencyModifier = fade
+			elseif descendant:IsA("Decal") then
+				descendant.LocalTransparencyModifier = fade
+			elseif descendant:IsA("SurfaceGui") then
+				-- The "you" ring ignores LocalTransparencyModifier, so it goes with the copy.
+				descendant.Enabled = fade < 0.5
+			end
 		end
+	end
+	if glowChanged then
+		visual.ImageGlow = glow
+	end
+	local highlight = visual.ImageHighlight
+	if highlight ~= nil then
+		highlight.FillTransparency = 1 - (1 - visual.ImageFillTransparency) * glow * (1 - fade)
+		highlight.OutlineTransparency = 1 - (1 - visual.ImageOutlineTransparency) * glow * (1 - fade)
 	end
 end
 
@@ -323,21 +347,25 @@ end
 
 -- Places the Alien copy `rise` of the way from its spot at an anchor up into the UFO (0 = standing,
 -- 1 = inside). Parts stretch and glitch independently; nil hides the copy.
-local function drawImage(visual: Visual, index: number, rise: number?, ufoPosition: Vector3, now: number, landElapsed: number?): ()
+local function drawImage(visual: Visual, index: number, rise: number?, glow: number, ufoPosition: Vector3, now: number, landElapsed: number?): ()
 	local image = visual.Image
 	local root = visual.ImageRoot
 	if image == nil or root == nil then
 		return
 	end
 	if rise == nil then
-		setImageFade(visual, 1)
+		setImageFade(visual, 1, glow)
 		return
 	end
 	local landing = landElapsed ~= nil and visuals.ImageLandTime > 0 and landElapsed >= 0 and landElapsed < visuals.ImageLandTime
 	local atRest = rise == 0 and not landing
 	local stand = standAt(visual.Chain, index)
+	local indicator = visual.ImageIndicator
+	if indicator ~= nil then
+		indicator.CFrame = CFrame.new(stand.Position.X, groundAt(visual, index) + indicator.Size.Y / 2 + Config.UI.IndicatorFloorLift, stand.Position.Z) * (visual.ImageIndicatorRotation :: CFrame)
+	end
 	if atRest and visual.ImageAtRest and visual.ImageRestIndex == index and visual.ImageRestFrame == stand then
-		setImageFade(visual, 0)
+		setImageFade(visual, 0, glow)
 		return
 	end
 	local top = ufoPosition - Vector3.new(0, visuals.BeamTopOffset, 0)
@@ -386,7 +414,7 @@ local function drawImage(visual: Visual, index: number, rise: number?, ufoPositi
 	visual.ImageAtRest = atRest
 	visual.ImageRestIndex = if visual.ImageAtRest then index else nil
 	visual.ImageRestFrame = if visual.ImageAtRest then stand else nil
-	setImageFade(visual, math.clamp((rise - 0.8) / 0.2, 0, 1))
+	setImageFade(visual, math.clamp((rise - 0.8) / 0.2, 0, 1), glow)
 end
 
 -- Stretches the beam `reach` of the way from under the UFO down to the ground (0 hides it).
@@ -476,7 +504,6 @@ end
 -- server's version draw the same thing and the handoff is seamless.
 local function drawChain(visual: Visual, now: number): ()
 	local chain = visual.Chain
-	InstantSkill.SetHidden(chain.Character, true)
 	local elapsed = now - chain.StartedAt
 	local count = #chain.Stops
 	local step = RushConfig.StepTime
@@ -492,29 +519,38 @@ local function drawChain(visual: Visual, now: number): ()
 		local dropTime = RushConfig.VanishTime * visuals.VanishDropShare
 		local riseTime = RushConfig.VanishTime * visuals.VanishRiseShare
 		local drawn = drawUfo(visual, position, velocity, now, if elapsed >= dropTime then elapsed - dropTime else nil)
-		drawBeam(visual, drawn, groundAt(visual, 0), beamShoot(elapsed - dropTime), now, elapsed - dropTime - visuals.BeamTime)
+		local reach = beamShoot(elapsed - dropTime)
+		drawBeam(visual, drawn, groundAt(visual, 0), reach, now, elapsed - dropTime - visuals.BeamTime)
 		if elapsed >= dropTime then
 			land(visual, 0, 0)
 		end
-		drawImage(visual, 0, math.clamp((elapsed - (RushConfig.VanishTime - riseTime)) / riseTime, 0, 1), drawn, now, nil)
-	elseif elapsed < returnAt then
+		-- The real Alien stays until the beam reaches the ground (or the rise starts), then the copy takes its place.
+		local beamed = elapsed >= math.min(dropTime + visuals.BeamTime, RushConfig.VanishTime - riseTime)
+		InstantSkill.SetHidden(chain.Character, beamed)
+		local rise = if beamed then math.clamp((elapsed - (RushConfig.VanishTime - riseTime)) / riseTime, 0, 1) else nil
+		drawImage(visual, 0, rise, reach, drawn, now, nil)
+		return
+	end
+	InstantSkill.SetHidden(chain.Character, true)
+	if elapsed < returnAt then
 		-- Customer `index`: fly over, beam the copy down beside them, let it stand, beam it back up.
 		local index = math.clamp(math.floor((elapsed - RushConfig.VanishTime) / step) + 1, 1, count)
 		local within = elapsed - SkillEffects.RushStopTime(index)
 		if within < fly then
 			local drawn = drawUfo(visual, position, velocity, now, nil)
 			drawBeam(visual, drawn, groundAt(visual, index - 1), beamRetract(within), now)
-			drawImage(visual, index, nil, drawn, now, nil)
+			drawImage(visual, index, nil, 0, drawn, now, nil)
 		else
 			local drawn = drawUfo(visual, position, velocity, now, within - fly)
 			local beamElapsed = within - fly
-			drawBeam(visual, drawn, groundAt(visual, index), beamShoot(beamElapsed), now, beamElapsed - visuals.BeamTime)
+			local reach = beamShoot(beamElapsed)
+			drawBeam(visual, drawn, groundAt(visual, index), reach, now, beamElapsed - visuals.BeamTime)
 			if beamElapsed >= downTime then
 				land(visual, index, index)
 			end
 			local down = 1 - expoOut(beamElapsed / downTime)
 			local rise = math.clamp((within - (step - up)) / up, 0, 1)
-			drawImage(visual, index, math.max(down, rise), drawn, now, beamElapsed - downTime)
+			drawImage(visual, index, math.max(down, rise), reach, drawn, now, beamElapsed - downTime)
 		end
 	else
 		-- Back over the start and beam the Alien down; the copy stands there until the real Alien returns.
@@ -524,15 +560,16 @@ local function drawChain(visual: Visual, now: number): ()
 		if within < flyBack then
 			local drawn = drawUfo(visual, position, velocity, now, nil)
 			drawBeam(visual, drawn, groundAt(visual, count), beamRetract(within), now)
-			drawImage(visual, 0, nil, drawn, now, nil)
+			drawImage(visual, 0, nil, 0, drawn, now, nil)
 		else
 			local drawn = drawUfo(visual, position, velocity, now, within - flyBack)
 			local beamElapsed = within - flyBack
-			drawBeam(visual, drawn, groundAt(visual, 0), beamShoot(beamElapsed), now, beamElapsed - visuals.BeamTime)
+			local reach = beamShoot(beamElapsed)
+			drawBeam(visual, drawn, groundAt(visual, 0), reach, now, beamElapsed - visuals.BeamTime)
 			if beamElapsed >= downBack then
 				land(visual, count + 1, 0)
 			end
-			drawImage(visual, 0, 1 - expoOut(beamElapsed / downBack), drawn, now, beamElapsed - downBack)
+			drawImage(visual, 0, 1 - expoOut(beamElapsed / downBack), reach, drawn, now, beamElapsed - downBack)
 		end
 	end
 end
@@ -566,8 +603,9 @@ local function drawExit(visual: Visual, now: number): ()
 	local chain = visual.Chain
 	local position = ufoPathAt(chain, SkillEffects.RushDuration(#chain.Stops)) + Vector3.new(0, visuals.UfoEnterHeight * t ^ 4, 0)
 	local drawn = drawUfo(visual, position, Vector3.zero, now, nil)
-	drawBeam(visual, drawn, groundAt(visual, 0), beamRetract(x), now)
-	drawImage(visual, 0, nil, drawn, now, nil)
+	local reach = beamRetract(x)
+	drawBeam(visual, drawn, groundAt(visual, 0), reach, now)
+	drawImage(visual, 0, nil, reach, drawn, now, nil)
 	local ufo = visual.Ufo
 	if ufo ~= nil and t > 0.5 then
 		for _, part in ufoParts(ufo) do
@@ -602,10 +640,16 @@ local function newVisual(chain: Chain): Visual
 		ImageRoot = if image ~= nil then image.Root else nil,
 		ImageParts = if image ~= nil then image.Parts else {},
 		ImageFootHeight = if image ~= nil then image.FootHeight else 0,
+		ImageIndicator = if image ~= nil then image.Indicator else nil,
+		ImageIndicatorRotation = if image ~= nil and image.Indicator ~= nil then image.Indicator.CFrame.Rotation else nil,
+		ImageHighlight = if image ~= nil then image.Highlight else nil,
+		ImageFillTransparency = if image ~= nil and image.Highlight ~= nil then image.Highlight.FillTransparency else 1,
+		ImageOutlineTransparency = if image ~= nil and image.Highlight ~= nil then image.Highlight.OutlineTransparency else 1,
 		ImageAtRest = false,
 		ImageRestIndex = nil,
 		ImageRestFrame = nil,
 		ImageFade = -1,
+		ImageGlow = -1,
 		Grounds = {},
 		Landed = {},
 		ExitStartedAt = nil,

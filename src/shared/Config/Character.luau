@@ -10,6 +10,9 @@ Character.CharacterModels = {
 	zebronr = "Gecko",
 } :: { [string]: string }
 Character.DefaultCharacterModel = "Bill"
+Character.CollisionGroup = "Character"
+-- Registered in Studio; avoids characters, customers, pickups and afterimages during Order Rush.
+Character.PhasedCollisionGroup = "Phased"
 -- In Studio every player gets this character model, whatever the name mapping says. Set nil to use the mapping. Ignored on live servers.
 Character.StudioOverride = "Gecko" :: string?
 Character.Colors = {

@@ -13,13 +13,19 @@ local FreezeConfig = Config.Skills.DeepFreeze
 local SkillEffects = require(Shared:WaitForChild("Util"):WaitForChild("SkillEffects"))
 local Tags = require(Shared:WaitForChild("Tags"))
 
--- Applies the Penguin's frost circles: cooking tools and customers inside one are frozen, and thaw
--- when they leave it or it ends. Fire spread checks the circles itself (FireService).
+-- Applies the Penguin's frost circles: cooking tools inside one are frozen, and customers inside it
+-- when it is cast. Each thaws when it leaves the circle or the circle ends. Fire spread checks the circles itself (FireService).
 local FreezeService = {}
 
 -- Typed loosely: the CookingTool method types do not unify through the binder's Interactable type.
 local frozenTools: { [any]: true } = {}
 local frozenCustomers: { [Model]: true } = {}
+-- Circles already seen, keyed by owner and start time; customers who walk in later are not caught.
+local seenZones: { [string]: true } = {}
+
+local function zoneKey(zone: SkillEffects.Zone): string
+	return zone.Owner:GetFullName() .. "@" .. tostring(zone.StartedAt)
+end
 
 local function positionOf(instance: Instance): Vector3?
 	if instance:IsA("BasePart") then
@@ -58,12 +64,23 @@ local function scanTools(zones: { SkillEffects.Zone }): ()
 end
 
 local function scanCustomers(zones: { SkillEffects.Zone }): ()
-	if #zones > 0 then
-		for _, model in CustomerService.GetModels() do
-			if frozenCustomers[model] == nil and inside(model, zones) then
-				frozenCustomers[model] = true
-				CustomerService.SetFrozen(model, true)
+	local running: { [string]: true } = {}
+	for _, zone in zones do
+		local key = zoneKey(zone)
+		running[key] = true
+		if seenZones[key] == nil then
+			seenZones[key] = true
+			for _, model in CustomerService.GetModels() do
+				if frozenCustomers[model] == nil and inside(model, { zone }) then
+					frozenCustomers[model] = true
+					CustomerService.SetFrozen(model, true)
+				end
 			end
+		end
+	end
+	for key in table.clone(seenZones) do
+		if running[key] == nil then
+			seenZones[key] = nil
 		end
 	end
 	for model in table.clone(frozenCustomers) do

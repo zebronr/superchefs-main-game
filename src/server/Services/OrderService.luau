@@ -122,16 +122,19 @@ local function runSequence(team: number, sequence: string, delaySeconds: number,
 	return delaySeconds
 end
 
--- Effects and coins for a delivered order, shared by the serving window and manual tables.
-local function payOrder(team: number, counter: Instance): ()
-	Net.Event("Effect"):FireAllClients("OrderFinish", counter)
-	local amount = Levels.GetCurrent().CoinsPerOrder
+-- Credits a team when payment is actually collected.
+function OrderService.Pay(team: number, amount: number, _at: Instance): ()
 	local attribute = `Coins_{team}`
 	local coins = ReplicatedStorage:GetAttribute(attribute)
 	ReplicatedStorage:SetAttribute(attribute, (if typeof(coins) == "number" then coins else 0) + amount)
 	for _, member in TeamService.GetPlayers(team) do
 		Net.Event("Effect"):FireClient(member, "CoinNotif", amount)
 	end
+end
+
+local function payOrder(team: number, counter: Instance): ()
+	Net.Event("Effect"):FireAllClients("OrderFinish", counter)
+	OrderService.Pay(team, Levels.GetCurrent().CoinsPerOrder, counter)
 end
 
 function OrderService.StartRound(teamCount: number, generation: number): ()
@@ -220,7 +223,7 @@ function OrderService.Resume(team: number, number: number): ()
 	sendTeam(team, "UpdateOrder", data)
 end
 
-function OrderService.Close(team: number, number: number, success: boolean, counter: Instance): ()
+function OrderService.Close(team: number, number: number, success: boolean, counter: Instance, pay: boolean?): ()
 	local teamOrders = orders[team]
 	local entry = if teamOrders ~= nil then teamOrders[number] else nil
 	if teamOrders == nil or entry == nil then
@@ -233,7 +236,11 @@ function OrderService.Close(team: number, number: number, success: boolean, coun
 	teamOrders[number] = nil
 	if success then
 		sendTeam(team, "CompleteOrder", number)
-		payOrder(team, counter)
+		if pay == false then
+			Net.Event("Effect"):FireAllClients("OrderFinish", counter)
+		else
+			payOrder(team, counter)
+		end
 	else
 		sendTeam(team, "ExpireOrder", number)
 	end

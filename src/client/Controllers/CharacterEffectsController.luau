@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
@@ -17,6 +18,24 @@ local highlightAssets = assets:WaitForChild("Highlights")
 local warnedSounds: { [string]: boolean } = {}
 local watchers: { [Player]: { RBXScriptConnection } } = {}
 local playerConnections: { [Player]: RBXScriptConnection } = {}
+local characterRemovingConnections: { [Player]: RBXScriptConnection } = {}
+local indicatorRay = RaycastParams.new()
+indicatorRay.FilterType = Enum.RaycastFilterType.Exclude
+indicatorRay.CollisionGroup = CharacterConfig.CollisionGroup
+
+local function refreshIndicatorFilter(): ()
+	local excluded: { Instance } = {}
+	local camera = workspace.CurrentCamera
+	if camera ~= nil then
+		table.insert(excluded, camera)
+	end
+	for _, player in Players:GetPlayers() do
+		if player.Character ~= nil then
+			table.insert(excluded, player.Character)
+		end
+	end
+	indicatorRay.FilterDescendantsInstances = excluded
+end
 
 local function dashTrail(character: Model): ()
 	local root = character:FindFirstChild("HumanoidRootPart")
@@ -109,6 +128,7 @@ local function watchCharacter(player: Player, character: Model): ()
 	end
 	connections = {}
 	watchers[player] = connections
+	refreshIndicatorFilter()
 	local highlight: Highlight? = nil
 	local indicator: BasePart? = nil
 	local function refresh(): ()
@@ -138,12 +158,28 @@ local function watchCharacter(player: Player, character: Model): ()
 					image.ImageColor3 = color
 				end
 				clone.Position = root.Position - Vector3.new(0, 3, 0)
+				clone.Anchored = true
+				clone.CanCollide = false
+				clone.CanQuery = false
+				clone.CanTouch = false
 				clone.Parent = character
 				indicator = clone
-				local weld = Instance.new("WeldConstraint")
-				weld.Part0 = root
-				weld.Part1 = clone
-				weld.Parent = root
+				local rotation = clone.CFrame.Rotation
+				local lastCamera = workspace.CurrentCamera
+				table.insert(connections, RunService.RenderStepped:Connect(function(): ()
+					if workspace.CurrentCamera ~= lastCamera then
+						lastCamera = workspace.CurrentCamera
+						refreshIndicatorFilter()
+					end
+					local hit = workspace:Raycast(root.Position, Vector3.new(0, -Config.UI.IndicatorFloorRayLength, 0), indicatorRay)
+					local ring = clone:FindFirstChild("SurfaceGui")
+					if ring ~= nil and ring:IsA("SurfaceGui") then
+						ring.Enabled = hit ~= nil and clone.LocalTransparencyModifier < 0.5
+					end
+					if hit ~= nil then
+						clone.CFrame = CFrame.new(root.Position.X, hit.Position.Y + clone.Size.Y / 2 + Config.UI.IndicatorFloorLift, root.Position.Z) * rotation
+					end
+				end))
 			end
 		end
 		if indicator then
@@ -161,6 +197,7 @@ local function watchCharacter(player: Player, character: Model): ()
 		end
 	end))
 	table.insert(connections, character.Destroying:Connect(function(): ()
+		task.defer(refreshIndicatorFilter)
 		for _, connection in connections do
 			connection:Disconnect()
 		end
@@ -178,6 +215,9 @@ local function watchPlayer(player: Player): ()
 	playerConnections[player] = player.CharacterAdded:Connect(function(character: Model): ()
 		watchCharacter(player, character)
 	end)
+	characterRemovingConnections[player] = player.CharacterRemoving:Connect(function(): ()
+		task.defer(refreshIndicatorFilter)
+	end)
 	if player.Character then
 		watchCharacter(player, player.Character :: Model)
 	end
@@ -193,10 +233,16 @@ function CharacterEffectsController.Start(_self: typeof(CharacterEffectsControll
 	end)
 	Players.PlayerAdded:Connect(watchPlayer)
 	Players.PlayerRemoving:Connect(function(player: Player): ()
+		task.defer(refreshIndicatorFilter)
 		local playerConnection = playerConnections[player]
 		if playerConnection then
 			playerConnection:Disconnect()
 			playerConnections[player] = nil
+		end
+		local removingConnection = characterRemovingConnections[player]
+		if removingConnection then
+			removingConnection:Disconnect()
+			characterRemovingConnections[player] = nil
 		end
 		local connections = watchers[player]
 		if connections then
