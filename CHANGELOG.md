@@ -4,6 +4,10 @@ Versions are git tags (`vMAJOR.MINOR.PATCH`). The rules are in `docs/VERSIONING.
 
 ## Unreleased
 
+## 0.6.1: Tablet controls (2026-10-13)
+
+- Tablets (iPad): the touch buttons keep their shape and size instead of stretching over the timer and coins, and the timer, coins and order row scale down to fit squarer screens.
+
 ## 0.6.0: Superskills and the demo kitchen (2026-10-13)
 
 - New loading screen: the level's order ticket swings in with today's menu and any new mechanic, a chef list shows who is ready and chef tips rotate. The game waits on a gray Roblox-style screen with the START button until the host presses it; the logo spins for 2 seconds, then the loading screen slides in, the map loads with a smooth burger-stack progress bar, and the round starts by itself once every chef has loaded, with the bar filling to 100% before the screen slides away. The HUD stays hidden until then.

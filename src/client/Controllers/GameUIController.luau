@@ -182,7 +182,7 @@ local function showCoinNotif(amount: number): ()
 	task.delay(landDelay(), floatCoinNotif, amount)
 end
 
--- Coins and timer: bottom-right on PC, bottom-centre on touch screens, scaled with the screen height.
+-- Coins and timer: bottom-right on PC, bottom-centre on touch screens, scaled with the screen (height, or width if smaller).
 local function placeHud(): ()
 	local tuning = Config.UI.Hud
 	-- Same rule as MobileControls (InputController): a touch screen gets the touch layout, keyboard or not.
@@ -191,7 +191,9 @@ local function placeHud(): ()
 	infoFrame.AnchorPoint = if touch then tuning.TouchAnchor else tuning.DesktopAnchor
 	local camera = workspace.CurrentCamera
 	if camera ~= nil then
-		hudScale.Scale = camera.ViewportSize.Y / tuning.DesignHeight * (if touch then tuning.TouchScale else tuning.DesktopScale)
+		local viewport = camera.ViewportSize
+		hudScale.Scale = math.min(viewport.Y / tuning.DesignHeight, viewport.X / tuning.DesignWidth)
+			* (if touch then tuning.TouchScale else tuning.DesktopScale)
 	end
 end
 

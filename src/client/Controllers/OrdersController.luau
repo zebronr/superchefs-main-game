@@ -661,7 +661,9 @@ local function step(dt: number): ()
 	local touch = UserInputService.TouchEnabled
 	local camera = workspace.CurrentCamera
 	if camera ~= nil then
-		listScale.Scale = camera.ViewportSize.Y / tuning.DesignHeight * (if touch then tuning.TouchScale else tuning.DesktopScale)
+		local viewport = camera.ViewportSize
+		listScale.Scale = math.min(viewport.Y / tuning.DesignHeight, viewport.X / tuning.DesignWidth)
+			* (if touch then tuning.TouchScale else tuning.DesktopScale)
 	end
 	local clock = os.clock()
 	local oldest: number? = nil

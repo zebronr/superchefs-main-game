@@ -264,6 +264,19 @@ local function bindMobile(): ()
 	if not UserInputService.TouchEnabled then
 		return
 	end
+	-- The arc keeps its shape on every screen (see Config.UI.MobileArc).
+	local arc = gui:FindFirstChild("Arc")
+	if arc ~= nil and arc:IsA("GuiObject") then
+		local arcFrame = arc
+		local function sizeArc(): ()
+			local tuning = Config.UI.MobileArc
+			local screen = mobileGui.AbsoluteSize
+			local height = math.min(screen.Y * tuning.Height, screen.X * tuning.MaxWidth / tuning.Aspect)
+			arcFrame.Size = UDim2.fromOffset(height * tuning.Aspect, height)
+		end
+		sizeArc()
+		mobileGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(sizeArc)
+	end
 	-- Buttons can sit anywhere under the GUI (the thumb arc keeps them in a layout frame).
 	local interactButton = gui:FindFirstChild("Interact", true)
 	local useButton = gui:FindFirstChild("Use", true)

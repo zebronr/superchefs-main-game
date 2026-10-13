@@ -26,6 +26,14 @@ local UI = {
 		PopScale = 1.15, -- peak size when it comes off cooldown
 		PopTime = 0.25, -- seconds of that pop
 	},
+	-- The touch button arc (MobileControls.Arc, bottom-right). Its buttons are laid out in scale inside it, so code
+	-- sizes it with a fixed shape: Height of the screen height, but never wider than MaxWidth of the screen width
+	-- (a tablet's squarer screen would otherwise blow it up over the HUD).
+	MobileArc = {
+		Aspect = 1.224, -- width / height the buttons inside were laid out for
+		Height = 0.528,
+		MaxWidth = 0.36,
+	},
 	-- The mobile interact button's label (MobileControls Interact.Face.Label), picked from what's held and targeted
 	-- (InputController). Only a hint; the server still decides what the press does.
 	InteractLabels = {
@@ -125,6 +133,7 @@ local UI = {
 	-- Sizes are pixels at DesignHeight; the row scales with the screen height. All motion is client cosmetic.
 	Orders = {
 		DesignHeight = 720, -- screen height the sizes below are drawn for
+		DesignWidth = 1280, -- on a squarer screen (a tablet) the row scales with the width instead, if that's smaller
 		DesktopScale = 0.8, -- extra scale on PC
 		TouchScale = 1.1, -- extra scale on touch screens (small, short screens)
 		PlateSize = 92,
@@ -335,9 +344,11 @@ local UI = {
 		SmokeColors = { Color3.fromRGB(125, 125, 133), Color3.fromRGB(80, 80, 88) },
 	},
 	-- Coins and timer (GameInfo.InfoFrame): bottom-right on PC, bottom-centre on touch screens (clear of the
-	-- controls). InfoFrame is laid out in pixels at DesignHeight and scales with the screen height.
+	-- controls). InfoFrame is laid out in pixels at DesignHeight and scales with the screen height, or with the width
+	-- on a squarer screen (a tablet) when that's smaller.
 	Hud = {
 		DesignHeight = 720,
+		DesignWidth = 1280,
 		DesktopScale = 0.85,
 		TouchScale = 1.2,
 		DesktopPosition = UDim2.new(1, -20, 1, -19),
