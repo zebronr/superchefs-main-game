@@ -2,6 +2,12 @@
 
 Work that is deliberately left out of the refactor, but must be done before release.
 
+## Re-answer the content maturity questionnaire
+
+Before the public release (and again before any release that adds new content), re-answer Roblox's content maturity
+questionnaire for the game on the Creator Dashboard, so the rating matches what the game has now. Added 2026-10-13 at
+the user's request.
+
 ## Waiting-for-players screen before the round starts
 
 Do this once the lobby place is connected to the main game, when players teleport in.
