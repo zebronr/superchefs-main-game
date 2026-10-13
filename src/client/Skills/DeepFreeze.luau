@@ -8,6 +8,7 @@ local SoundService = game:GetService("SoundService")
 
 local SpeedController = require(script.Parent.Parent.Controllers.SpeedController)
 local InstantSkill = require(script.Parent.InstantSkill)
+local Particles = require(script.Parent.Parent.Util.Particles)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -203,7 +204,7 @@ local function stepStomps(now: number): ()
 			stomps[character] = nil
 		else
 			local dip = if t < 0.22 then expoOut(t / 0.22) else 1 - elastic((t - 0.22) / 0.78, 0.22)
-			stomp.Joint.C0 = stomp.Original * CFrame.new(0, -visuals.StompDip * dip, 0)
+			stomp.Joint.C0 = CFrame.new(0, -visuals.StompDip * dip, 0) * stomp.Original
 		end
 	end
 end
@@ -355,7 +356,7 @@ local function addCircle(zone: SkillEffects.Zone, now: number): Circle
 		circle.Part = part
 		if mistTemplate ~= nil then
 			local mist = mistTemplate:Clone()
-			mist.Enabled = true
+			mist.Enabled = false
 			mist.Parent = part
 			table.insert(circle.Emitters, mist)
 		end
@@ -373,7 +374,7 @@ local function addCircle(zone: SkillEffects.Zone, now: number): Circle
 		sky.Size = Vector3.new(diameter, 0.05, diameter)
 		sky.CFrame = CFrame.new(floor + Vector3.new(0, visuals.SnowfallHeight, 0))
 		local snowfall = snowfallTemplate:Clone()
-		snowfall.Enabled = true
+		snowfall.Enabled = false
 		snowfall.Parent = sky
 		table.insert(circle.Emitters, snowfall)
 		sky.Parent = workspace
@@ -577,7 +578,11 @@ local function drawCircle(circle: Circle, now: number): ()
 		glow.OutlineTransparency = circle.GlowOutline + (1 - circle.GlowOutline) * glowFade
 	end
 	for _, emitter in circle.Emitters do
-		emitter.Enabled = circle.EndAt == nil
+		if circle.EndAt == nil then
+			Particles.Stream(emitter)
+		else
+			Particles.Stop(emitter)
+		end
 	end
 	drawStationFrosts(circle, now, if circle.EndAt ~= nil then (if fadeTime > 0 then quartIn(math.clamp(endAge / fadeTime, 0, 1)) else 1) else 0)
 	local wave = circle.Shockwave
@@ -942,7 +947,8 @@ local function stepIce(dt: number): ()
 	local zone = SkillEffects.ZoneAt(root.Position, currentZones(workspace:GetServerTimeNow()))
 	local own = zone ~= nil and zone.Owner == character
 	SpeedController.SetMultiplier("Ice", if own then FreezeConfig.PenguinIceSpeed else nil)
-	if zone == nil or own or not FreezeConfig.IceFloor or SpeedController.IsRooted() then
+	-- Sturdy characters (the Bear) don't slide.
+	if zone == nil or own or not FreezeConfig.IceFloor or SpeedController.IsRooted() or SkillEffects.Sturdy(character) then
 		slide = humanoid.MoveDirection
 		return
 	end

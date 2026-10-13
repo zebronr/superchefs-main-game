@@ -54,7 +54,8 @@ function ServingCounter.Handle(self: ServingCounter, player: Player, held: Item.
 		return true
 	end
 
-	if held ~= nil and Tags.ClassOf(held.Instance) == Tags.Food and string.sub(held.Instance.Name, 1, 8) == "chopped_" then
+	-- Any food in hand (a slice, or a burger or sandwich put together without a plate) needs a plate to be served.
+	if held ~= nil and Tags.ClassOf(held.Instance) == Tags.Food then
 		EffectService.Notify(player, self.Instance, "NEEDS PLATE!")
 		return false
 	end

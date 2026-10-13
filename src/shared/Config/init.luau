@@ -4,9 +4,11 @@
 -- Children must never require this module.
 
 local Character = require(script:WaitForChild("Character"))
+local CinematicCamera = require(script:WaitForChild("CinematicCamera"))
 local Customers = require(script:WaitForChild("Customers"))
 local Interaction = require(script:WaitForChild("Interaction"))
 local Levels = require(script:WaitForChild("Levels"))
+local Loading = require(script:WaitForChild("Loading"))
 local Preload = require(script:WaitForChild("Preload"))
 local Recipes = require(script:WaitForChild("Recipes"))
 local Round = require(script:WaitForChild("Round"))
@@ -23,12 +25,15 @@ export type TongueGrabTuning = Skills.TongueGrabTuning
 export type HustleTuning = Skills.HustleTuning
 export type DeepFreezeTuning = Skills.DeepFreezeTuning
 export type OrderRushTuning = Skills.OrderRushTuning
+export type BearTossTuning = Skills.BearTossTuning
 
 local Config = {
 	Character = Character,
+	CinematicCamera = CinematicCamera,
 	Customers = Customers,
 	Interaction = Interaction,
 	Levels = Levels,
+	Loading = Loading,
 	Preload = Preload,
 	Recipes = Recipes,
 	Round = Round,

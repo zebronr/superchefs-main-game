@@ -24,6 +24,41 @@ Interaction.AutoUse = {
 	MoveTolerance = 2,
 }
 
+-- Station items rest on their surface through a WeldConstraint of this name (Slot.WeldOnTop); clients read it to see
+-- what lies on a station.
+Interaction.SlotWeldName = "objectTopWelder"
+
+-- Action tools: the tool each action animation puts in the hand (ReplicatedStorage.Assets.Tools.<name>, a BasePart
+-- with a `Grip` Attachment where the hand holds it). Every client shows them for every character from the
+-- character's ActionAnimation attribute; the local player's own shows at once when it predicts the action.
+Interaction.ActionTools = {
+	Chop = "Cleaver",
+} :: { [string]: string }
+Interaction.ToolHand = "Right Arm"
+Interaction.ToolHandAttachment = "RightGripAttachment"
+Interaction.ToolPopTime = 0.14 -- seconds the tool grows into the hand, with an overshoot
+Interaction.ToolPopOvershoot = 1.6
+Interaction.ToolHideTime = 0.08 -- seconds it shrinks away when put down
+-- A predicted action (or stop) the server hasn't matched within this many seconds rolls back to the server's.
+Interaction.ActionPredictTimeout = 0.8
+-- Catching a dine-and-dasher: Interact on a runner swings a bat, and the catch only lands when the bonk does (after
+-- WindTime + SlamTime) if the runner is still within HitRange. The server stamps the swing on the character as
+-- Attribute (server time, lag-compensated); every client renders the bat from it and the swinger predicts it at once.
+-- The swinger's arm plays Animation (looped) for the swing. Angles turn the tool about the hand's X axis: 0 points it
+-- straight ahead of the hanging arm, 90 straight up.
+Interaction.CatchSwing = {
+	Tool = "Bat",
+	Attribute = "CatchSwingAt",
+	Animation = "Chop", -- temporary, until a swing animation exists
+	HitRange = 9, -- studs from the swinger's root to the runner's root when the bonk lands
+	MaxLagCompensation = 0.2,
+	WindTime = 0.12, -- seconds to raise the bat while it pops in
+	WindAngle = 115,
+	SlamTime = 0.07, -- seconds of the bonk down
+	HitAngle = -35,
+	HoldTime = 0.3, -- seconds it rests after the hit before shrinking away
+}
+
 -- Carrying
 Interaction.CarryDistance = 2
 Interaction.DropReenableDelay = 0.5
@@ -36,10 +71,18 @@ Interaction.ChopDelay = 0.3
 Interaction.UseTimeoutMargin = 0.2
 Interaction.ChopAnimationId = "rbxassetid://74695809221721"
 Interaction.ChopProgressAttribute = "ChopProgress"
+-- Set on a food made by combining off a plate (Recipes.NoPlate), so the client doesn't try to chop it.
+Interaction.CombinedAttribute = "Combined"
 Interaction.ActionAnimationAttribute = "ActionAnimation"
 
 -- Washing
 Interaction.WashRate = 75
+-- Studs the drain board counts as closer than it is when you Interact at a sink without dirty plates in hand, so
+-- grabbing clean plates works from most of the sink instead of only right at the drain board.
+Interaction.DrainBoardReach = 4
+-- The same the other way: studs the washing end counts as closer when you Interact holding dirty plates, so dropping
+-- them in the water works from most of the sink.
+Interaction.WashReach = 4
 Interaction.MaxDisplayedDirtyPlates = 3
 Interaction.WashProgressAttribute = "WashProgress"
 Interaction.WashAnimationId = "rbxassetid://77309393012974"

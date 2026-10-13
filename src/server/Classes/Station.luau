@@ -18,6 +18,8 @@ export type Station = Interactable.Interactable & {
 	Slot: Slot.Slot,
 	Handle: (self: Station, player: Player, held: Item.Item?) -> boolean,
 	Receive: (self: Station, item: Item.Item) -> boolean,
+	PlaceDefault: (self: Station, item: Item.Item) -> boolean,
+	Preloaded: (self: Station, item: Item.Item) -> (),
 	IsLocked: (self: Station) -> boolean,
 }
 
@@ -51,7 +53,12 @@ function Station.IsLocked(self: Station): boolean
 		return true
 	end
 	local onTop = self.Slot:Get()
-	return onTop ~= nil and CollectionService:HasTag(onTop.Instance, Tags.Locked)
+	-- Whatever sits on top is locked too while it's on fire (a burning pot can't be taken off the stove).
+	return onTop ~= nil
+		and (
+			CollectionService:HasTag(onTop.Instance, Tags.Locked)
+			or CollectionService:HasTag(onTop.Instance, Tags.FireLocked)
+		)
 end
 
 function Station.Handle(_self: Station, _player: Player, _held: Item.Item?): boolean
@@ -61,6 +68,14 @@ end
 function Station.Receive(_self: Station, _item: Item.Item): boolean
 	return false
 end
+
+-- Where the map's default items (DefObjectOnTop) go; a station with its own storage overrides it.
+function Station.PlaceDefault(self: Station, item: Item.Item): boolean
+	return self.Slot:Place(item)
+end
+
+-- The map placed a default item straight into the slot (no Handle or Receive ran).
+function Station.Preloaded(_self: Station, _item: Item.Item): () end
 
 function Station.Interact(self: Station, player: Player, held: Interactable.Interactable?): boolean
 	if self:IsLocked() then

@@ -17,6 +17,13 @@ export type InstantSkill = {
 	Rollback: () -> (),
 	-- True while the local character cannot act (the skill holds it).
 	IsBusy: () -> boolean,
+	-- Optional: true while the local character may move and dash but not interact or throw.
+	-- Checked for every instant skill, so a Studio test key counts too.
+	BlocksInteract: (() -> boolean)?,
+	-- Optional: true while the local character may not throw (the Ghost phasing).
+	BlocksThrow: (() -> boolean)?,
+	-- Optional: true while the local character's run animation stays off (the Ghost floats while phasing).
+	StopsRunAnimation: (() -> boolean)?,
 }
 
 local warned: { [string]: boolean } = {}
@@ -112,6 +119,41 @@ end
 function InstantSkill.Root(character: Model): BasePart?
 	local root = character:FindFirstChild("HumanoidRootPart")
 	return if root ~= nil and root:IsA("BasePart") then root else nil
+end
+
+-- The joint that holds the body on the root part (R6 RootJoint or R15 Root): moving its C0 squashes or lifts the
+-- whole body without moving the character. Offset it in the root's space (`offset * Original`): R6's C0 is rotated,
+-- so `Original * offset` would move the body along the wrong axis.
+function InstantSkill.RootJoint(character: Model): Motor6D?
+	local root = InstantSkill.Root(character)
+	local r6 = if root then root:FindFirstChild("RootJoint") else nil
+	if r6 ~= nil and r6:IsA("Motor6D") then
+		return r6
+	end
+	local torso = character:FindFirstChild("LowerTorso")
+	local r15 = if torso then torso:FindFirstChild("Root") else nil
+	return if r15 ~= nil and r15:IsA("Motor6D") then r15 else nil
+end
+
+-- CharacterEffectsController's player-color outline (a clone of Assets.Highlights.CharacterHighlight). Roblox draws
+-- only one Highlight per character, so effects borrow this one (and put it back) instead of adding their own.
+function InstantSkill.CharacterHighlight(character: Model): Highlight?
+	local highlight = character:FindFirstChild("CharacterHighlight")
+	return if highlight ~= nil and highlight:IsA("Highlight") then highlight else nil
+end
+
+function InstantSkill.ExpoOut(t: number): number
+	return if t >= 1 then 1 else 1 - 2 ^ (-10 * t)
+end
+
+-- 0 to 1 with an overshoot that wobbles out (`wobble` is the overshoot's size).
+function InstantSkill.Elastic(t: number, wobble: number): number
+	if t <= 0 then
+		return 0
+	elseif t >= 1 then
+		return 1
+	end
+	return InstantSkill.ExpoOut(t) + wobble * math.sin(t * math.pi * 5) * (1 - t) ^ 2
 end
 
 return InstantSkill

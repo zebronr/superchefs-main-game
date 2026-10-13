@@ -44,6 +44,7 @@ Gecko, Bill, Penguin and Alien superskills are built (see `CHANGELOG.md`). The r
 | Octopus | **Multi-Arm**: chop or wash 2–3x faster for a few seconds | Prep / dishes | Gives the boring jobs a hero. |
 | Alien (teleporter) | **Order Rush**: blink to every waiting customer, take their orders, blink back | Waiter | [alien-order-rush.md](characters/alien-order-rush.md). Replaces the Sprint waiter. |
 | Ghost | **Phase**: walk through walls and counters for a few seconds, carrying items | Shortcut runner | [ghost-phase.md](characters/ghost-phase.md) |
+| Bear | **Bear Toss**: hold to lift a teammate, release to throw them over counters to the aimed spot; also throws dine-and-dashers back to their seats | Mover | [bear-toss.md](characters/bear-toss.md) |
 | Clown (entertainer; other skins later) | **Showtime**: hold to perform; nearby customers regain patience and dine-and-dashers stop to watch | Entertainer | [clown-showtime.md](characters/clown-showtime.md) |
 
 Mix input shapes across the roster (aimed, instant, zone, self buff, placed) so characters feel different to play.
@@ -55,7 +56,7 @@ Not picked yet. Shape in brackets.
 - **Cooking:** Electric Eel Overcharge, nearby stoves cook 2x with more fire risk [aura]
 - **Prep / dishes:** Beaver Chomp chops the held item, no board [instant]; Crab Pincer Frenzy chops every nearby counter item [aura]; Otter Splash washes plates and puts out fires in an area [zone]
 - **Customers:** Peacock Show Off refills nearby patience [aura]; Owl Foresight reveals the next 3 orders [instant]; Penguin Belly Slide with a plate [aimed]
-- **Team support:** Bear Toss throws a teammate across the kitchen [aimed]; Bee Buzz speeds nearby teammates [aura]; Turtle Shell, can't be interrupted, blocks throws [self]
+- **Team support:** Bear Toss throws a teammate across the kitchen [aimed] (designed, see the roster); Bee Buzz speeds nearby teammates [aura]; Turtle Shell, can't be interrupted, blocks throws [self]
 - **Versus chaos:** Monkey Banana Peel makes people drop items [placed]; Skunk Stink Cloud slows enemies [placed]; Magpie Snatch steals from hands [aimed]
 
 Favourites so far: Otter Splash (two systems), Bear Toss (clip-able teamwork), Spider Web Line (changes the kitchen for everyone).
@@ -77,6 +78,7 @@ Rules:
 | Penguin | **Belly Slide:** its dash is a longer belly slide, and it keeps carrying. (It's already faster on its own ice.) |
 | Alien | **Mind Reader:** sees which customers plan to dine and dash (a faint red glow before they run), and sees patience bars through walls. |
 | Ghost | **Incorporeal:** never body-blocked; passes through players and customers, and doesn't slip on ice. |
+| Bear | **Sturdy:** never staggered by thrown items, never slides on ice, can't be pushed. |
 | Clown | **Crowd Pleaser:** plates the Clown serves earn a bigger tip. (Alternative: Pratfall, customers laugh when the Clown slips.) |
 | Fire type | **Heatproof:** walks through fire and can pick up a burning pot to move it. |
 | Octopus | **Eight Arms:** carries two items at once (e.g. a plate and an ingredient). |

@@ -29,6 +29,8 @@ Tags.ProjectileIgnore = "projectileInteractionIgnore"
 Tags.Ignore = "IGNORE"
 Tags.Projectile = "Projectile"
 Tags.Grabbed = "Grabbed"
+-- UI labels drawn in the Jersey 15 bitmap font (BitmapTextController).
+Tags.BitmapText = "BitmapText"
 
 Tags.Classes = {
 	Tags.Countertop,

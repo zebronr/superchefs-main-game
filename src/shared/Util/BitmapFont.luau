@@ -125,4 +125,13 @@ function BitmapFont.SetColor(line: Frame, color: Color3): ()
 	end
 end
 
+-- Fades text drawn by Render, shadow included.
+function BitmapFont.SetTransparency(line: Frame, transparency: number): ()
+	for _, child in line:GetChildren() do
+		if child:IsA("ImageLabel") then
+			child.ImageTransparency = transparency
+		end
+	end
+end
+
 return BitmapFont

@@ -4,8 +4,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Item = require(script.Parent.Parent.Item)
 local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
-local WELD_NAME = "objectTopWelder"
+local WELD_NAME = Config.Interaction.SlotWeldName
 
 -- Holds at most one Item resting on top of a surface part.
 local Slot = {}
@@ -85,7 +86,10 @@ function Slot.Place(self: Slot, item: Item.Item, increment: number?): boolean
 	end
 
 	local surface = self.Surface
-	local weld = Slot.WeldOnTop(item.Part, surface, increment)
+	-- A station whose top is a separate part (a crate's lid) lifts items by its `surfaceOffset` (studs).
+	local surfaceOffset = surface:GetAttribute("surfaceOffset")
+	local lift = increment or (if typeof(surfaceOffset) == "number" then surfaceOffset else nil)
+	local weld = Slot.WeldOnTop(item.Part, surface, lift)
 
 	self.Item = item
 	self.Weld = weld

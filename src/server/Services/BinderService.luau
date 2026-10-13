@@ -9,10 +9,11 @@ local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags
 
 local Interactable = require(script.Parent.Parent.Classes.Interactable)
 local Runner = require(script.Parent.Parent.Classes.Runner)
-local Item = require(script.Parent.Parent.Classes.Item)
+local Food = require(script.Parent.Parent.Classes.Food)
 local Plate = require(script.Parent.Parent.Classes.Plate)
 local DirtyPlate = require(script.Parent.Parent.Classes.DirtyPlate)
 local CookingTool = require(script.Parent.Parent.Classes.CookingTool)
+local Pan = require(script.Parent.Parent.Classes.CookingTools.Pan)
 local Pot = require(script.Parent.Parent.Classes.CookingTools.Pot)
 local FireExtinguisher = require(script.Parent.Parent.Classes.FireExtinguisher)
 local Counter = require(script.Parent.Parent.Classes.Stations.Counter)
@@ -34,6 +35,7 @@ local binders: { [string]: Binder.Binder<Bound> } = {}
 -- Cooking tool subclasses by the part's cookingToolClass attribute; new tool types register here.
 local cookingTools: { [string]: (Instance) -> CookingTool.CookingTool } = {
 	Pot = Pot.new,
+	Pan = Pan.new,
 }
 
 local function newCookingTool(instance: Instance): CookingTool.CookingTool
@@ -107,7 +109,7 @@ function BinderService.Init(_self: typeof(BinderService)): ()
 	register(Tags.Stove, Stove.new)
 	register(Tags.Sink, Sink.new)
 	register(Tags.Trash, Trash.new)
-	register(Tags.Food, Item.new)
+	register(Tags.Food, Food.new)
 	register(Tags.Plate, Plate.new)
 	register(Tags.DirtyPlate, DirtyPlate.new)
 	register(Tags.CookingTool, newCookingTool)

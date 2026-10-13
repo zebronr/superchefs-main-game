@@ -51,4 +51,6 @@ While a customer is eating, they can ask for **more**: a rice refill, a drink, a
 
 - The request icon pops up with a bounce and a short "ding".
 - The icon shakes when its timer is almost out.
-- The table highlights only while it has a request (matching how tables highlight now).
+- The customer's chair highlights only while it has a request (matching how seats highlight now). Customers are selected
+  by highlighting their chair, not the whole table: each seat is its own `CustomerTable` part holding the chair mesh
+  (see `docs/TAGS.md`).

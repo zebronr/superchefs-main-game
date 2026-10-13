@@ -132,6 +132,7 @@ local function emit(name: string, worldCFrame: CFrame, count: number): ()
 		created.Parent = workspace.Terrain
 		effectAttachments[name] = created
 		local emitter = template:Clone()
+		emitter.Enabled = false
 		emitter.Parent = created
 		attachment = created
 	end
@@ -414,7 +415,8 @@ type Aim = {
 	Root: BasePart,
 	Humanoid: Humanoid,
 	Guide: BasePart?,
-	Highlight: Highlight?,
+	Highlights: { Highlight },
+	HighlightTarget: BasePart?,
 	Params: RaycastParams,
 	ParamsAt: number,
 	PressMoveDirection: Vector3?,
@@ -433,6 +435,39 @@ local function restingOn(part: BasePart): BasePart?
 		end
 	end
 	return nil
+end
+
+-- Outlines the target. A Highlight on a part draws that part only, so an item whose root is invisible (the pan:
+-- its bowl and handle are welded children) gets one per visible part.
+local function setHighlight(current: Aim, target: BasePart?): ()
+	if target == current.HighlightTarget or highlightTemplate == nil then
+		return
+	end
+	current.HighlightTarget = target
+	local parts: { BasePart } = {}
+	if target ~= nil then
+		if target.Transparency < 1 then
+			table.insert(parts, target)
+		end
+		for _, descendant in target:GetDescendants() do
+			if descendant:IsA("BasePart") and descendant.Transparency < 1 then
+				table.insert(parts, descendant)
+			end
+		end
+	end
+	local highlights = current.Highlights
+	for index = #highlights + 1, #parts do
+		local highlight = (highlightTemplate :: Highlight):Clone()
+		-- Without an Adornee a Highlight covers its parent, so it stays off until it has a part.
+		highlight.Enabled = false
+		highlight.Parent = workspace
+		highlights[index] = highlight
+	end
+	for index, highlight in highlights do
+		local part: BasePart? = parts[index]
+		highlight.Adornee = part
+		highlight.Enabled = part ~= nil
+	end
 end
 
 local function heldParts(): { [BasePart]: boolean }
@@ -515,21 +550,13 @@ function TongueGrab.BeginAim(character: Model): ()
 			root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, yawOf(direction), 0)
 		end
 	end
-	local highlight: Highlight? = nil
-	if highlightTemplate ~= nil then
-		highlight = highlightTemplate:Clone()
-		if highlight ~= nil then
-			-- Without an Adornee a Highlight covers its parent, so keep it off until there is a target.
-			highlight.Enabled = false
-			highlight.Parent = workspace
-		end
-	end
 	aim = {
 		Character = character,
 		Root = root,
 		Humanoid = humanoid,
 		Guide = newVisual(guideTemplate),
-		Highlight = highlight,
+		Highlights = {},
+		HighlightTarget = nil,
 		Params = params,
 		ParamsAt = os.clock(),
 		PressMoveDirection = TongueTargeting.Flat(humanoid.MoveDirection),
@@ -614,11 +641,7 @@ function TongueGrab.StepAim(dt: number): boolean
 	if guide ~= nil and template ~= nil then
 		stretch(guide, template, mouth, tip)
 	end
-	local highlight = current.Highlight
-	if highlight ~= nil then
-		highlight.Adornee = target
-		highlight.Enabled = target ~= nil
-	end
+	setHighlight(current, target)
 	CameraController.SetAimOffset(
 		direction * TongueConfig.CameraAimDistance - Vector3.yAxis * TongueConfig.CameraAimDrop,
 		TongueConfig.CameraEaseSpeed
@@ -657,10 +680,7 @@ function TongueGrab.ReleaseAim(predict: boolean): ()
 		current.Guide:Destroy()
 		current.Guide = nil
 	end
-	if current.Highlight ~= nil then
-		current.Highlight.Enabled = false
-		current.Highlight.Adornee = nil
-	end
+	setHighlight(current, nil)
 	CameraController.SetAimOffset(Vector3.zero, TongueConfig.CameraEaseSpeed)
 end
 
@@ -675,8 +695,8 @@ function TongueGrab.EndAim(): ()
 	if current.Guide ~= nil then
 		current.Guide:Destroy()
 	end
-	if current.Highlight ~= nil then
-		current.Highlight:Destroy()
+	for _, highlight in current.Highlights do
+		highlight:Destroy()
 	end
 	CameraController.SetAimOffset(Vector3.zero, TongueConfig.CameraEaseSpeed)
 end

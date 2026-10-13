@@ -1,5 +1,6 @@
 --!strict
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -47,7 +48,12 @@ function CarryService.Release(player: Player): Item.Item?
 end
 
 function CarryService.Pickup(player: Player, item: Item.Item): boolean
-	if holds[player] ~= nil or item.Holder ~= nil or item.Surface ~= nil then
+	if
+		holds[player] ~= nil
+		or item.Holder ~= nil
+		or item.Surface ~= nil
+		or CollectionService:HasTag(item.Instance, Tags.FireLocked)
+	then
 		return false
 	end
 

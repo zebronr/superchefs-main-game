@@ -1,6 +1,7 @@
 --!strict
 
 local PathfindingService = game:GetService("PathfindingService")
+local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -41,6 +42,8 @@ type Session = {
 	PatienceStartedAt: number?,
 	-- Server time the Penguin's Deep Freeze paused this customer's patience (nil when not frozen).
 	FrozenAt: number?,
+	-- Rolled at spawn so clients can show the tell (sweat) while the customer sits.
+	WillDash: boolean,
 }
 
 local CustomerService = {}
@@ -86,20 +89,51 @@ local function release(session: Session): ()
 	clearTable(session)
 end
 
-local function moveTo(humanoid: Humanoid, position: Vector3, timeout: number): boolean
+local function flatDistance(from: Vector3, to: Vector3): number
+	return (Vector3.new(from.X, 0, from.Z) - Vector3.new(to.X, 0, to.Z)).Magnitude
+end
+
+-- Still on the walk that started it: in play and (when given) still in the state the walk is for.
+local function stillWalking(session: Session, expectedState: CustomerState?): boolean
+	return isActive(session) and (expectedState == nil or stateOf(session) == expectedState)
+end
+
+-- Server-owned so physics never depends on a client. Anchoring drops a manual owner, so this runs again every
+-- time a customer is unanchored (or the nearest player would take over and the walk would stutter for everyone).
+local function claimPhysics(session: Session): ()
+	pcall(function(): ()
+		session.Root:SetNetworkOwner(nil)
+	end)
+end
+
+-- Walks at a point until within `reach` studs of it (ignoring height), MoveToFinished, stuck, or the timeout.
+-- Checks every frame so the next MoveTo goes out before the Humanoid stops at this one.
+local function moveTo(session: Session, position: Vector3, reach: number, timeout: number, expectedState: CustomerState?): ()
+	local humanoid = session.Humanoid
 	local finished = false
-	local reached = false
-	local connection = humanoid.MoveToFinished:Connect(function(didReach: boolean): ()
+	local connection = humanoid.MoveToFinished:Connect(function(): ()
 		finished = true
-		reached = didReach
 	end)
 	humanoid:MoveTo(position)
-	local deadline = os.clock() + timeout
-	while not finished and os.clock() < deadline and humanoid.Parent ~= nil do
-		task.wait(0.05)
+	local startedAt = os.clock()
+	local checkAt = startedAt
+	local checkPosition = session.Root.Position
+	while not finished and stillWalking(session, expectedState) do
+		local now = os.clock()
+		local current = session.Root.Position
+		if flatDistance(current, position) <= reach or now - startedAt >= timeout then
+			break
+		end
+		if now - checkAt >= CustomerConfig.StuckTime then
+			if flatDistance(current, checkPosition) < CustomerConfig.StuckDistance then
+				break
+			end
+			checkAt = now
+			checkPosition = current
+		end
+		task.wait()
 	end
 	connection:Disconnect()
-	return finished and reached
 end
 
 local function computePath(startPosition: Vector3, endPosition: Vector3): { PathWaypoint }?
@@ -113,28 +147,24 @@ local function computePath(startPosition: Vector3, endPosition: Vector3): { Path
 	return path:GetWaypoints()
 end
 
-local function flatDistance(from: Vector3, to: Vector3): number
-	return (Vector3.new(from.X, 0, from.Z) - Vector3.new(to.X, 0, to.Z)).Magnitude
-end
-
 -- Walks along a computed path, or straight at the target when no path exists. True once close to the target.
+-- Passes intermediate waypoints without stopping; only the last one is walked all the way to.
 local function walkTo(session: Session, target: Vector3, expectedState: CustomerState?): boolean
-	local humanoid = session.Humanoid
-
 	local waypoints = computePath(session.Root.Position, target)
 	if waypoints ~= nil then
-		for _, waypoint in waypoints do
-			if not isActive(session) or (expectedState ~= nil and stateOf(session) ~= expectedState) then
+		for index, waypoint in waypoints do
+			if not stillWalking(session, expectedState) then
 				break
 			end
-			moveTo(humanoid, waypoint.Position, CustomerConfig.WaypointTimeout)
+			local reach = if index < #waypoints then CustomerConfig.WaypointReach else 0
+			moveTo(session, waypoint.Position, reach, CustomerConfig.WaypointTimeout, expectedState)
 		end
 	end
-	if isActive(session) and (expectedState == nil or stateOf(session) == expectedState) and flatDistance(session.Root.Position, target) > CustomerConfig.ArriveDistance then
-		moveTo(humanoid, target, CustomerConfig.WaypointTimeout * 2)
+	if stillWalking(session, expectedState) and flatDistance(session.Root.Position, target) > CustomerConfig.ArriveDistance then
+		moveTo(session, target, 0, CustomerConfig.WaypointTimeout * 2, expectedState)
 	end
 
-	return isActive(session) and (expectedState == nil or stateOf(session) == expectedState) and flatDistance(session.Root.Position, target) <= CustomerConfig.ArriveDistance
+	return stillWalking(session, expectedState) and flatDistance(session.Root.Position, target) <= CustomerConfig.ArriveDistance
 end
 
 local function findSpawn(): BasePart?
@@ -146,10 +176,22 @@ local function findSpawn(): BasePart?
 	return nil
 end
 
+-- Seated customers are in the seated group (players pass through); standing ones in the walking group.
+local function setSeated(session: Session, seated: boolean): ()
+	local group = if seated then CustomerConfig.SeatedCollisionGroup else CustomerConfig.CollisionGroup
+	for _, part in session.Model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.CollisionGroup = group
+		end
+	end
+end
+
 local function leave(session: Session, angry: boolean): ()
 	setState(session, "Leaving")
 	setPatience(session, nil, nil)
 	session.Root.Anchored = false
+	claimPhysics(session)
+	setSeated(session, false)
 	session.Humanoid.WalkSpeed = session.WalkSpeed
 	if angry then
 		Net.Event("Effect"):FireAllClients("ObjError", session.Table.Instance)
@@ -212,7 +254,7 @@ local function takeOrder(session: Session): ()
 		if stateOf(session) == "WaitingForFood" then
 			setState(session, "Leaving")
 		end
-	end)
+	end, tonumber(string.match(session.Table.Instance.Name, "(%d+)$")))
 	if number == nil then
 		return
 	end
@@ -236,11 +278,11 @@ local function serveCustomer(session: Session): ()
 		return
 	end
 	local level = Levels.GetCurrent()
+	local amount = OrderService.Close(session.Team, number, true, session.Table.Instance, not level.EnableTableCash)
 	if level.EnableTableCash then
-		-- Paid later: as cash on the table, or by catching them if they run.
-		session.PaymentAmount = level.CoinsPerOrder
+		-- Paid later (combo included): as cash on the table, or by catching them if they run.
+		session.PaymentAmount = amount
 	end
-	OrderService.Close(session.Team, number, true, session.Table.Instance, not level.EnableTableCash)
 	setPatience(session, nil, nil)
 	setState(session, "Eating")
 end
@@ -255,18 +297,75 @@ local function setRunner(session: Session, enabled: boolean): ()
 	end
 end
 
-Runner.SetCatchHandler(function(model: Model, player: Player): boolean
-	local session = sessions[model]
-	if session == nil or not isActive(session) or stateOf(session) ~= "Dashing" then
-		return false
-	end
+local function catch(session: Session, player: Player): ()
+	local model = session.Model
 	setRunner(session, false)
 	setState(session, "Caught")
 	session.Humanoid:MoveTo(session.Root.Position)
 	session.Root.Anchored = true
+	-- Clients hide them and show a ragdoll copy, so the real body stops blocking anyone. The Humanoid would
+	-- turn its parts' collisions back on, so its state machine stops too.
+	session.Humanoid.EvaluateStateMachine = false
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+		end
+	end
 	OrderService.Pay(TeamService.GetTeam(player), session.PaymentAmount or 0, model)
 	model:SetAttribute("CaughtBy", player.UserId)
 	model:SetAttribute("CaughtAt", workspace:GetServerTimeNow())
+end
+
+-- The Bear's catch: a running dasher caught on the spot (no swing). `byToss` makes the ragdoll fly further.
+function CustomerService.CatchRunner(model: Model, player: Player, byToss: boolean): boolean
+	local session = sessions[model]
+	if session == nil or not isActive(session) or stateOf(session) ~= "Dashing" then
+		return false
+	end
+	if byToss then
+		model:SetAttribute(Config.Skills.Attribute.CaughtByToss, true)
+	end
+	catch(session, player)
+	return true
+end
+
+-- When each player's last catch swing started (server time).
+local swings: { [Player]: number } = {}
+Players.PlayerRemoving:Connect(function(player: Player): ()
+	swings[player] = nil
+end)
+
+-- Interact on a runner swings the bat; the catch lands with the bonk, only if the runner is still in reach then.
+Runner.SetCatchHandler(function(model: Model, player: Player): boolean
+	local session = sessions[model]
+	local character = player.Character
+	if session == nil or character == nil or not isActive(session) or stateOf(session) ~= "Dashing" then
+		return false
+	end
+	local swing = Config.Interaction.CatchSwing
+	local now = workspace:GetServerTimeNow()
+	if now - (swings[player] or -math.huge) < swing.WindTime + swing.SlamTime + swing.HoldTime then
+		return false
+	end
+	local pingOk, ping = pcall(function(): number
+		return player:GetNetworkPing()
+	end)
+	local lag = if pingOk then math.clamp(ping / 2, 0, swing.MaxLagCompensation) else 0
+	local startedAt = now - lag
+	swings[player] = startedAt
+	character:SetAttribute(swing.Attribute, startedAt)
+	task.delay(math.max(swing.WindTime + swing.SlamTime - lag, 0), function(): ()
+		if swings[player] ~= startedAt or player.Character ~= character or not isActive(session)
+			or stateOf(session) ~= "Dashing" then
+			return
+		end
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root ~= nil and root:IsA("BasePart") and (root.Position - session.Root.Position).Magnitude <= swing.HitRange then
+			catch(session, player)
+		end
+	end)
 	return true
 end)
 
@@ -283,12 +382,12 @@ local function run(session: Session, tuning: Config.CustomerTuning): ()
 	if not isActive(session) then
 		return
 	end
-	-- Sit at the table: face it and stay put.
-	session.Model:MoveTo(seat.Position)
+	-- Sit at the table: on top of the seat, facing the table, anchored. Clients play the sit pose.
+	local rootPosition = seat.Position + Vector3.new(0, seat.Size.Y / 2 + CustomerConfig.SitHeight, 0)
 	local tablePosition = session.Table.Part.Position
-	local rootPosition = session.Root.Position
-	session.Root.CFrame = CFrame.lookAt(rootPosition, Vector3.new(tablePosition.X, rootPosition.Y, tablePosition.Z))
 	session.Root.Anchored = true
+	session.Root.CFrame = CFrame.lookAt(rootPosition, Vector3.new(tablePosition.X, rootPosition.Y, tablePosition.Z))
+	setSeated(session, true)
 
 	setState(session, "WaitingToOrder")
 	local satAt = workspace:GetServerTimeNow()
@@ -341,10 +440,12 @@ local function run(session: Session, tuning: Config.CustomerTuning): ()
 		leave(session, false)
 		return
 	end
-	if math.random() < tuning.DashChance then
+	if session.WillDash then
 		setPatience(session, nil, nil)
 		setState(session, "Dashing")
 		session.Root.Anchored = false
+		claimPhysics(session)
+		setSeated(session, false)
 		session.Humanoid.WalkSpeed = CustomerConfig.DashSpeed
 		setRunner(session, true)
 		clearTable(session)
@@ -359,9 +460,11 @@ local function run(session: Session, tuning: Config.CustomerTuning): ()
 			return
 		end
 		if stateOf(session) == "Caught" then
+			-- Clients show them ragdolled (a local copy) for CaughtPause, then they're gone.
 			task.wait(CustomerConfig.CaughtPause)
 			if isActive(session) then
-				leave(session, false)
+				release(session)
+				session.Model:Destroy()
 			end
 		else
 			setRunner(session, false)
@@ -429,8 +532,13 @@ local function spawnCustomer(customerTable: CustomerTable.CustomerTable, tuning:
 		Thread = nil,
 		PatienceStartedAt = nil,
 		FrozenAt = nil,
+		-- Only customers who pay at the table can run off without paying.
+		WillDash = Levels.GetCurrent().EnableTableCash and math.random() < tuning.DashChance,
 	}
 	model:SetAttribute("CustomerState", "Walking")
+	if session.WillDash then
+		model:SetAttribute("WillDash", true)
+	end
 	model:SetAttribute("Team", CustomerConfig.Team)
 	CustomerTable.SetCustomer(customerTable, interface)
 	sessions[model] = session
@@ -439,10 +547,7 @@ local function spawnCustomer(customerTable: CustomerTable.CustomerTable, tuning:
 	session.Thread = task.spawn(function(): ()
 		model.Parent = temp
 		model:MoveTo(spawnPart.Position)
-		-- Server-owned so physics never depends on a client.
-		pcall(function(): ()
-			root:SetNetworkOwner(nil)
-		end)
+		claimPhysics(session)
 		run(session, tuning)
 	end)
 end

@@ -5,6 +5,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local ActionToolController = require(script.Parent.ActionToolController)
+local CoinFly = require(script.Parent.Parent.Util.CoinFly)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Tags = require(Shared:WaitForChild("Tags"))
@@ -87,6 +89,10 @@ local function burst(model: Model, userId: number, startedAt: number?): ()
 	if root == nil or not root:IsA("BasePart") then
 		return
 	end
+	-- Only the catcher's screen shows the coin flying to the coin counter.
+	if userId == localPlayer.UserId then
+		CoinFly.FromWorld(root.Position)
+	end
 	for index = 1, tuning.CatchBurstCount do
 		local part = newCash(CFrame.new(root.Position))
 		if part ~= nil then
@@ -102,11 +108,26 @@ function CashController.Predict(target: Instance?): ()
 	end
 	if Tags.IsClass(target, Tags.Runner) then
 		local model = target.Parent
-		if model ~= nil and model:IsA("Model") and model:GetAttribute("CustomerState") == "Dashing" and predictedCatches[model] == nil then
+		local character = localPlayer.Character
+		if model == nil or not model:IsA("Model") or model:GetAttribute("CustomerState") ~= "Dashing"
+			or character == nil or ActionToolController.IsSwinging(character) then
+			return
+		end
+		-- The bat swings now; the catch (and its cash burst) only lands with the bonk, if they're still in reach.
+		ActionToolController.PredictSwing()
+		local swing = Config.Interaction.CatchSwing
+		task.delay(swing.WindTime + swing.SlamTime, function(): ()
+			local root = character:FindFirstChild("HumanoidRootPart")
+			local runner = model:FindFirstChild("HumanoidRootPart")
+			if model.Parent == nil or model:GetAttribute("CustomerState") ~= "Dashing" or predictedCatches[model] ~= nil
+				or burstPlayed[model] or root == nil or not root:IsA("BasePart") or runner == nil
+				or not runner:IsA("BasePart") or (root.Position - runner.Position).Magnitude > swing.HitRange then
+				return
+			end
 			predictedCatches[model] = workspace:GetServerTimeNow()
 			burstPlayed[model] = true
 			burst(model, localPlayer.UserId)
-		end
+		end)
 		return
 	end
 	if not Tags.IsClass(target, Tags.CustomerTable) or not target:IsA("BasePart") then
@@ -132,6 +153,7 @@ function CashController.Predict(target: Instance?): ()
 		end
 	end
 	view.PredictedAt = workspace:GetServerTimeNow()
+	CoinFly.FromWorld(place(target).Position)
 	if view.Visual ~= nil then
 		view.Flight = fly(view.Visual, localPlayer.UserId, false, 0, nil, nil)
 		view.Visual = nil
@@ -158,6 +180,10 @@ local function updateTable(part: BasePart, view: TableView, now: number): ()
 		view.CollectedAt = collectedAt
 		local by = part:GetAttribute("CashCollectedBy")
 		if typeof(by) == "number" then
+			-- Collected here without a prediction: the coin to the counter still shows, only for the collector.
+			if view.Flight == nil and by == localPlayer.UserId then
+				CoinFly.FromWorld(place(part).Position)
+			end
 			if view.Flight ~= nil then
 				if view.Flight.Part.Parent ~= nil then
 					-- Confirmed: the predicted flight keeps its local timing and only retargets if someone else got it.
@@ -281,6 +307,7 @@ function CashController.Start(_self: typeof(CashController)): ()
 		for model, predictedAt in predictedCatches do
 			if now - predictedAt >= tuning.PredictTimeout then
 				predictedCatches[model] = nil
+				burstPlayed[model] = nil
 				for index = #flights, 1, -1 do
 					if flights[index].Model == model then
 						flights[index].Part:Destroy()

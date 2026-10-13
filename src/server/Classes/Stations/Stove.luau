@@ -52,6 +52,11 @@ function Stove.Receive(self: Stove, item: Item.Item): boolean
 	return result
 end
 
+-- A pot the map starts on the stove cooks like one put there.
+function Stove.Preloaded(_self: Stove, item: Item.Item): ()
+	syncTool(nil, item)
+end
+
 function Stove.Destroy(self: Stove): ()
 	local tool = CookingTool.Cast(self.Slot:Get())
 	if tool ~= nil then

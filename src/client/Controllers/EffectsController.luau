@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
+local Particles = require(script.Parent.Parent.Util.Particles)
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local CookingConfig = Config.Interaction.Cooking
@@ -16,22 +17,25 @@ local EffectsController = {}
 type Tracked = {
 	Ancestry: RBXScriptConnection,
 	Destroying: RBXScriptConnection,
-	CookingFinished: BillboardGui?,
-	BurningWarning: BillboardGui?,
 	FirePart: BasePart?,
 	FireEmitter: ParticleEmitter?,
 	FireAccumulator: number,
 	FoamAccumulator: number,
+	Smoke: Attachment?,
+	SmokeEmitter: ParticleEmitter?,
+	SmokeAccumulator: number,
 }
 
 local tracked: { [Instance]: Tracked } = {}
 local effectClasses = { Tags.CookingTool, Tags.Countertop, Tags.ChoppingBoard, Tags.Stove, Tags.FireExtinguisher }
-local finishedTemplate: BillboardGui
-local warningTemplate: BillboardGui
 local fireTemplate: BasePart
 local smokeTemplate: BasePart
+local burnSmokeTemplate: Attachment
 local errorTemplate: Highlight
 local random = Random.new()
+-- Emitters left Enabled in Workspace (the stove burners): turned off and streamed with :Emit() instead, so low
+-- graphics quality draws them the same (see Util/Particles).
+local ambient: { [ParticleEmitter]: true } = {}
 local directions = {
 	Vector3.new(1, 0, 1), Vector3.new(-1, 0, 1),
 	Vector3.new(1, 0, -1), Vector3.new(-1, 0, -1),
@@ -84,21 +88,19 @@ local function objError(instance: Instance): ()
 end
 
 local function removeVisuals(state: Tracked): ()
-	if state.CookingFinished ~= nil then
-		state.CookingFinished:Destroy()
-		state.CookingFinished = nil
-	end
-	if state.BurningWarning ~= nil then
-		state.BurningWarning:Destroy()
-		state.BurningWarning = nil
-	end
 	if state.FirePart ~= nil then
 		state.FirePart:Destroy()
 		state.FirePart = nil
 		state.FireEmitter = nil
 	end
+	if state.Smoke ~= nil then
+		state.Smoke:Destroy()
+		state.Smoke = nil
+		state.SmokeEmitter = nil
+	end
 	state.FireAccumulator = 0
 	state.FoamAccumulator = 0
+	state.SmokeAccumulator = 0
 end
 
 local function untrack(instance: Instance): ()
@@ -129,80 +131,15 @@ local function track(instance: Instance): ()
 		Destroying = instance.Destroying:Connect(function(): ()
 			untrack(instance)
 		end),
-		CookingFinished = nil,
-		BurningWarning = nil,
 		FirePart = nil,
 		FireEmitter = nil,
 		FireAccumulator = 0,
 		FoamAccumulator = 0,
+		Smoke = nil,
+		SmokeEmitter = nil,
+		SmokeAccumulator = 0,
 	}
 	tracked[instance] = state
-end
-
-local function showFinished(instance: Instance, state: Tracked, elapsed: number): ()
-	if elapsed >= 0 and elapsed < 3.2 then
-		if state.CookingFinished == nil then
-			local clone = finishedTemplate:Clone()
-			clone.Parent = instance
-			state.CookingFinished = clone
-		end
-		local image = (state.CookingFinished :: BillboardGui):FindFirstChild("Image")
-		if image ~= nil and image:IsA("TextLabel") then
-			image.TextTransparency = if elapsed < 0.1 then 1
-				else if elapsed < 0.4 then 1 - (elapsed - 0.1) / 0.3
-				else if elapsed < 2.9 then 0
-				else (elapsed - 2.9) / 0.3
-		end
-	elseif state.CookingFinished ~= nil then
-		state.CookingFinished:Destroy()
-		state.CookingFinished = nil
-	end
-end
-
-local function warningVisible(elapsed: number): boolean
-	local toggleSpeed = 0.5
-	local nextToggle = 0
-	local visible = true
-	while nextToggle <= elapsed do
-		visible = not visible
-		nextToggle += toggleSpeed
-		toggleSpeed = math.max(0.05, toggleSpeed * 0.8)
-	end
-	return visible
-end
-
-local function showWarning(instance: Instance, state: Tracked, elapsed: number): ()
-	local startAt = 0.1 + 2.5 + CookingConfig.CookSafeTime - 2.9
-	local warningElapsed = elapsed - startAt
-	if warningElapsed >= 0 and warningElapsed < CookingConfig.CookAlertDuration then
-		if state.BurningWarning == nil then
-			local clone = warningTemplate:Clone()
-			clone.Parent = instance
-			state.BurningWarning = clone
-		end
-		local image = (state.BurningWarning :: BillboardGui):FindFirstChild("Image")
-		if image ~= nil and image:IsA("GuiObject") then
-			image.Visible = warningVisible(warningElapsed)
-		end
-	elseif state.BurningWarning ~= nil then
-		state.BurningWarning:Destroy()
-		state.BurningWarning = nil
-	end
-end
-
-local function updateCooking(instance: Instance, state: Tracked): ()
-	local cookedAt = instance:GetAttribute(CookingConfig.CookedAtAttribute)
-	if typeof(cookedAt) == "number" then
-		-- Deep Freeze holds the burn warning where it was when the tool froze.
-		local frozenAt = instance:GetAttribute(Config.Skills.Attribute.FrozenAt)
-		local now = if typeof(frozenAt) == "number" then frozenAt else workspace:GetServerTimeNow()
-		local elapsed = now - cookedAt
-		showFinished(instance, state, elapsed)
-		showWarning(instance, state, elapsed)
-	else
-		showFinished(instance, state, math.huge)
-		showWarning(instance, state, math.huge)
-	end
 end
 
 local function emit(emitter: ParticleEmitter, accumulator: number, dt: number, rate: number): number
@@ -220,6 +157,12 @@ local function updateFire(instance: Instance, state: Tracked, dt: number): ()
 	if typeof(fire) == "number" and fire > 0 and instance:IsA("BasePart") then
 		if state.FirePart == nil then
 			local clone = fireTemplate:Clone()
+			-- Off before it enters Workspace, so the ambient watcher leaves it to this function.
+			for _, child in clone:GetChildren() do
+				if child:IsA("ParticleEmitter") then
+					child.Enabled = false
+				end
+			end
 			clone.CFrame = instance.CFrame
 			clone.CanCollide = false
 			clone.Massless = true
@@ -247,6 +190,89 @@ local function updateFire(instance: Instance, state: Tracked, dt: number): ()
 	end
 end
 
+-- How smoky a pot is: 0 while it cooks (light steam), rising to 1 over the burn warning, 1 while it burns,
+-- nil when it isn't smoking. The second value is true while it only cooks (the gentler steam rate).
+local function smokeLevel(instance: Instance): (number?, boolean)
+	local fire = instance:GetAttribute(CookingConfig.FireAttribute)
+	if typeof(fire) == "number" and fire > 0 then
+		return 1, false
+	end
+	-- Deep Freeze stops the smoke with the cooking.
+	if instance:GetAttribute(Config.Skills.Attribute.FrozenAt) ~= nil then
+		return nil, false
+	end
+	local cookedAt = instance:GetAttribute(CookingConfig.CookedAtAttribute)
+	if typeof(cookedAt) ~= "number" then
+		local cooking = typeof(instance:GetAttribute(CookingConfig.CookStartedAtAttribute)) == "number"
+		return if cooking then 0 else nil, cooking
+	end
+	local warned = workspace:GetServerTimeNow() - cookedAt - CookingConfig.CookSafeTime
+	if warned < 0 then
+		return 0, true
+	end
+	return math.min(warned / CookingConfig.CookAlertDuration, 1), false
+end
+
+local function updateSmoke(instance: Instance, state: Tracked, dt: number): ()
+	local level, steaming = nil, false
+	if instance:IsA("BasePart") then
+		level, steaming = smokeLevel(instance)
+	end
+	if level == nil then
+		if state.Smoke ~= nil then
+			state.Smoke:Destroy()
+			state.Smoke = nil
+			state.SmokeEmitter = nil
+			state.SmokeAccumulator = 0
+		end
+		return
+	end
+	local part = instance :: BasePart
+	local tuning = Config.UI.BurnSmoke
+	if state.Smoke == nil then
+		local smoke = burnSmokeTemplate:Clone()
+		local emitter = smoke:FindFirstChildOfClass("ParticleEmitter")
+		if emitter == nil then
+			smoke:Destroy()
+			return
+		end
+		emitter.Enabled = false
+		smoke.Parent = part
+		state.Smoke = smoke
+		state.SmokeEmitter = emitter
+	end
+	local smoke = state.Smoke :: Attachment
+	local emitter = state.SmokeEmitter :: ParticleEmitter
+	-- Upright above the pot's top, whichever way the pot is turned; on fire it rises from above the flames and draws
+	-- behind them, so it doesn't blot them out.
+	local burning = state.FirePart ~= nil
+	local height = if burning then tuning.FireHeight else tuning.Height
+	smoke.WorldCFrame = CFrame.new(part.Position + Vector3.new(0, part.Size.Y / 2 + height, 0))
+	local base = burnSmokeTemplate:FindFirstChildOfClass("ParticleEmitter") :: ParticleEmitter
+	emitter.ZOffset = if burning then tuning.FireZOffset else 0
+	emitter.Color = ColorSequence.new(if burning then tuning.FireColor else tuning.Color[1]:Lerp(tuning.Color[2], level))
+	emitter.Speed = if burning then NumberRange.new(tuning.FireSpeed[1], tuning.FireSpeed[2]) else base.Speed
+	emitter.SpreadAngle = if burning then Vector2.new(tuning.FireSpread, tuning.FireSpread) else base.SpreadAngle
+	local scale = tuning.Size[1] + (tuning.Size[2] - tuning.Size[1]) * level
+	local keypoints = {}
+	for _, keypoint in base.Size.Keypoints do
+		table.insert(keypoints, NumberSequenceKeypoint.new(keypoint.Time, keypoint.Value * scale, keypoint.Envelope * scale))
+	end
+	emitter.Size = NumberSequence.new(keypoints)
+	local rate = if burning
+		then tuning.FireRate
+		elseif steaming then tuning.CookingRate
+		else tuning.Rate[1] + (tuning.Rate[2] - tuning.Rate[1]) * level
+	state.SmokeAccumulator = emit(emitter, state.SmokeAccumulator, dt, rate)
+end
+
+local function adoptEmitter(instance: Instance): ()
+	if instance:IsA("ParticleEmitter") and instance.Enabled then
+		instance.Enabled = false
+		ambient[instance] = true
+	end
+end
+
 local function updateFoam(instance: Instance, state: Tracked, dt: number): ()
 	local part = instance:FindFirstChild("Emitter")
 	local emitter = if part ~= nil then part:FindFirstChildOfClass("ParticleEmitter") else nil
@@ -264,21 +290,17 @@ end
 
 function EffectsController.Start(_self: typeof(EffectsController)): ()
 	local assets = ReplicatedStorage:WaitForChild("Assets")
-	local uiAssets = assets:WaitForChild("UI")
 	local effectAssets = assets:WaitForChild("Effects")
-	local finished = uiAssets:WaitForChild("CookingFinished")
-	local warning = uiAssets:WaitForChild("BurningWarning")
 	local fire = effectAssets:WaitForChild("FireEmitter")
+	local burnSmoke = effectAssets:WaitForChild("BurnSmoke")
 	local smoke = effectAssets:WaitForChild("DashTrail")
 	local errorHighlight = assets:WaitForChild("Highlights"):WaitForChild("ErrorHighlight")
-	assert(finished:IsA("BillboardGui"), "CookingFinished must be a BillboardGui")
-	assert(warning:IsA("BillboardGui"), "BurningWarning must be a BillboardGui")
 	assert(fire:IsA("BasePart"), "FireEmitter must be a BasePart")
+	assert(burnSmoke:IsA("Attachment"), "BurnSmoke must be an Attachment")
 	assert(smoke:IsA("BasePart"), "DashTrail must be a BasePart")
 	assert(errorHighlight:IsA("Highlight"), "ErrorHighlight must be a Highlight")
-	finishedTemplate = finished
-	warningTemplate = warning
 	fireTemplate = fire
+	burnSmokeTemplate = burnSmoke
 	smokeTemplate = smoke
 	errorTemplate = errorHighlight
 	Net.Event("Effect").OnClientEvent:Connect(function(message: unknown, value: unknown): ()
@@ -296,20 +318,33 @@ function EffectsController.Start(_self: typeof(EffectsController)): ()
 			track(instance)
 		end
 	end
+	for _, instance in workspace:GetDescendants() do
+		adoptEmitter(instance)
+	end
+	workspace.DescendantRemoving:Connect(function(instance: Instance): ()
+		if instance:IsA("ParticleEmitter") and ambient[instance] then
+			ambient[instance] = nil
+			Particles.Stop(instance)
+		end
+	end)
 	workspace.DescendantAdded:Connect(function(instance: Instance): ()
+		adoptEmitter(instance)
 		local class = Tags.ClassOf(instance)
 		if class ~= nil and table.find(effectClasses, class) ~= nil then
 			track(instance)
 		end
 	end)
 	RunService.Heartbeat:Connect(function(dt: number): ()
+		for emitter in ambient do
+			Particles.Stream(emitter)
+		end
 		for instance, state in tracked do
 			if not instance:IsDescendantOf(workspace) then
 				continue
 			end
 			local class = Tags.ClassOf(instance)
 			if class == Tags.CookingTool then
-				updateCooking(instance, state)
+				updateSmoke(instance, state, dt)
 			end
 			updateFire(instance, state, dt)
 			if class == Tags.FireExtinguisher then

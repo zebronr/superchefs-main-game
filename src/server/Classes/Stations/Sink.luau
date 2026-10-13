@@ -62,13 +62,17 @@ function Sink.new(instance: Instance): Sink
 	return self
 end
 
-local function washSide(self: Sink, player: Player): boolean?
+-- True when the player stands at the washing end, false at the drain board. `drainBias` counts the drain board that
+-- many studs closer (negative counts the washing end closer).
+local function washSide(self: Sink, player: Player, drainBias: number?): boolean?
 	local character = player.Character
 	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
 	if root == nil or not root:IsA("BasePart") then
 		return nil
 	end
-	return (root.Position - self.WashPartMarker.Position).Magnitude < (root.Position - self.DrainBoard.Position).Magnitude
+	local toWash = (root.Position - self.WashPartMarker.Position).Magnitude
+	local toDrain = (root.Position - self.DrainBoard.Position).Magnitude - (drainBias or 0)
+	return toWash < toDrain
 end
 
 local function updateDisplays(self: Sink): ()
@@ -85,7 +89,12 @@ function Sink.Handle(self: Sink, player: Player, held: Item.Item?): boolean
 	if self.Session ~= nil then
 		return false
 	end
-	local side = washSide(self, player)
+	-- Lean toward the end the held item can use: dirty plates go in the water, anything else wants the drain board.
+	local side = washSide(
+		self,
+		player,
+		if DirtyPlate.Cast(held) == nil then InteractionConfig.DrainBoardReach else -InteractionConfig.WashReach
+	)
 	if side == nil then
 		return false
 	end

@@ -51,6 +51,10 @@ function Pot.Display(self: Pot, content: string): ()
 	self.SoupWeld = Slot.WeldOnTop(soup, self.Part, -self.Part.Size.Y / 2)
 end
 
+function Pot.ClearDisplay(self: Pot): ()
+	clearSoup(self)
+end
+
 function Pot.Destroy(self: Pot): ()
 	clearSoup(self)
 	CookingTool.Destroy(self)

@@ -1,6 +1,6 @@
 # Bill: Hustle
 
-Status: **code written and smoke-tested (2026-10-05);** placeholder VFX and a stand-in character model (see HANDOFF). Job: All-rounder. Shape: **self buff**. Follows the [general superskill rules](../characters.md#general-superskill-rules) and the [art style](../art-style.md).
+Status: **code written and smoke-tested (2026-10-05);** VFX first pass 2026-10-12 (spring, round steam and exhale puffs, speed lines, trail, sweat flicks, faster chop/wash animation; time left shown by the lines and trail thinning, a sputter in the last 1.5 s and three white blinks, no bar; templates in `Assets.Skills.Hustle`, tuning in `Config.Skills.Hustle.Visuals`), sound still to do; stand-in character model (see HANDOFF). Job: All-rounder. Shape: **self buff**. Follows the [general superskill rules](../characters.md#general-superskill-rules) and the [art style](../art-style.md).
 
 ## Who Bill is
 

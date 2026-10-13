@@ -5,18 +5,23 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local BearToss = require(script.Parent.Parent.Skills.BearToss)
 local DeepFreeze = require(script.Parent.Parent.Skills.DeepFreeze)
 local Hustle = require(script.Parent.Parent.Skills.Hustle)
 local InstantSkill = require(script.Parent.Parent.Skills.InstantSkill)
 local OrderRush = require(script.Parent.Parent.Skills.OrderRush)
+local Phase = require(script.Parent.Parent.Skills.Phase)
 local TongueGrab = require(script.Parent.Parent.Skills.TongueGrab)
+local CinematicCameraController = require(script.Parent.CinematicCameraController)
 local SpeedController = require(script.Parent.SpeedController)
+local RadialRing = require(script.Parent.Parent.Util.RadialRing)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local SkillsConfig = Config.Skills
 local Attribute = SkillsConfig.Attribute
 local Net = require(Shared:WaitForChild("Net"))
+local TossPath = require(Shared:WaitForChild("Util"):WaitForChild("TossPath"))
 
 -- The super skill of the local character: key and button, the HUD, and the aiming flow. The look of
 -- each skill lives in `Skills/`; to add one, write the module and register it here.
@@ -35,10 +40,16 @@ type ClientSkill = {
 	EndAim: () -> (),
 	GetDirection: () -> Vector3,
 	GetTarget: () -> Instance?,
+	-- Optional: false makes the press do nothing (nothing in reach), with no aim and no request.
+	CanAim: ((character: Model) -> boolean)?,
+	-- Optional: true releases the aim on the client's own (a Bear catching a dasher, or throwing before the limit).
+	AutoRelease: (() -> boolean)?,
 }
 
 local clientSkills: { [string]: ClientSkill } = {
-	TongueGrab = TongueGrab,
+	-- Cast: a module without the optional hooks doesn't match the table type exactly.
+	TongueGrab = TongueGrab :: any,
+	BearToss = BearToss,
 }
 
 -- Press-once skills (no aim): predicted on press, confirmed or rolled back by the server.
@@ -46,6 +57,7 @@ local instantSkills: { [string]: InstantSkill.InstantSkill } = {
 	Hustle = Hustle,
 	DeepFreeze = DeepFreeze,
 	OrderRush = OrderRush,
+	Phase = Phase,
 }
 
 -- An instant use the server has not answered yet.
@@ -75,11 +87,11 @@ type Aim = {
 
 local localPlayer = Players.LocalPlayer
 local aim: Aim? = nil
--- Studio test mode (Config.Skills.StudioTestKeys): the skill picked by the last test key; nil = the character's own.
-local testKeys = if RunService:IsStudio() then SkillsConfig.StudioTestKeys else nil
-local override: string? = nil
 local pending: Pending? = nil
 local connectedButtons: { [GuiButton]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+-- When the superskill last came off cooldown (os.clock), for the card's pop.
+local cameReadyAt = -math.huge
+local wasCooling = false
 local warnedMissing: { [string]: boolean } = {}
 
 local function warnOnce(message: string): ()
@@ -93,9 +105,6 @@ local function currentName(): (string?, Model?)
 	local character = localPlayer.Character
 	if character == nil then
 		return nil, nil
-	end
-	if override ~= nil then
-		return override, character
 	end
 	local model = character:GetAttribute(Attribute.CharacterModel)
 	return if typeof(model) == "string" then SkillsConfig.ByCharacter[model] else nil, character
@@ -131,6 +140,36 @@ local function cooldownFraction(character: Model): number
 	return math.clamp((readyAt - workspace:GetServerTimeNow()) / total, 0, 1)
 end
 
+-- Whole seconds of cooldown left, rounded up.
+local function cooldownSeconds(character: Model): number
+	local readyAt = character:GetAttribute(Attribute.ReadyAt)
+	return if typeof(readyAt) == "number" then math.max(math.ceil(readyAt - workspace:GetServerTimeNow()), 0) else 0
+end
+
+-- True while the local character can't interact (or, with `throwing`, throw): a skill holds it, or one blocks it
+-- (Phase blocks throwing).
+function SkillController.InteractBlocked(throwing: boolean?): boolean
+	for _, instant in instantSkills do
+		local blocks = instant.BlocksInteract
+		local blocksThrow = instant.BlocksThrow
+		if (blocks ~= nil and blocks()) or (throwing and blocksThrow ~= nil and blocksThrow()) then
+			return true
+		end
+	end
+	return SkillController.IsBusy()
+end
+
+-- Whether an instant skill keeps the local character's run animation off (the Ghost floating while phased).
+function SkillController.RunAnimationStopped(): boolean
+	for _, instant in instantSkills do
+		local stops = instant.StopsRunAnimation
+		if stops ~= nil and stops() then
+			return true
+		end
+	end
+	return false
+end
+
 function SkillController.IsBusy(): boolean
 	if aim ~= nil then
 		return true
@@ -140,7 +179,8 @@ function SkillController.IsBusy(): boolean
 		return true
 	end
 	local character = localPlayer.Character
-	return character ~= nil and character:GetAttribute(Attribute.State) ~= nil
+	-- Held or thrown by a Bear counts as busy too.
+	return character ~= nil and (character:GetAttribute(Attribute.State) ~= nil or TossPath.Busy(character))
 end
 
 -- Gives movement back. Rooting is client-only, so this never waits for the server; the server still
@@ -215,10 +255,13 @@ local function useInstant(skill: InstantSkill.InstantSkill, character: Model): (
 	table.insert(current.Connections, character:GetAttributeChangedSignal(Attribute.ReadyAt):Connect(confirm))
 	table.insert(current.Connections, character:GetAttributeChangedSignal(Attribute.State):Connect(confirm))
 	skill.Predict(character)
-	Net.Event("Skill"):FireServer("Use", override)
+	Net.Event("Skill"):FireServer("Use")
 end
 
 local function pressSkill(): ()
+	if CinematicCameraController.IsActive() then
+		return
+	end
 	local instant, instantCharacter = currentInstant()
 	if instant ~= nil and instantCharacter ~= nil then
 		useInstant(instant, instantCharacter)
@@ -230,6 +273,10 @@ local function pressSkill(): ()
 	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid == nil or humanoid.Health <= 0 or handsFull(character) or cooldownFraction(character) > 0 then
+		return
+	end
+	local canAim = skill.CanAim
+	if canAim ~= nil and not canAim(character) then
 		return
 	end
 	aim = {
@@ -248,10 +295,13 @@ local function pressSkill(): ()
 	-- Rooted until the server says the use is over.
 	SpeedController.SetRooted("Aim", true)
 	skill.BeginAim(character)
-	Net.Event("Skill"):FireServer("Aim", override)
+	Net.Event("Skill"):FireServer("Aim")
 end
 
 local function releaseSkill(): ()
+	if CinematicCameraController.IsActive() then
+		return
+	end
 	local current = aim
 	if current == nil or current.Released then
 		return
@@ -311,7 +361,10 @@ local function stepAim(dt: number): ()
 			current.RetargetSentAt = now
 			Net.Event("Skill"):FireServer("Retarget")
 		end
-		if now - current.HoldStartedAt >= current.Skill.HoldLimit then
+		local autoRelease = current.Skill.AutoRelease
+		if autoRelease ~= nil and autoRelease() then
+			releaseSkill()
+		elseif now - current.HoldStartedAt >= current.Skill.HoldLimit then
 			current.Released = true
 			current.Skill.ReleaseAim(false)
 			Net.Event("Skill"):FireServer("Timeout")
@@ -339,14 +392,52 @@ local function bindMobileButton(button: GuiButton): ()
 	button.MouseButton1Up:Connect(releaseSkill)
 end
 
-local function setCooldownFrame(parent: Instance, fraction: number): ()
-	local frame = parent:FindFirstChild("Cooldown")
-	if frame ~= nil and frame:IsA("GuiObject") then
-		frame.Size = UDim2.new(frame.Size.X.Scale, frame.Size.X.Offset, fraction, 0)
+type CardView = {
+	Fraction: number,
+	Seconds: number,
+	Lit: boolean,
+	Scale: number,
+	Icon: string,
+	Color: Color3,
+}
+
+-- Draws one superskill card (the desktop one or the mobile button's): ready = icon and ring in the superskill's
+-- colour; cooldown = the ring fills back clockwise with the seconds left on a faded icon; can't use = grey.
+local function drawCard(card: Instance, view: CardView): ()
+	local tuning = Config.UI.Superskill
+	local color = if view.Lit then view.Color else tuning.OffColor
+	local cooling = view.Fraction > 0
+	local pop = card:FindFirstChild("Pop")
+	if pop ~= nil and pop:IsA("UIScale") then
+		pop.Scale = view.Scale
+	end
+	local key = card:FindFirstChild("Key")
+	local label = if key ~= nil then key:FindFirstChild("Label") else nil
+	if label ~= nil and label:IsA("TextLabel") then
+		label.Text = Config.Interaction.Controls.Skill.Name
+	end
+	local slot = card:FindFirstChild("Slot")
+	if slot == nil then
+		return
+	end
+	local icon = slot:FindFirstChild("Icon")
+	if icon ~= nil and icon:IsA("ImageLabel") then
+		icon.Image = view.Icon
+		icon.ImageColor3 = if cooling then tuning.OffColor else color
+		icon.ImageTransparency = if cooling then tuning.CooldownIconTransparency else 0
+	end
+	local ring = RadialRing.Find(slot)
+	if ring ~= nil then
+		RadialRing.Set(ring, 1 - view.Fraction, if cooling then view.Color else color)
+	end
+	local time = slot:FindFirstChild("Time")
+	if time ~= nil and time:IsA("TextLabel") then
+		time.Text = if cooling then tostring(view.Seconds) else ""
 	end
 end
 
--- Shows the HUD only for characters that have a skill, with the cooldown fill and a greyed-out look.
+-- Shows the superskill card only for characters that have one: on the HUD with a keyboard, as the touch button on
+-- touch screens.
 local function updateHud(): ()
 	local skill, character = currentSkill()
 	local instant = currentInstant()
@@ -363,31 +454,54 @@ local function updateHud(): ()
 		return
 	end
 
-	local hud = playerGui:FindFirstChild("SkillHUD")
-	if hud ~= nil and hud:IsA("ScreenGui") then
-		hud.Enabled = hasSkill and Config.UI.ShowSkillHud
-		local button = hud:FindFirstChild("Button")
-		if button ~= nil and button:IsA("Frame") then
-			local key = button:FindFirstChild("Key")
-			if key ~= nil and key:IsA("TextLabel") then
-				key.Text = Config.Interaction.Controls.Skill.Name
-				key.TextTransparency = if unavailable then 0.5 else 0
-			end
-			button.BackgroundTransparency = if unavailable then 0.6 else 0
-			setCooldownFrame(button, fraction)
+	local tuning = Config.UI.Superskill
+	local name = currentName()
+	local look = if name ~= nil then tuning.Looks[name] else nil
+	if hasSkill and look == nil then
+		warnOnce(`Config.UI.Superskill.Looks has no entry for {name}`)
+	end
+	local clock = os.clock()
+	if wasCooling and fraction <= 0 then
+		cameReadyAt = clock
+	end
+	wasCooling = fraction > 0
+	local pressed = aim ~= nil or pending ~= nil
+	local popAge = (clock - cameReadyAt) / tuning.PopTime
+	local view: CardView = {
+		Fraction = fraction,
+		Seconds = if character ~= nil then cooldownSeconds(character) else 0,
+		Lit = pressed or not unavailable,
+		Scale = if pressed
+			then tuning.PressedScale
+			elseif popAge < 1 then 1 + (tuning.PopScale - 1) * math.sin(popAge * math.pi)
+			else 1,
+		Icon = if look ~= nil then look.Icon else "",
+		Color = if look ~= nil then look.Color else tuning.OffColor,
+	}
+	local touch = UserInputService.TouchEnabled
+
+	local gameInfo = playerGui:FindFirstChild("GameInfo")
+	local infoFrame = if gameInfo ~= nil then gameInfo:FindFirstChild("InfoFrame") else nil
+	local card = if infoFrame ~= nil then infoFrame:FindFirstChild("Superskill") else nil
+	if card ~= nil and card:IsA("GuiObject") then
+		card.Visible = hasSkill and not touch
+		if card.Visible then
+			drawCard(card, view)
 		end
-	elseif hasSkill and Config.UI.ShowSkillHud then
-		warnOnce("PlayerGui.SkillHUD is missing")
+	elseif hasSkill and not touch then
+		warnOnce("PlayerGui.GameInfo.InfoFrame.Superskill is missing")
 	end
 
-	if UserInputService.TouchEnabled then
+	if touch then
 		local mobile = playerGui:FindFirstChild("MobileControls")
-		local button = if mobile then mobile:FindFirstChild("Skill") else nil
+		local button = if mobile then mobile:FindFirstChild("Skill", true) else nil
 		if button ~= nil and button:IsA("TextButton") then
 			button.Visible = hasSkill
-			button.TextTransparency = if unavailable then 0.5 else 0
 			bindMobileButton(button)
-			setCooldownFrame(button, fraction)
+			local mobileCard = button:FindFirstChild("Superskill")
+			if hasSkill and mobileCard ~= nil then
+				drawCard(mobileCard, view)
+			end
 		elseif hasSkill then
 			warnOnce("PlayerGui.MobileControls.Skill is missing")
 		end
@@ -403,22 +517,19 @@ function SkillController.Start(_self: typeof(SkillController)): ()
 	end
 	-- Input already consumed by the game (text boxes, GUI) is ignored.
 	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean): ()
-		if gameProcessed then
+		if gameProcessed or CinematicCameraController.IsActive() then
 			return
 		end
-		local test = if testKeys ~= nil then testKeys[input.KeyCode.Name] else nil
-		if input.KeyCode == Config.Interaction.Controls.Skill or test ~= nil then
-			-- A test key picks its skill until the next press; the skill key goes back to the character's own.
-			if aim == nil and pending == nil and not SkillController.IsBusy() then
-				override = test
-			end
+		if input.KeyCode == Config.Interaction.Controls.Skill then
 			pressSkill()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject): ()
+		if CinematicCameraController.IsActive() then
+			return
+		end
 		-- Letting go always counts, even over a GUI.
-		local test = testKeys ~= nil and testKeys[input.KeyCode.Name] ~= nil
-		if input.KeyCode == Config.Interaction.Controls.Skill or test then
+		if input.KeyCode == Config.Interaction.Controls.Skill then
 			releaseSkill()
 		end
 	end)

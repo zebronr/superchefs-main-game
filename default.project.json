@@ -26,6 +26,11 @@
 			"StarterCharacterScripts": {
 				"$ignoreUnknownInstances": false
 			}
+		},
+		"ReplicatedFirst": {
+			"LoadingScreen": {
+				"$path": "src/first/LoadingScreen.client.luau"
+			}
 		}
 	}
 }

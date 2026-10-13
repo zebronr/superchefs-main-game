@@ -12,6 +12,7 @@ local BinderService = require(script.Parent.BinderService)
 local CarryService = require(script.Parent.CarryService)
 local CharacterService = require(script.Parent.CharacterService)
 local EffectService = require(script.Parent.EffectService)
+local TeamService = require(script.Parent.TeamService)
 local ThrowService = require(script.Parent.ThrowService)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -19,6 +20,8 @@ local Config = require(Shared:WaitForChild("Config"))
 local InteractionConfig = Config.Interaction
 local Net = require(Shared:WaitForChild("Net"))
 local Tags = require(Shared:WaitForChild("Tags"))
+local SkillEffects = require(Shared:WaitForChild("Util"):WaitForChild("SkillEffects"))
+local TossPath = require(Shared:WaitForChild("Util"):WaitForChild("TossPath"))
 
 -- Replaces the legacy InteractionHandler: validates requests, then routes them to objects.
 local InteractionService = {}
@@ -71,7 +74,8 @@ local function isInRange(rootPart: BasePart, target: Instance, node: Instance?):
 end
 
 local function interactWithItem(player: Player, target: Item.Item, held: Item.Item?): ()
-	if target.Holder ~= nil or target.Surface ~= nil then
+	-- Something on fire can't be touched until it's put out.
+	if target.Holder ~= nil or target.Surface ~= nil or CollectionService:HasTag(target.Instance, Tags.FireLocked) then
 		return
 	end
 	local class = Tags.ClassOf(target.Instance)
@@ -219,6 +223,10 @@ function InteractionService.StopAllUse(): ()
 	end
 end
 
+function InteractionService.StopUse(player: Player): ()
+	stopUse(player)
+end
+
 local function startUse(player: Player, target: Instance?, node: Instance?, rootPart: BasePart): ()
 	if activeUse[player] ~= nil then
 		return
@@ -248,19 +256,29 @@ local function startUse(player: Player, target: Instance?, node: Instance?, root
 end
 
 local function onRequest(player: Player, action: unknown, target: unknown, node: unknown, heldState: unknown): ()
+	if not TeamService.IsActive(player) then
+		return
+	end
 	if action == "StopUse" then
 		if consumeRequest(player) then
 			stopUse(player)
 		end
 		return
 	end
-	-- Aiming or using a super skill blocks every other action.
+	-- Aiming or using a super skill, or being held or thrown by a Bear, blocks every other action.
 	local skillCharacter = player.Character
 	if skillCharacter ~= nil and skillCharacter:GetAttribute(Config.Skills.Attribute.State) ~= nil then
 		return
 	end
+	if TossPath.Busy(skillCharacter) then
+		return
+	end
 	if action == "Dash" then
 		CharacterService.Dash(player)
+		return
+	end
+	-- A phasing Ghost can't throw (the throw would start inside a wall); interacting is a Phase setting.
+	if SkillEffects.PhaseActive(skillCharacter) and (action == "Throw" or not Config.Skills.Phase.CanInteract) then
 		return
 	end
 	if action == "Throw" then
@@ -272,7 +290,11 @@ local function onRequest(player: Player, action: unknown, target: unknown, node:
 			local candidateCharacter = candidate.Character
 			local busy = candidateCharacter ~= nil
 				and candidateCharacter:GetAttribute(Config.Skills.Attribute.State) == "Active"
-			return activeUse[candidate] == nil and not busy
+			-- Thrown items fly straight through a phasing Ghost.
+			return activeUse[candidate] == nil
+				and not busy
+				and not SkillEffects.PhaseActive(candidateCharacter)
+				and not TossPath.Busy(candidateCharacter)
 		end)
 		return
 	end

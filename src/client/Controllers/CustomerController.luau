@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Particles = require(script.Parent.Parent.Util.Particles)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Levels = Config.Levels
 
@@ -39,6 +40,10 @@ type Bubble = {
 local CustomerController = {}
 local bubbles: { [Model]: Bubble } = {}
 local walkTracks: { [Model]: AnimationTrack? } = {}
+local sitTracks: { [Model]: AnimationTrack? } = {}
+-- Dine-and-dash tell: sweat drops on the head of a seated customer who will run (WillDash).
+local sweats: { [Model]: Attachment? } = {}
+local warnedSweat = false
 local warnedAnimator = false
 
 local GREEN = Config.UI.Patience.Green
@@ -153,12 +158,24 @@ local function updateFrost(model: Model, bubble: Bubble, now: number): boolean
 	return frozenAt ~= nil
 end
 
-local function remove(model: Model): ()
-	local track = walkTracks[model]
+local SEATED_STATES = { WaitingToOrder = true, WaitingForFood = true, Eating = true }
+
+local function stopTrack(tracks: { [Model]: AnimationTrack? }, model: Model): ()
+	local track = tracks[model]
 	if track ~= nil then
-		walkTracks[model] = nil
+		tracks[model] = nil
 		track:Stop()
 		track:Destroy()
+	end
+end
+
+local function remove(model: Model): ()
+	stopTrack(walkTracks, model)
+	stopTrack(sitTracks, model)
+	local sweat = sweats[model]
+	if sweat ~= nil then
+		sweats[model] = nil
+		sweat:Destroy()
 	end
 	local bubble = bubbles[model]
 	if bubble ~= nil then
@@ -170,40 +187,103 @@ local function remove(model: Model): ()
 	end
 end
 
+local function loadTrack(model: Model, animationId: string): AnimationTrack?
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local animator = if humanoid then humanoid:FindFirstChildOfClass("Animator") else nil
+	if animator == nil then
+		if not warnedAnimator then
+			warn("Customer Humanoid.Animator is missing; customer animations skipped")
+			warnedAnimator = true
+		end
+		return nil
+	end
+	local animation = Instance.new("Animation")
+	animation.AnimationId = animationId
+	local loaded = animator:LoadAnimation(animation)
+	animation:Destroy()
+	loaded.Looped = true
+	loaded:Play()
+	return loaded
+end
+
+local function sweatTemplate(): Attachment?
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local effects = if assets then assets:FindFirstChild("Effects") else nil
+	local template = if effects then effects:FindFirstChild("SweatDrops") else nil
+	if template ~= nil and template:IsA("Attachment") then
+		return template
+	end
+	if not warnedSweat then
+		warn("ReplicatedStorage.Assets.Effects.SweatDrops (Attachment) is missing; dine-and-dash sweat skipped")
+		warnedSweat = true
+	end
+	return nil
+end
+
+-- Sweats while seated if they're going to run, so a watchful player can be ready. Paused while frozen.
+local function updateSweat(model: Model): ()
+	local state = model:GetAttribute("CustomerState")
+	local seated = typeof(state) == "string" and SEATED_STATES[state] == true
+	local frozen = typeof(model:GetAttribute(FrozenAttribute)) == "number"
+	local want = model:GetAttribute("WillDash") == true and seated and not frozen
+	local sweat = sweats[model]
+	if sweat ~= nil and not sweat:IsDescendantOf(model) then
+		sweats[model] = nil
+		sweat:Destroy()
+		sweat = nil
+	end
+	if want and sweat == nil then
+		local head = model:FindFirstChild("Head")
+		local template = if head ~= nil and head:IsA("BasePart") then sweatTemplate() else nil
+		if template == nil then
+			return
+		end
+		local clone = template:Clone()
+		for _, child in clone:GetChildren() do
+			if child:IsA("ParticleEmitter") then
+				child.Enabled = false
+			end
+		end
+		clone.Parent = head
+		sweats[model] = clone
+		sweat = clone
+	end
+	if sweat ~= nil then
+		for _, child in sweat:GetChildren() do
+			if child:IsA("ParticleEmitter") then
+				if want then
+					Particles.Stream(child)
+				else
+					Particles.Stop(child)
+				end
+			end
+		end
+	end
+end
+
+-- Walk while moving, sit while seated at the table.
 local function updateWalk(model: Model): ()
 	if typeof(model:GetAttribute(FrozenAttribute)) == "number" then
 		return
 	end
 	local state = model:GetAttribute("CustomerState")
 	local walking = state == "Walking" or state == "Leaving" or state == "Dashing"
-	local track = walkTracks[model]
-	if walking and track == nil then
-		local humanoid = model:FindFirstChildOfClass("Humanoid")
-		local animator = if humanoid then humanoid:FindFirstChildOfClass("Animator") else nil
-		if animator == nil then
-			if not warnedAnimator then
-				warn("Customer Humanoid.Animator is missing; walk animation skipped")
-				warnedAnimator = true
-			end
-			return
-		end
-		local animation = Instance.new("Animation")
-		animation.AnimationId = Config.Customers.WalkAnimation
-		local loaded = animator:LoadAnimation(animation)
-		animation:Destroy()
-		loaded.Looped = true
-		walkTracks[model] = loaded
-		loaded:Play()
+	local seated = typeof(state) == "string" and SEATED_STATES[state] == true
+	if walking and walkTracks[model] == nil then
+		walkTracks[model] = loadTrack(model, Config.Customers.WalkAnimation)
 	end
 	local current = walkTracks[model]
 	if walking then
 		if current ~= nil then
 			current:AdjustSpeed(if state == "Dashing" then Config.Customers.DashAnimSpeed else 1)
 		end
-	elseif current ~= nil then
-		walkTracks[model] = nil
-		current:Stop()
-		current:Destroy()
+	else
+		stopTrack(walkTracks, model)
+	end
+	if seated and sitTracks[model] == nil then
+		sitTracks[model] = loadTrack(model, Config.Customers.SitAnimation)
+	elseif not seated then
+		stopTrack(sitTracks, model)
 	end
 end
 
@@ -315,6 +395,15 @@ local function animate(bubble: Bubble, frozen: boolean, fraction: number?, clock
 	bubble.Gui.StudsOffset = bubble.BaseOffset + Vector3.new(shake, bob + (sy - 1) * baseSize.Y.Scale / 2, 0)
 end
 
+-- The take-order puff hides the bubble and pops it back out of the puff.
+function CustomerController.Repop(model: Model, at: number): ()
+	local bubble = bubbles[model]
+	if bubble ~= nil and bubble.Shown then
+		bubble.ShownAt = at
+		bubble.StateAt = nil
+	end
+end
+
 local function update(model: Model, bubble: Bubble): ()
 	local now = workspace:GetServerTimeNow()
 	local frozen = updateFrost(model, bubble, now)
@@ -334,7 +423,7 @@ local function update(model: Model, bubble: Bubble): ()
 			bubble.Gui.Enabled = true
 		elseif state ~= bubble.LastState then
 			bubble.LastState = if typeof(state) == "string" then state else nil
-			bubble.StateAt = clock
+			bubble.StateAt = if bubble.ShownAt ~= nil and clock - bubble.ShownAt < bubbleTuning.PopTime then nil else clock
 		end
 	elseif bubble.Shown then
 		bubble.Shown = false
@@ -366,7 +455,7 @@ local function update(model: Model, bubble: Bubble): ()
 		icon.Visible = waitingForFood
 		if waitingForFood then
 			local recipeId = model:GetAttribute("Recipe")
-			local recipe = if typeof(recipeId) == "number" then Levels.GetCurrent().Recipes[recipeId] else nil
+			local recipe = if typeof(recipeId) == "number" then Levels.GetRecipe(recipeId) else nil
 			if recipe ~= nil and icon.Image ~= recipe.FoodImage then
 				icon.Image = recipe.FoodImage
 			end
@@ -449,6 +538,7 @@ function CustomerController.Start(_self: typeof(CustomerController)): ()
 		for _, child in temp:GetChildren() do
 			if child:IsA("Model") then
 				updateWalk(child)
+				updateSweat(child)
 				local bubble = bubbles[child]
 				if bubble ~= nil and not bubble.Gui:IsDescendantOf(child) then
 					remove(child)

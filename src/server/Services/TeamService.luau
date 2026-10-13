@@ -1,8 +1,24 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local TeamService = {}
+
+function TeamService.IsActive(player: Player): boolean
+	return player:GetAttribute(Config.CinematicCamera.Attribute) ~= true
+end
+
+function TeamService.GetActivePlayers(): { Player }
+	local active: { Player } = {}
+	for _, player in Players:GetPlayers() do
+		if TeamService.IsActive(player) then
+			table.insert(active, player)
+		end
+	end
+	return active
+end
 
 local function teamOf(player: Player): number
 	local value = player:GetAttribute("Team")
@@ -16,7 +32,7 @@ end
 function TeamService.GetPlayers(team: number): { Player }
 	local members: { Player } = {}
 	for _, player in Players:GetPlayers() do
-		if player:GetAttribute("Team") == team then
+		if TeamService.IsActive(player) and player:GetAttribute("Team") == team then
 			table.insert(members, player)
 		end
 	end
@@ -24,12 +40,15 @@ function TeamService.GetPlayers(team: number): { Player }
 end
 
 function TeamService.GetSlot(player: Player): number
+	if not TeamService.IsActive(player) then
+		return 0
+	end
 	local slot = 1
 	for _, other in Players:GetPlayers() do
 		if other == player then
 			return slot
 		end
-		if other:GetAttribute("Team") == teamOf(player) then
+		if TeamService.IsActive(other) and other:GetAttribute("Team") == teamOf(player) then
 			slot += 1
 		end
 	end
@@ -37,7 +56,7 @@ function TeamService.GetSlot(player: Player): number
 end
 
 function TeamService.AssignAll(count: number): ()
-	local players = Players:GetPlayers()
+	local players = TeamService.GetActivePlayers()
 	if count > 1 then
 		for index = #players, 2, -1 do
 			local chosen = math.random(index)
@@ -50,6 +69,9 @@ function TeamService.AssignAll(count: number): ()
 end
 
 function TeamService.AssignJoin(player: Player, count: number): number
+	if not TeamService.IsActive(player) then
+		return 0
+	end
 	local smallest = 1
 	local size = math.huge
 	for team = 1, count do

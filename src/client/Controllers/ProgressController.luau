@@ -11,51 +11,110 @@ local Tags = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Tags
 
 local ProgressController = {}
 
+-- The template's parts code drives (see docs/UI-GUIDE.md, Assets.UI.ProgressBar).
+type Parts = {
+	Gui: BillboardGui,
+	Root: GuiObject,
+	Scale: UIScale,
+	Glow: ImageLabel,
+	Fill: GuiObject,
+	Badge: GuiObject,
+	BadgeFace: GuiObject,
+	Check: GuiObject,
+	Bang: GuiObject,
+}
+
+-- What the bar shows this frame. Fill is 0-1, Glow is the glow's transparency (1 = hidden).
+type View = {
+	Fill: number,
+	Color: Color3,
+	Badge: ("Check" | "Bang")?,
+	Scale: number,
+	Rotation: number,
+	Glow: number,
+}
+
 type Tracked = {
 	Kind: "Food" | "CookingTool" | "Sink",
 	Ancestry: RBXScriptConnection,
 	Destroying: RBXScriptConnection,
 	Attributes: { RBXScriptConnection },
-	Bar: BillboardGui?,
+	Bar: Parts?,
 	LastProgress: number?,
 }
 
 local tracked: { [Instance]: Tracked } = {}
 local template: BillboardGui
 local chopSound: Sound
+local tuning = Config.UI.Progress
+local cooking = InteractionConfig.Cooking
 
-local function updateProgressBar(progressBar: BillboardGui, progress: number): ()
-	local background = progressBar:FindFirstChild("BG")
-	local clip = if background then background:FindFirstChild("Clip") else nil
-	local bar = if clip then clip:FindFirstChild("Bar") else nil
-	assert(bar ~= nil and bar:IsA("Frame"), "ProgressBar.BG.Clip.Bar must be a Frame")
-	bar.Size = UDim2.new((math.clamp(progress, 0, 100) / 100) * 2, bar.Size.X.Offset, bar.Size.Y.Scale, bar.Size.Y.Offset)
+local function child(parent: Instance, name: string, className: string): any
+	local found = parent:FindFirstChild(name)
+	assert(found ~= nil and found:IsA(className), `ProgressBar: {parent.Name}.{name} must be a {className}`)
+	return found
 end
 
-local function showProgress(instance: Instance, state: Tracked, progress: number?): ()
-	if progress == nil or (state.Kind == "CookingTool" and progress >= 100) then
+local function makeBar(parent: Instance): Parts
+	local gui = template:Clone()
+	local root: GuiObject = child(gui, "Root", "GuiObject")
+	local face: GuiObject = child(root, "Face", "GuiObject")
+	local track: GuiObject = child(face, "Track", "GuiObject")
+	local badge: GuiObject = child(root, "Badge", "GuiObject")
+	local parts: Parts = {
+		Gui = gui,
+		Root = root,
+		Scale = child(root, "Scale", "UIScale"),
+		Glow = child(root, "Glow", "ImageLabel"),
+		Fill = child(track, "Fill", "GuiObject"),
+		Badge = badge,
+		BadgeFace = child(badge, "Face", "GuiObject"),
+		Check = child(badge, "Check", "GuiObject"),
+		Bang = child(badge, "Bang", "GuiObject"),
+	}
+	gui.Parent = parent
+	return parts
+end
+
+local function fillView(progress: number): View
+	return { Fill = progress / 100, Color = tuning.Fill, Badge = nil, Scale = 1, Rotation = 0, Glow = 1 }
+end
+
+local function render(parts: Parts, view: View): ()
+	local fill = math.clamp(view.Fill, 0, 1)
+	parts.Fill.Visible = fill > 0
+	parts.Fill.Size = UDim2.fromScale(fill, 1)
+	parts.Fill.BackgroundColor3 = view.Color
+	parts.Badge.Visible = view.Badge ~= nil
+	parts.BadgeFace.BackgroundColor3 = view.Color
+	parts.Check.Visible = view.Badge == "Check"
+	parts.Bang.Visible = view.Badge == "Bang"
+	parts.Scale.Scale = view.Scale
+	parts.Root.Rotation = view.Rotation
+	parts.Glow.ImageTransparency = view.Glow
+end
+
+local function showProgress(instance: Instance, state: Tracked, view: View?): ()
+	if view == nil then
 		if state.Bar ~= nil then
-			state.Bar:Destroy()
+			state.Bar.Gui:Destroy()
 			state.Bar = nil
 		end
 		return
 	end
 	if state.Bar == nil then
-		local bar = template:Clone()
 		local parent = if state.Kind == "Sink" then instance:FindFirstChild("WashPartMarker") else instance
 		if parent == nil then
-			bar:Destroy()
 			return
 		end
-		bar.Parent = parent
-		state.Bar = bar
+		state.Bar = makeBar(parent)
 	end
-	updateProgressBar(state.Bar :: BillboardGui, progress)
+	render(state.Bar :: Parts, view)
 end
 
 local function refreshSink(instance: Instance, state: Tracked): ()
 	local progress = instance:GetAttribute(InteractionConfig.WashProgressAttribute)
-	showProgress(instance, state, if typeof(progress) == "number" then progress else nil)
+	showProgress(instance, state, if typeof(progress) == "number" then fillView(progress) else nil)
 end
 
 local function refreshProgress(instance: Instance, state: Tracked, playSound: boolean): ()
@@ -65,28 +124,63 @@ local function refreshProgress(instance: Instance, state: Tracked, playSound: bo
 		state.LastProgress = nil
 		return
 	end
-	showProgress(instance, state, value)
+	showProgress(instance, state, fillView(value))
 	if playSound and value > (state.LastProgress or 0) then
 		chopSound:Play()
 	end
 	state.LastProgress = value
 end
 
+-- Cooked: a full bar with a check that pops in, then the burn warning drains it down to the burn.
+local function cookedView(elapsed: number, now: number): View?
+	if elapsed < cooking.CookSafeTime then
+		local pop = math.clamp(elapsed / tuning.DonePopTime, 0, 1)
+		return { Fill = 1, Color = tuning.Fill, Badge = "Check", Scale = 1 + math.sin(pop * math.pi) * tuning.DonePop, Rotation = 0, Glow = 1 }
+	end
+	local warned = elapsed - cooking.CookSafeTime
+	local t = warned / cooking.CookAlertDuration
+	if t >= 1 then
+		return nil
+	end
+	-- The pulse speeds up from WarnPulse[1] to [2] per second; the phase is its integral so the speed-up stays smooth.
+	local slow, fast = tuning.WarnPulse[1], tuning.WarnPulse[2]
+	local phase = slow * warned + (fast - slow) * warned * warned / (2 * cooking.CookAlertDuration)
+	local wave = (1 - math.cos(phase * 2 * math.pi)) / 2
+	local shake = tuning.WarnShake[1] + (tuning.WarnShake[2] - tuning.WarnShake[1]) * t
+	return {
+		Fill = 1 - t,
+		Color = tuning.Warn,
+		Badge = "Bang",
+		Scale = 1,
+		Rotation = shake * math.sin(now * tuning.WarnShakeSpeed * 2 * math.pi),
+		Glow = tuning.WarnGlow[1] + (tuning.WarnGlow[2] - tuning.WarnGlow[1]) * wave,
+	}
+end
+
 local function refreshCooking(instance: Instance, state: Tracked): ()
-	if typeof(instance:GetAttribute(InteractionConfig.Cooking.CookContentAttribute)) ~= "string" then
+	local fire = instance:GetAttribute(cooking.FireAttribute)
+	if typeof(instance:GetAttribute(cooking.CookContentAttribute)) ~= "string" or (typeof(fire) == "number" and fire > 0) then
 		showProgress(instance, state, nil)
 		return
 	end
-	local base = instance:GetAttribute(InteractionConfig.Cooking.CookProgressAttribute)
+	local cookedAt = instance:GetAttribute(cooking.CookedAtAttribute)
+	if typeof(cookedAt) == "number" then
+		-- Deep Freeze holds the warning where it was when the tool froze.
+		local frozenAt = instance:GetAttribute(Config.Skills.Attribute.FrozenAt)
+		local now = if typeof(frozenAt) == "number" then frozenAt else workspace:GetServerTimeNow()
+		showProgress(instance, state, cookedView(now - cookedAt, now))
+		return
+	end
+	local base = instance:GetAttribute(cooking.CookProgressAttribute)
 	if typeof(base) ~= "number" then
 		showProgress(instance, state, nil)
 		return
 	end
-	local startedAt = instance:GetAttribute(InteractionConfig.Cooking.CookStartedAtAttribute)
+	local startedAt = instance:GetAttribute(cooking.CookStartedAtAttribute)
 	local progress = if typeof(startedAt) == "number"
-		then math.min(base + (workspace:GetServerTimeNow() - startedAt) * InteractionConfig.Cooking.CookRate, 100)
+		then math.min(base + (workspace:GetServerTimeNow() - startedAt) * cooking.CookRate, 100)
 		else base
-	showProgress(instance, state, progress)
+	showProgress(instance, state, fillView(progress))
 end
 
 local function untrack(instance: Instance): ()
@@ -101,7 +195,7 @@ local function untrack(instance: Instance): ()
 		connection:Disconnect()
 	end
 	if state.Bar then
-		state.Bar:Destroy()
+		state.Bar.Gui:Destroy()
 	end
 end
 
@@ -118,11 +212,10 @@ local function refresh(instance: Instance): ()
 				end))
 				refreshProgress(instance, state, false)
 			elseif state.Kind == "CookingTool" then
-				for _, name in { InteractionConfig.Cooking.CookContentAttribute, InteractionConfig.Cooking.CookProgressAttribute, InteractionConfig.Cooking.CookStartedAtAttribute } do
-					table.insert(state.Attributes, instance:GetAttributeChangedSignal(name):Connect(function(): ()
-						refreshCooking(instance, state)
-					end))
-				end
+				-- Heartbeat redraws cooking bars every frame; this just marks the tool as live.
+				table.insert(state.Attributes, instance:GetAttributeChangedSignal(cooking.CookContentAttribute):Connect(function(): ()
+					refreshCooking(instance, state)
+				end))
 				refreshCooking(instance, state)
 			else
 				table.insert(state.Attributes, instance:GetAttributeChangedSignal(InteractionConfig.WashProgressAttribute):Connect(function(): ()
@@ -137,7 +230,7 @@ local function refresh(instance: Instance): ()
 		end
 		table.clear(state.Attributes)
 		if state.Bar then
-			state.Bar:Destroy()
+			state.Bar.Gui:Destroy()
 			state.Bar = nil
 		end
 		state.LastProgress = nil
@@ -193,13 +286,11 @@ function ProgressController.Start(_self: typeof(ProgressController)): ()
 	for _, instance in CollectionService:GetTagged(Tags.ClassTag(Tags.Sink)) do
 		track(instance, "Sink")
 	end
+	-- Cooking bars move every frame: the fill, the done pop, the warning's pulse and shake.
 	RunService.Heartbeat:Connect(function(): ()
 		for instance, state in tracked do
 			if state.Kind == "CookingTool" and #state.Attributes > 0 then
-				local startedAt = instance:GetAttribute(InteractionConfig.Cooking.CookStartedAtAttribute)
-				if typeof(startedAt) == "number" then
-					refreshCooking(instance, state)
-				end
+				refreshCooking(instance, state)
 			end
 		end
 	end)

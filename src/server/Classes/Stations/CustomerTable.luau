@@ -141,6 +141,9 @@ local function takeDirtyPlate(self: CustomerTable, player: Player, held: Item.It
 end
 
 function CustomerTable.RefreshInteraction(self: CustomerTable): ()
+	-- Clients read it for the mobile interact button's label (ORDER, SERVE).
+	local seated = self.Customer
+	self.Instance:SetAttribute("CustomerState", if seated ~= nil then seated.GetState() else nil)
 	local enabled = false
 	if RoundConfig.ServeMode == "Manual" then
 		local customer = self.Customer
@@ -169,6 +172,10 @@ function CustomerTable.Handle(self: CustomerTable, player: Player, held: Item.It
 			local plate = Plate.Cast(held)
 			if plate ~= nil then
 				return serve(self, customer, player, plate)
+			end
+			if held ~= nil and Tags.ClassOf(held.Instance) == Tags.Food then
+				EffectService.Notify(player, self.Instance, "NEEDS PLATE!")
+				return false
 			end
 		end
 	end

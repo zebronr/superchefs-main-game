@@ -22,6 +22,7 @@ export type Plate = Item.Item & {
 	Content: string?,
 	Model: BasePart?,
 	ModelWeld: WeldConstraint?,
+	AddContent: (self: Plate, name: string) -> boolean,
 	Clear: (self: Plate) -> (),
 }
 
@@ -88,9 +89,14 @@ local function moveFoodIcon(plate: Plate, food: Item.Item): ()
 		return
 	end
 	local foodList = food.Instance:FindFirstChild("FoodList")
-	local icon = if foodList ~= nil then foodList:FindFirstChild("Frame") else nil
-	if icon ~= nil and icon:IsA("Frame") then
-		icon.Parent = target
+	if foodList == nil then
+		return
+	end
+	-- A food combined off a plate carries one icon per ingredient.
+	for _, icon in foodList:GetChildren() do
+		if icon:IsA("Frame") then
+			icon.Parent = target
+		end
 	end
 end
 
@@ -111,22 +117,33 @@ local function movePlateIcons(targetPlate: Plate, sourcePlate: Plate): ()
 	end
 end
 
+-- Puts `name` (a food, or a pot's cooked content) on the plate, combining it with what's there. False when they don't
+-- combine or the result has no plated model.
+function Plate.AddContent(self: Plate, name: string): boolean
+	local content = self.Content
+	if content == nil and Recipes.NeedsBase[name] then
+		return false
+	end
+	local nextContent = if content == nil then name else Recipes.Find({ content, name })
+	if nextContent == nil then
+		return false
+	end
+	local template = findModel(nextContent)
+	if template == nil then
+		return false
+	end
+	installModel(self, template)
+	self.Content = nextContent
+	return true
+end
+
 function Plate.Accept(self: Plate, other: Interactable.Interactable, _player: Player?): boolean
 	local food = Item.Cast(other)
 	if food ~= nil and Tags.IsClass(food.Instance, Tags.Food) then
-		local content = self.Content
-		local nextContent = if content == nil then food.Instance.Name else Recipes.Find({ content, food.Instance.Name })
-		if nextContent == nil then
+		if not self:AddContent(food.Instance.Name) then
 			return false
 		end
-		local template = findModel(nextContent)
-		if template == nil then
-			return false
-		end
-
 		moveFoodIcon(self, food)
-		installModel(self, template)
-		self.Content = nextContent
 		if food.Holder ~= nil then
 			CarryService.Release(food.Holder)
 		end

@@ -44,6 +44,11 @@ function PlateTable.ForTeam(team: number): PlateTable?
 	return nil
 end
 
+-- Default plates (DefObjectOnTop) start stacked on the table.
+function PlateTable.PlaceDefault(self: PlateTable, item: Item.Item): boolean
+	return Plate.Cast(item) ~= nil and self.Stack:Push(item)
+end
+
 function PlateTable.AddPlate(self: PlateTable, dirty: boolean?): ()
 	if not self.Alive or not self.Instance:IsDescendantOf(workspace) then
 		return

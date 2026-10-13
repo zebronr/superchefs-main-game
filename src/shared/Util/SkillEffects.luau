@@ -8,6 +8,7 @@ local Attribute = SkillsConfig.Attribute
 local HustleConfig = SkillsConfig.Hustle
 local FreezeConfig = SkillsConfig.DeepFreeze
 local RushConfig = SkillsConfig.OrderRush
+local CharacterConfig = Config.Character
 
 -- Reads the instant skills' effects from replicated attributes, so the server and every client agree:
 -- Bill's Hustle, the Penguin's frost circles and the Alien's Order Rush timeline.
@@ -36,6 +37,35 @@ end
 -- Walk speed multiplier from Hustle.
 function SkillEffects.MoveMultiplier(character: Instance?): number
 	return if SkillEffects.HustleActive(character) then HustleConfig.MoveMultiplier else 1
+end
+
+-- Phase ------------------------------------------------------------------------------------------
+
+function SkillEffects.PhaseActive(character: Instance?, now: number?): boolean
+	if character == nil then
+		return false
+	end
+	local phaseUntil = number(character, Attribute.PhaseUntil)
+	return phaseUntil ~= nil and (now or workspace:GetServerTimeNow()) < phaseUntil
+end
+
+-- The collision group a character's parts belong in: GhostPhase while phasing (`phasing` overrides the attribute,
+-- for the local prediction), Phased during Order Rush or for an incorporeal character, Character otherwise.
+function SkillEffects.CollisionGroup(character: Instance, phasing: boolean?): string
+	if if phasing ~= nil then phasing else SkillEffects.PhaseActive(character) then
+		return CharacterConfig.GhostPhaseCollisionGroup
+	end
+	local model = character:GetAttribute(Attribute.CharacterModel)
+	if character:GetAttribute("Phased") == true or (typeof(model) == "string" and CharacterConfig.Incorporeal[model]) then
+		return CharacterConfig.PhasedCollisionGroup
+	end
+	return CharacterConfig.CollisionGroup
+end
+
+-- Whether a character is sturdy (the Bear's passive): thrown items don't cancel its superskill and ice doesn't slide it.
+function SkillEffects.Sturdy(character: Instance?): boolean
+	local model = if character ~= nil then character:GetAttribute(Attribute.CharacterModel) else nil
+	return typeof(model) == "string" and CharacterConfig.Sturdy[model] == true
 end
 
 -- Deep Freeze ------------------------------------------------------------------------------------

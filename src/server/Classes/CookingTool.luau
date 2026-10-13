@@ -5,8 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Interactable = require(script.Parent.Interactable)
 local Item = require(script.Parent.Item)
+local Food = require(script.Parent.Food)
 local Plate = require(script.Parent.Plate)
 local CarryService = require(script.Parent.Parent.Services.CarryService)
+local EffectService = require(script.Parent.Parent.Services.EffectService)
 local FireService = require(script.Parent.Parent.Services.FireService)
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local CookingConfig = Config.Interaction.Cooking
@@ -20,6 +22,9 @@ CookingTool.__index = CookingTool
 CookingTool.Combinations = {} :: { [string]: { string } }
 
 function CookingTool.Display(_self: CookingTool, _content: string): () end
+function CookingTool.ClearDisplay(_self: CookingTool): () end
+-- Runs when the content finishes cooking (a pan swaps the raw food for the cooked one).
+function CookingTool.Cooked(_self: CookingTool): () end
 
 export type CookingTool = Item.Item & {
 	IsCookingTool: boolean,
@@ -29,8 +34,14 @@ export type CookingTool = Item.Item & {
 	CookLoop: thread?,
 	BurnTimer: thread?,
 	FrozenAt: number?,
+	-- The content caught fire: it can't be plated any more, only emptied in the trash.
+	Burned: boolean,
 	Combinations: { [string]: { string } },
 	Display: (self: CookingTool, content: string) -> (),
+	ClearDisplay: (self: CookingTool) -> (),
+	Cooked: (self: CookingTool) -> (),
+	Empty: (self: CookingTool) -> (),
+	IsServable: (self: CookingTool) -> boolean,
 	IsEnabled: (self: CookingTool) -> boolean,
 	StartCooking: (self: CookingTool) -> (),
 	StopCooking: (self: CookingTool) -> (),
@@ -48,6 +59,7 @@ function CookingTool.new(instance: Instance): CookingTool
 	self.CookLoop = nil
 	self.BurnTimer = nil
 	self.FrozenAt = nil
+	self.Burned = false
 	setmetatable(self :: any, CookingTool)
 	instance:SetAttribute(CookingConfig.CookContentAttribute, nil)
 	instance:SetAttribute(CookingConfig.CookProgressAttribute, 0)
@@ -82,11 +94,13 @@ local function finish(self: CookingTool, finishedAt: number): ()
 	self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, 100)
 	self.Instance:SetAttribute(CookingConfig.CookStartedAtAttribute, nil)
 	self.Instance:SetAttribute(CookingConfig.CookedAtAttribute, finishedAt)
+	self:Cooked()
 	cancelTimer(self)
 	local burnAt = finishedAt + CookingConfig.CookSafeTime + CookingConfig.CookAlertDuration
 	self.BurnTimer = task.delay(math.max(0, burnAt - workspace:GetServerTimeNow()), function(): ()
 		self.BurnTimer = nil
 		if self:IsEnabled() and self.Instance:IsDescendantOf(workspace) then
+			self.Burned = true
 			FireService.Burn(self :: any)
 		end
 	end)
@@ -182,18 +196,54 @@ function CookingTool.SetEnabled(self: CookingTool, on: boolean): ()
 	end
 end
 
+-- Moves the ingredient icons (FoodList frames) from one item to another, so a pan's patty or a pot's spread keeps
+-- its icon on the food or plate it's served onto.
+local function moveIcons(from: Instance, to: Instance): ()
+	local source = from:FindFirstChild("FoodList")
+	local target = to:FindFirstChild("FoodList")
+	if source == nil or target == nil then
+		return
+	end
+	for _, child in source:GetChildren() do
+		if child:IsA("Frame") then
+			child.Parent = target
+		end
+	end
+end
+
+local function clearIcons(self: CookingTool): ()
+	local foodList = self.Part:FindFirstChild("FoodList")
+	if foodList == nil then
+		return
+	end
+	for _, child in foodList:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+end
+
 function CookingTool.Accept(self: CookingTool, other: Interactable.Interactable, _player: Player?): boolean
 	local food = Item.Cast(other)
 	if food ~= nil and Tags.IsClass(food.Instance, Tags.Food) then
 		local ingredients = if self.Content ~= nil then { self.Content, food.Instance.Name } else { food.Instance.Name }
 		local nextContent = Recipes.Find(ingredients, self.Combinations)
 		if nextContent == nil then
-			return false
+			-- Not a pot recipe: ladle the cooked content onto the food instead, when they combine without a plate.
+			local target = Food.Cast(food)
+			if target == nil or not self:IsServable() or not target:AddContent(self.Content :: string) then
+				return false
+			end
+			moveIcons(self.Part, target.Part)
+			self:Empty()
+			EffectService.PlaySound("Interact")
+			return true
 		end
 		self:StopCooking()
 		self:Display(nextContent)
 		self.Content = nextContent
 		self.Instance:SetAttribute(CookingConfig.CookContentAttribute, nextContent)
+		moveIcons(food.Instance, self.Part)
 		if food.Holder ~= nil then
 			CarryService.Release(food.Holder)
 		end
@@ -205,11 +255,39 @@ function CookingTool.Accept(self: CookingTool, other: Interactable.Interactable,
 		self:StartCooking()
 		return true
 	end
-	if Plate.Cast(other) ~= nil then
-		-- TODO(after parity): ladle pot dishes onto plates
-		return false
+	local plate = Plate.Cast(other)
+	if plate ~= nil then
+		-- Ladle the cooked content onto the plate (either one may be the held item).
+		local content = self.Content
+		if content == nil or not self:IsServable() then
+			return false
+		end
+		if not plate:AddContent(content) then
+			return false
+		end
+		moveIcons(self.Part, plate.Part)
+		self:Empty()
+		EffectService.PlaySound("Interact")
+		return true
 	end
 	return false
+end
+
+-- Done cooking, not burned and not on fire: ready to ladle out.
+function CookingTool.IsServable(self: CookingTool): boolean
+	return self.Content ~= nil and self.Progress >= 100 and not self.Burned and not FireService.IsBurning(self.Instance)
+end
+
+-- Throws the content away: back to an empty, cold tool.
+function CookingTool.Empty(self: CookingTool): ()
+	self:StopCooking()
+	self:ClearDisplay()
+	clearIcons(self)
+	self.Content = nil
+	self.Progress = 0
+	self.Burned = false
+	self.Instance:SetAttribute(CookingConfig.CookContentAttribute, nil)
+	self.Instance:SetAttribute(CookingConfig.CookProgressAttribute, 0)
 end
 
 function CookingTool.Destroy(self: CookingTool): ()

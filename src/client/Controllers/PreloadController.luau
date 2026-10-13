@@ -9,12 +9,18 @@ local SoundService = game:GetService("SoundService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local AssetIds = require(Shared:WaitForChild("Util"):WaitForChild("AssetIds"))
 local Config = require(Shared:WaitForChild("Config"))
+local LoadingState = require(Shared:WaitForChild("Util"):WaitForChild("LoadingState"))
 local Net = require(Shared:WaitForChild("Net"))
 local Tuning = Config.Preload
 
 local PreloadController = {}
 local localPlayer = Players.LocalPlayer
 local completed = 0
+
+local function finish(tier: number): ()
+	completed = tier
+	LoadingState.PreloadTier = tier
+end
 local seen: { [string]: boolean } = {}
 
 function PreloadController.IsReady(tier: number): boolean
@@ -167,7 +173,7 @@ local function run(): ()
 	if Tuning.WarmUp and ownFolder ~= nil then
 		warmFolder(ownFolder)
 	end
-	completed = 1
+	finish(1)
 
 	local second: { Instance } = { assets, ReplicatedStorage:WaitForChild("UIs") }
 	table.insert(second, localPlayer:WaitForChild("PlayerGui"))
@@ -179,7 +185,7 @@ local function run(): ()
 			end
 		end
 	end
-	completed = 2
+	finish(2)
 
 	local ok, result = pcall(function(): any
 		return Net.Function("Preload"):InvokeServer()
@@ -189,10 +195,10 @@ local function run(): ()
 	else
 		warn(`PreloadController: server asset list unavailable: {result}`)
 	end
-	completed = 3
+	finish(3)
 
 	download({ ReplicatedStorage:WaitForChild("NPCs") })
-	completed = 4
+	finish(4)
 end
 
 function PreloadController.Start(_self: typeof(PreloadController)): ()

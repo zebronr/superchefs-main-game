@@ -17,10 +17,13 @@ Set by the Gecko's Tongue Grab (2026-10-05), which the user approved as the look
 ## VFX
 - **Short bursts at moments that matter:** a puff when something fires, a splat on a sticky hit, dust on hitting a wall, a pop on arrival, a light trail on anything flying. Each fires once per action.
 - **Soft white textures tinted per effect** (`Puff`, `Splat`), so one texture serves many effects. Short lifetimes (0.15 to 0.5 s), quick drag, fade out.
+- **Smoke is round, like the combo fire UI** (`InfoFrame.ComboFire` embers): flat grey circles (`art/smoke/Circle.png`, `rbxassetid://124559406284281`, LightInfluence 0) that rise, grow with an ease-out and fade (0.2 + 0.8 p^1.5). No soft wispy textures; the user rejected that look.
+- **Particle emitters stay disabled and are fed with `:Emit()`** from an accumulator (`EffectsController.emit`), never `Enabled = true`, so low graphics quality shows the same particles.
 - Effects are emitted from templates (`Enabled = false`, the code calls `:Emit(n)`); the look lives on the template in Studio, the counts and motion numbers in `Config`.
 
 ## Pipeline
 - Meshes are made by headless Blender Python scripts (`blender --background --python ...`), with procedural materials baked to a texture. The script is the source of truth; re-running it reproduces the asset.
 - Flat textures (tiling strips, particle sprites) are made with Pillow scripts. Tiling textures use whole-number frequencies so the edges match.
 - Images are uploaded through the Studio MCP from a local HTTP server; meshes are imported by hand (File > Import 3D), then sized and set up through the MCP.
+- **Imported assets are `SmoothPlastic`** (hard rule, the user's call, 2026-10-11): set `Material = SmoothPlastic` on every imported mesh or part during setup, unless the user asks otherwise for that asset. The colour comes from the baked texture, not the material.
 - All rendering is client-side from server data (see the "server simulates data, clients render" rule in `CLAUDE.md`).

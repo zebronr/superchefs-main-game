@@ -99,7 +99,7 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 - `CookingTool.lua` registered `FoodContent` and `CookingProgress` with the same cache ID. `RegisterCache` replaced the registry entry, but each local retained its own table. No legacy code retrieved that ID, so this had no observed gameplay effect. The rewrite stores content and progress separately on the object.
 - The warning still follows the specified legacy timing: it ends at 9.7 s, 0.3 s before a scheduled burn at 10 s. Clearing `CookedAt` cancels it if cooking stops; it does not promise that fire will actually start.
 - Fire does not destroy food or hurt players. An extinguished pot stays cooked, and a burning pot can be picked up.
-- Taking food out of a pot remains the legacy `PlateFood` stub.
+- Taking food out of a pot remains the legacy `PlateFood` stub. (Built 2026-10-11: a cooked pot ladles its content onto a plate, either one held; a pot whose content caught fire can't be plated.)
 
 ## Layer 6: Sink + dirty plates
 
@@ -163,7 +163,7 @@ Bugs found in `legacy/` while porting, and what the rewrite does instead. Groupe
 ### Notes
 
 - No new fixes. The trash crash on a plate with content but no plated model is #21 (layer 3); `Plate.Clear` is safe there.
-- A pot's content can't be trashed, as in legacy (Trash ignores CookingTools), so a wrongly filled pot can't be emptied. Kept for parity; revisit when balancing gameplay.
+- A pot's content can't be trashed, as in legacy (Trash ignores CookingTools), so a wrongly filled pot can't be emptied. Changed 2026-10-11: the trash empties a held pot that isn't burning, so burned content can be thrown away.
 - An empty plate, a dirty plate, an extinguisher or empty hands do nothing at the trash, as in legacy.
 
 ## Layer 9: Character, movement, camera, sounds

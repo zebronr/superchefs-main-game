@@ -8,6 +8,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local CharacterConfig = Config.Character
 local TeamService = require(script.Parent.TeamService)
+local SkillEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("SkillEffects"))
 
 local CharacterService = {}
 local tracked: { [Player]: boolean } = {}
@@ -22,7 +23,7 @@ end
 function CharacterService.RefreshColors(): ()
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
-		if character ~= nil and character:GetAttribute("CustomCharacter") == true then
+		if TeamService.IsActive(player) and character ~= nil and character:GetAttribute("CustomCharacter") == true then
 			character:SetAttribute("PlayerColor", playerColor(player))
 		end
 	end
@@ -30,23 +31,45 @@ end
 
 local function setGroup(character: Model, instance: Instance): ()
 	if instance:IsA("BasePart") then
-		instance.CollisionGroup = if character:GetAttribute("Phased") == true
-			then CharacterConfig.PhasedCollisionGroup else CharacterConfig.CollisionGroup
+		instance.CollisionGroup = SkillEffects.CollisionGroup(character)
+		-- Sturdy characters (the Bear) are too heavy for others to push.
+		if SkillEffects.Sturdy(character) then
+			local current = instance.CurrentPhysicalProperties
+			instance.CustomPhysicalProperties = PhysicalProperties.new(
+				CharacterConfig.SturdyDensity,
+				current.Friction,
+				current.Elasticity,
+				current.FrictionWeight,
+				current.ElasticityWeight
+			)
+		end
 	end
 end
 
-function CharacterService.SetPhased(character: Model, phased: boolean): ()
-	character:SetAttribute("Phased", if phased then true else nil)
+-- Puts every part back in the group SkillEffects.CollisionGroup picks (after Phased or PhaseUntil changes).
+function CharacterService.RefreshGroup(character: Model): ()
 	for _, descendant in character:GetDescendants() do
 		setGroup(character, descendant)
 	end
 end
 
+function CharacterService.SetPhased(character: Model, phased: boolean): ()
+	character:SetAttribute("Phased", if phased then true else nil)
+	CharacterService.RefreshGroup(character)
+end
+
 local function setupCharacter(player: Player, character: Model): ()
+	if not TeamService.IsActive(player) then
+		character:Destroy()
+		return
+	end
 	if character:GetAttribute("CustomCharacter") ~= true then
 		local characters = ServerStorage:WaitForChild("Characters")
 		local override = CharacterConfig.StudioOverride
-		local modelName = if override ~= nil and RunService:IsStudio()
+		local chosen = player:GetAttribute("ChosenCharacter")
+		local modelName = if typeof(chosen) == "string" and table.find(CharacterConfig.Selectable, chosen) ~= nil
+			then chosen
+			elseif override ~= nil and RunService:IsStudio()
 			then override
 			else CharacterConfig.CharacterModels[player.Name] or CharacterConfig.DefaultCharacterModel
 		local template = characters:FindFirstChild(modelName)
@@ -80,6 +103,18 @@ local function setupCharacter(player: Player, character: Model): ()
 	end
 end
 
+-- Boot screen pick (demo): remembers the chef and respawns the player as it.
+function CharacterService.Pick(player: Player, modelName: unknown): ()
+	if typeof(modelName) ~= "string" or table.find(CharacterConfig.Selectable, modelName) == nil then
+		return
+	end
+	if not TeamService.IsActive(player) or player:GetAttribute("ChosenCharacter") == modelName then
+		return
+	end
+	player:SetAttribute("ChosenCharacter", modelName)
+	player:LoadCharacterAsync()
+end
+
 function CharacterService.Dash(player: Player): ()
 	local character = player.Character
 	if character == nil or character:GetAttribute("CustomCharacter") ~= true then
@@ -105,7 +140,7 @@ local function setupPlayer(player: Player): ()
 	tracked[player] = true
 	player:GetAttributeChangedSignal("Team"):Connect(function(): ()
 		local character = player.Character
-		if character ~= nil and character:GetAttribute("CustomCharacter") == true then
+		if TeamService.IsActive(player) and character ~= nil and character:GetAttribute("CustomCharacter") == true then
 			character:SetAttribute("PlayerColor", playerColor(player))
 		end
 	end)

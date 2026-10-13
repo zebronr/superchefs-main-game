@@ -4,12 +4,17 @@ local RunService = game:GetService("RunService")
 
 local Gif = {}
 local running: { [ImageLabel]: boolean } = {}
+-- The coin sheet is 7 x 6 cells of 1024 / 7 by 1024 / 6 pixels; the coin fills only this part of each cell, so
+-- frames are cropped to it and the coin fills its label (sized to the same 107:134 shape in Studio).
+local CELL = Vector2.new(1024 / 7, 1024 / 6)
+local CROP_OFFSET = Vector2.new(19, 21)
+local CROP_SIZE = Vector2.new(107, 134)
 
 local function showFrame(label: ImageLabel, frame: number): ()
 	local column = (frame - 1) % 7
 	local row = math.floor((frame - 1) / 7)
-	label.ImageRectSize = Vector2.new(1024 / 7, 1024 / 6)
-	label.ImageRectOffset = Vector2.new(column * 1024 / 7, row * 1024 / 6)
+	label.ImageRectSize = CROP_SIZE
+	label.ImageRectOffset = Vector2.new(column, row) * CELL + CROP_OFFSET
 end
 
 function Gif.Reset(label: ImageLabel): ()

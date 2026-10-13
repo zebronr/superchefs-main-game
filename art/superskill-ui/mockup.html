@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Superskill HUD mockup</title>
+<!--
+  Superskill HUD mockup (design: docs/design/superskill-ui.md).
+  Open in a browser to see the live demo, or render the PNGs with: python art/superskill-ui/render.py
+  Views (URL hash): #states  #desktop  #mobile  #anim  #live (default)
+  All timings and easings below are the ones the design doc specifies, so the filmstrips are sampled from the
+  same curves the Roblox code should use.
+-->
+<style>
+@font-face { font-family: "Jersey"; src: url("../fonts/src/Jersey15-Regular.ttf"); }
+:root {
+  --ink: #1d1b26;
+  --paper: #fff6e6;
+  --grey: #6e7380;
+  --grey-dark: #3a3e48;
+  --sheet: #f3ead8;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--sheet); font-family: "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+.view { display: none; }
+.view.on { display: block; }
+
+/* ---------- the superskill button ---------- */
+.sb { position: absolute; width: var(--s); height: var(--s); }
+.sb .wob { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.sb .shadow { position: absolute; inset: 0; border-radius: 50%; background: var(--dark); opacity: .55;
+  transform: translateY(calc(var(--s) * .07)); }
+.sb .face { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: var(--base);
+  border: calc(var(--s) * .045) solid var(--dark);
+  box-shadow: inset 0 calc(var(--s) * -.09) 0 rgba(0,0,0,.18); }
+.sb .sheen { position: absolute; left: 16%; top: 7%; width: 68%; height: 34%; border-radius: 50%;
+  background: rgba(255,255,255,.32); }
+.sb .cd { position: absolute; left: 0; right: 0; bottom: 0; background: var(--grey); }
+.sb .cd::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(255,255,255,.35); }
+.sb .cd svg { position: absolute; left: 0; bottom: 100%; width: 200%; height: calc(var(--s) * .07); }
+.sb .glint { position: absolute; top: -20%; width: 22%; height: 140%; background: rgba(255,255,255,.55);
+  transform: rotate(25deg); }
+.sb .flash { position: absolute; inset: 0; background: #fff; }
+.sb .icon { position: absolute; left: 20%; top: 18%; width: 60%; height: 60%; }
+.sb .icon.sh { transform: translateY(calc(var(--s) * .035)); }
+.sb .timer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: "Jersey"; font-size: calc(var(--s) * .5); color: #fff; line-height: 1;
+  text-shadow: 0 calc(var(--s) * .035) 0 var(--grey-dark); padding-top: calc(var(--s) * .04); }
+.sb .key { position: absolute; left: -4%; bottom: -4%; width: 32%; height: 32%; border-radius: 26%;
+  background: var(--paper); border: calc(var(--s) * .03) solid var(--ink);
+  box-shadow: 0 calc(var(--s) * .035) 0 var(--ink);
+  font-family: "Jersey"; font-size: calc(var(--s) * .25); display: flex; align-items: center; justify-content: center;
+  line-height: 1; padding-top: calc(var(--s) * .02); }
+.sb .badge { position: absolute; right: -6%; top: -6%; width: 34%; height: 34%; border-radius: 50%;
+  background: #e2483d; border: calc(var(--s) * .03) solid var(--ink); display: flex; align-items: center; justify-content: center; }
+.sb .badge svg { width: 70%; height: 70%; }
+.sb svg.ring { position: absolute; left: -13%; top: -13%; width: 126%; height: 126%; overflow: visible; }
+.sb .spark { position: absolute; width: 18%; height: 18%; margin: -9% 0 0 -9%; }
+.sb .shock { position: absolute; inset: 0; border-radius: 50%; border: calc(var(--s) * .05) solid var(--light); }
+
+/* ---------- sheets ---------- */
+.sheet { position: relative; padding: 36px 40px; }
+h1 { font-family: "Jersey"; font-weight: normal; font-size: 46px; letter-spacing: 1px; line-height: 1; }
+h2 { font-family: "Jersey"; font-weight: normal; font-size: 30px; margin: 26px 0 10px; line-height: 1; }
+.sub { font-size: 15px; color: #5a5466; margin-top: 6px; }
+.grid { display: grid; gap: 0; }
+.cell { position: relative; height: 170px; }
+.cell .lbl { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: 13px; color: #5a5466; }
+.colhead { font-family: "Jersey"; font-size: 24px; text-align: center; padding: 6px 0; line-height: 1; }
+.colhead small { display: block; font-family: "Segoe UI", sans-serif; font-size: 12px; color: #6d6678; margin-top: 3px; }
+.rowhead { display: flex; flex-direction: column; justify-content: center; padding-left: 4px; }
+.rowhead b { font-family: "Jersey"; font-weight: normal; font-size: 28px; line-height: 1; }
+.rowhead span { font-size: 13px; color: #5a5466; }
+.sw { display: inline-block; width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--ink); vertical-align: -3px; margin-right: 3px; }
+.card { background: #fffaf0; border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink); }
+.note { font-size: 13px; color: #5a5466; }
+
+/* ---------- mock game ---------- */
+.game { position: relative; overflow: hidden; background:
+  repeating-conic-gradient(#d9cdb6 0 25%, #cbbd9f 0 50%) 0 0 / 64px 64px; }
+.counter { position: absolute; background: #8a5a3b; border-radius: 10px; box-shadow: inset 0 -10px 0 #6b4128, 0 8px 0 rgba(0,0,0,.18); }
+.counter.top { background: #b7b9bf; box-shadow: inset 0 -10px 0 #8d9097, 0 8px 0 rgba(0,0,0,.18); }
+.char { position: absolute; border-radius: 50%; border: 4px solid var(--ink); }
+.hudcard { position: absolute; background: var(--paper); border-radius: 14px; }
+.hudshadow { position: absolute; background: rgba(29,27,38,.85); border-radius: 14px; }
+.hudtext { position: absolute; font-family: "Jersey"; color: var(--ink); line-height: 1; }
+.plate { position: absolute; border-radius: 50%; background: #fff; border: 6px solid #6fb83a; box-shadow: 0 5px 0 rgba(0,0,0,.25); }
+.tray { position: absolute; background: #fff6e6; border-radius: 8px; box-shadow: 0 4px 0 rgba(0,0,0,.25); }
+.callout { position: absolute; font-size: 14px; background: #fffaf0; border: 2px solid var(--ink); border-radius: 10px; padding: 6px 10px; box-shadow: 0 3px 0 var(--ink); }
+.mbtn { position: absolute; border-radius: 50%; background: rgba(255,255,255,.78); border: 4px solid rgba(29,27,38,.75);
+  display: flex; align-items: center; justify-content: center; font-family: "Jersey"; color: var(--ink); line-height: 1; }
+.stick { position: absolute; border-radius: 50%; background: rgba(255,255,255,.25); border: 4px solid rgba(255,255,255,.6); }
+.stick::after { content: ""; position: absolute; left: 30%; top: 30%; width: 40%; height: 40%; border-radius: 50%; background: rgba(255,255,255,.7); }
+.dim { position: absolute; border: 2px dashed #c0392b; }
+.dimlbl { position: absolute; font-size: 12px; color: #c0392b; font-weight: 600; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div id="v-states" class="view"><div class="sheet" id="statesSheet"></div></div>
+<div id="v-desktop" class="view"></div>
+<div id="v-mobile" class="view"></div>
+<div id="v-anim" class="view"><div class="sheet" id="animSheet"></div></div>
+<div id="v-live" class="view"><div class="sheet" id="liveSheet"></div></div>
+
+<script>
+// ===================== data =====================
+// One entry per superskill (keyed by the skill module name, as Config.Skills.ByCharacter maps it).
+const SKILLS = {
+  TongueGrab: { who: "Gecko",   name: "Tongue Grab", base: "#5fbf3a", dark: "#2c6a1a", light: "#b6f07a", shape: "aimed (hold)", built: true },
+  Hustle:     { who: "Bill",    name: "Hustle",      base: "#ff8f1f", dark: "#94460a", light: "#ffd08a", shape: "self buff 5 s", built: true },
+  DeepFreeze: { who: "Penguin", name: "Deep Freeze", base: "#3fa9f5", dark: "#1b4e8c", light: "#a8e1ff", shape: "zone 6 s", built: true },
+  OrderRush:  { who: "Alien",   name: "Order Rush",  base: "#9b5cf0", dark: "#4a2196", light: "#d7b8ff", shape: "instant chain", built: true },
+  Phase:      { who: "Ghost",   name: "Phase",       base: "#4fd1bd", dark: "#1e7468", light: "#c2fff4", shape: "self buff", built: false },
+  Showtime:   { who: "Clown",   name: "Showtime",    base: "#f25ca0", dark: "#8e1f55", light: "#ffc2de", shape: "channel", built: false },
+  FireBreath: { who: "Fire type", name: "Fire Breath", base: "#e8382c", dark: "#7e1409", light: "#ffab8f", shape: "instant", built: false },
+  MultiArm:   { who: "Octopus", name: "Multi-Arm",   base: "#5463d8", dark: "#232c80", light: "#bcc5ff", shape: "self buff", built: false },
+};
+
+// White glyphs on a 100x100 grid (exported as white PNGs and tinted, like art/orders icons).
+const ICONS = {
+  TongueGrab: `
+    <mask id="m-gecko"><rect width="100" height="100" fill="#fff"/><circle cx="36" cy="30" r="5.5" fill="#000"/><path d="M40 60 C46 62 54 61 60 58" stroke="#000" stroke-width="3" fill="none"/></mask>
+    <g mask="url(#m-gecko)">
+      <circle cx="33" cy="32" r="14"/>
+      <path d="M6 62 C6 46 18 38 34 38 C50 38 62 46 64 58 L64 64 C50 74 20 76 12 70 C8 67 6 65 6 62 Z"/>
+    </g>
+    <path d="M58 60 C70 64 80 58 84 46" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="84" cy="40" r="11"/>`,
+  Hustle: `
+    <rect x="4" y="38" width="20" height="8" rx="4"/><rect x="0" y="52" width="24" height="8" rx="4"/><rect x="8" y="66" width="16" height="8" rx="4"/>
+    <path d="M32 72 L34 36 C34 28 42 26 46 32 L52 42 C56 47 62 50 70 51 C86 52 94 58 94 68 L94 72 Z"/>
+    <rect x="30" y="74" width="66" height="10" rx="5"/>`,
+  DeepFreeze: `
+    <g fill="none" stroke="currentColor" stroke-linecap="round">
+      <g stroke-width="10"><path d="M50 10 V90"/><path d="M15.4 30 L84.6 70"/><path d="M15.4 70 L84.6 30"/></g>
+      <g stroke-width="7">
+        <path d="M38 16 L50 26 L62 16"/><path d="M38 84 L50 74 L62 84"/>
+        <path d="M14 44 L29 38 L25 22"/><path d="M86 56 L71 62 L75 78"/>
+        <path d="M14 56 L29 62 L25 78"/><path d="M86 44 L71 38 L75 22"/>
+      </g>
+    </g>`,
+  OrderRush: `
+    <path d="M36 58 L64 58 L82 94 L18 94 Z" opacity=".55"/>
+    <path d="M30 40 C30 22 70 22 70 40 Z"/>
+    <mask id="m-ufo"><rect width="100" height="100" fill="#fff"/><circle cx="28" cy="48" r="4" fill="#000"/><circle cx="50" cy="51" r="4" fill="#000"/><circle cx="72" cy="48" r="4" fill="#000"/></mask>
+    <ellipse cx="50" cy="48" rx="44" ry="14" mask="url(#m-ufo)"/>`,
+  Phase: `
+    <mask id="m-ghost"><rect width="100" height="100" fill="#fff"/><ellipse cx="40" cy="44" rx="5" ry="8" fill="#000"/><ellipse cx="60" cy="44" rx="5" ry="8" fill="#000"/></mask>
+    <path mask="url(#m-ghost)" d="M22 90 L22 44 C22 14 78 14 78 44 L78 90 L68 81 L59 90 L50 81 L41 90 L32 81 Z"/>`,
+  Showtime: `
+    <path d="M20 70 C24 18 76 18 80 70" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="2 9" stroke-linecap="round" opacity=".7"/>
+    <circle cx="20" cy="72" r="13"/><circle cx="50" cy="24" r="13"/><circle cx="80" cy="72" r="13"/>`,
+  FireBreath: `
+    <mask id="m-fire"><rect width="100" height="100" fill="#fff"/><path d="M50 56 C58 64 60 74 54 82 C50 86 44 84 42 78 C40 70 46 64 50 56 Z" fill="#000"/></mask>
+    <path mask="url(#m-fire)" d="M50 6 C62 28 82 38 79 62 C77 82 63 92 50 92 C35 92 21 82 21 63 C21 47 33 41 35 26 C43 34 46 43 44 52 C53 43 55 25 50 6 Z"/>`,
+  MultiArm: `
+    <mask id="m-octo"><rect width="100" height="100" fill="#fff"/><circle cx="40" cy="38" r="5" fill="#000"/><circle cx="60" cy="38" r="5" fill="#000"/></mask>
+    <ellipse cx="50" cy="36" rx="28" ry="26" mask="url(#m-octo)"/>
+    <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round">
+      <path d="M28 54 C18 66 14 78 24 84"/><path d="M42 60 C38 72 40 84 34 92"/>
+      <path d="M58 60 C62 72 60 84 66 92"/><path d="M72 54 C82 66 86 78 76 84"/>
+    </g>`,
+};
+const HAND_ICON = `<svg viewBox="0 0 100 100"><path fill="#fff" d="M30 52 V28 a6 6 0 0 1 12 0 V46 V20 a6 6 0 0 1 12 0 V46 V24 a6 6 0 0 1 12 0 V50 V36 a6 6 0 0 1 12 0 V62 C78 80 66 90 52 90 C40 90 32 84 26 74 L16 58 a6 6 0 0 1 10 -7 Z"/></svg>`;
+const NOBODY_ICON = `<svg viewBox="0 0 100 100"><g fill="#fff"><circle cx="50" cy="34" r="16"/><path d="M20 86 C20 64 34 56 50 56 C66 56 80 64 80 86 Z"/></g><path d="M18 18 L82 82" stroke="#e2483d" stroke-width="22"/><path d="M18 18 L82 82" stroke="#fff" stroke-width="10" stroke-linecap="round"/></svg>`;
+const PLUS = `<svg viewBox="0 0 100 100"><path fill="currentColor" d="M40 8 h20 v32 h32 v20 h-32 v32 h-20 v-32 h-32 v-20 h32 Z" rx="6"/></svg>`;
+
+// ===================== easing (the doc's curves) =====================
+const E = {
+  quadOut: t => 1 - (1 - t) * (1 - t),
+  quadIn: t => t * t,
+  quartIn: t => t * t * t * t,
+  expoOut: t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t),
+  backOut: (t, s = 1.70158) => 1 + (s + 1) * Math.pow(t - 1, 3) + s * Math.pow(t - 1, 2),
+};
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+function seg(t, t0, t1) { return clamp01((t - t0) / (t1 - t0)); }
+
+// Just-became-ready pop, sampled at time t (seconds since ReadyAt passed). Total 0.5 s.
+function readyPop(t) {
+  let pop;
+  if (t < 0.07) pop = lerp(1, 0.88, E.quadOut(seg(t, 0, 0.07)));
+  else if (t < 0.19) pop = lerp(0.88, 1.15, E.quadOut(seg(t, 0.07, 0.19)));
+  else pop = lerp(1.15, 1, E.backOut(seg(t, 0.19, 0.45), 2.2));
+  // secondary wobble on the face: decaying sine, 2 cycles over 0.35 s from 0.07
+  const u = Math.max(0, t - 0.07);
+  const wob = u < 0.35 ? 0.09 * Math.exp(-7 * u) * Math.sin(2 * Math.PI * u / 0.175) : 0;
+  return {
+    pop, sx: 1 + wob, sy: 1 - wob,
+    flash: t < 0.07 ? 0 : 0.85 * (1 - E.quadOut(seg(t, 0.07, 0.32))),
+    sparks: t < 0.07 ? -1 : seg(t, 0.07, 0.47),
+    shock: t < 0.07 ? -1 : seg(t, 0.07, 0.47),
+    glint: t < 0.15 ? -1 : seg(t, 0.15, 0.5),
+    keyHop: t < 0.1 ? 0 : Math.sin(Math.PI * seg(t, 0.1, 0.3)),
+  };
+}
+// Press (0.06 s squash) and release spring (0.22 s Back Out).
+function pressAt(t) {
+  if (t < 0.06) { const k = E.quadOut(seg(t, 0, 0.06)); return { pop: lerp(1, 0.9, k), sx: lerp(1, 1.06, k), sy: lerp(1, 0.94, k) }; }
+  return { pop: 0.9, sx: 1.06, sy: 0.94 };
+}
+function releaseAt(t) {
+  const k = E.backOut(seg(t, 0, 0.22), 2.4);
+  return { pop: lerp(0.9, 1, k), sx: lerp(1.06, 1, k), sy: lerp(0.94, 1, k) };
+}
+// Refused press: decaying shake, 3 cycles in 0.25 s, +-6% of the size.
+function refuseAt(t) {
+  const k = seg(t, 0, 0.25);
+  return { dx: 0.06 * (1 - k) * Math.sin(2 * Math.PI * 3 * k), pop: 1 - 0.05 * Math.sin(Math.PI * seg(t, 0, 0.12)), badge: 1 + 0.25 * Math.sin(Math.PI * seg(t, 0, 0.2)) };
+}
+
+// ===================== button renderer =====================
+let uid = 0;
+function ringArc(frac, color, track, width) {
+  // circle r=44 in a 100 box, starts at 12 o'clock, fills clockwise (Util/RadialRing)
+  const r = 44, c = 2 * Math.PI * r;
+  return `<svg class="ring" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="${track}" stroke-width="${width + 3}"/>
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="#1d1b26" stroke-width="${width + 3}" stroke-dasharray="${c * frac} ${c}" transform="rotate(-90 50 50)" opacity="${frac > 0 ? 1 : 0}"/>
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="${width}" stroke-dasharray="${c * frac} ${c}" transform="rotate(-90 50 50)" stroke-linecap="butt"/>
+  </svg>`;
+}
+function iconSvg(skill, cls, color) {
+  uid++;
+  const body = ICONS[skill].replace(/id="m-(\w+)"/g, `id="m-$1-${uid}"`).replace(/url\(#m-(\w+)\)/g, `url(#m-$1-${uid})`);
+  return `<svg class="icon ${cls}" viewBox="0 0 100 100" style="color:${color};fill:${color}">${body}</svg>`;
+}
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function mix(a, b, t) { const A = hexToRgb(a), B = hexToRgb(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], t))).join(",")})`; }
+
+/*
+ o: { skill, size, x, y, state, cd (0..1 remaining), secs, ring (0..1), ringColor, pop, sx, sy, dx, flash,
+      sparks (-1 off / 0..1), shock, glint, keyHop, key ("Q" | null), badge ("hands" | "nobody" | null), badgeScale,
+      iconRot, iconDy, glow }
+ states: ready | pressed | aim | active | cooldown | unavailable
+*/
+function button(o) {
+  const S = SKILLS[o.skill];
+  const s = o.size || 104;
+  const greyed = o.state === "unavailable";
+  const base = greyed ? mix(S.base, "#6e7380", 0.8) : S.base;
+  const dark = greyed ? "#3a3e48" : S.dark;
+  const light = S.light;
+  const pop = o.pop ?? (o.state === "pressed" || o.state === "aim" ? 0.92 : 1);
+  const sx = o.sx ?? 1, sy = o.sy ?? 1;
+  const dx = (o.dx || 0) * s;
+  let h = `<div class="sb" style="--s:${s}px;--base:${base};--dark:${dark};--light:${light};left:${o.x}px;top:${o.y}px;transform:translateX(${dx}px)">`;
+  h += `<div class="wob" style="transform:scale(${pop * sx},${pop * sy})">`;
+  h += `<div class="shadow"></div>`;
+  if (o.shock !== undefined && o.shock >= 0) {
+    const k = E.expoOut(o.shock);
+    h += `<div class="shock" style="transform:scale(${lerp(1, 1.55, k)});opacity:${0.8 * (1 - o.shock)}"></div>`;
+  }
+  if (o.ring !== undefined) h += ringArc(o.ring, o.ringColor || light, "rgba(29,27,38,.35)", 7);
+  h += `<div class="face" style="${o.glow ? `box-shadow: inset 0 ${-s * .09}px 0 rgba(0,0,0,.18), inset 0 0 ${s * .18}px ${o.glow}` : ""}">`;
+  h += `<div class="sheen"></div>`;
+  if (o.state === "cooldown") {
+    const ph = (o.wavePhase || 0) % 1;
+    h += `<div class="cd" style="height:${o.cd * 100}%">
+      <svg viewBox="0 0 200 10" preserveAspectRatio="none" style="transform:translateX(${-ph * 50}%)"><path d="M0 10 L0 5 ${Array.from({ length: 8 }, (_, i) => `Q${i * 25 + 6.25} ${i % 2 ? 9 : 1} ${i * 25 + 12.5} 5 T${i * 25 + 25} 5`).join(" ")} L200 10 Z" fill="#6e7380"/></svg></div>`;
+  }
+  if (o.glint !== undefined && o.glint >= 0) h += `<div class="glint" style="left:${lerp(-40, 120, E.quadOut(o.glint))}%"></div>`;
+  if (o.flash) h += `<div class="flash" style="opacity:${o.flash}"></div>`;
+  h += `</div>`; // face
+  const iconAlpha = o.state === "cooldown" ? 0.35 : greyed ? 0.55 : 1;
+  const iconTf = `transform:rotate(${o.iconRot || 0}deg) translateY(${(o.iconDy || 0) * s}px)`;
+  h += `<div style="position:absolute;inset:0;opacity:${iconAlpha};${iconTf}">${iconSvg(o.skill, "sh", dark)}${iconSvg(o.skill, "", "#fff")}</div>`;
+  if (o.state === "cooldown" && o.secs !== undefined) h += `<div class="timer">${o.secs}</div>`;
+  if (o.sparks !== undefined && o.sparks >= 0) {
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 - Math.PI / 2 + 0.3;
+      const r = lerp(0.48, 0.98, E.expoOut(o.sparks));
+      const sc = o.sparks < 0.5 ? 1 : lerp(1, 0.2, (o.sparks - 0.5) / 0.5);
+      h += `<div class="spark" style="left:${50 + Math.cos(a) * r * 50}%;top:${50 + Math.sin(a) * r * 50}%;color:${i % 2 ? "#fff" : light};transform:scale(${sc}) rotate(${i * 20}deg);opacity:${o.sparks < 0.6 ? 1 : 1 - (o.sparks - 0.6) / 0.4}">${PLUS}</div>`;
+    }
+  }
+  h += `</div>`; // wob
+  if (o.key) h += `<div class="key" style="transform:translateY(${-(o.keyHop || 0) * s * 0.06}px) ${o.state === "pressed" || o.state === "aim" ? `translateY(${s * .03}px)` : ""};${o.state === "pressed" || o.state === "aim" ? "box-shadow:none" : ""}">${o.key}</div>`;
+  if (o.badge) h += `<div class="badge" style="transform:scale(${o.badgeScale || 1})">${o.badge === "hands" ? HAND_ICON : NOBODY_ICON}</div>`;
+  h += `</div>`;
+  return h;
+}
+
+// ===================== #states =====================
+function buildStates() {
+  const cols = [
+    { t: "READY", d: "idle, glint every 6 s", o: { state: "ready", glint: 0.45 } },
+    { t: "JUST READY", d: "pop peak, t = 0.19 s", o: Object.assign({ state: "ready" }, readyPop(0.19)) },
+    { t: "PRESSED", d: "key / finger down", o: { state: "pressed", sx: 1.06, sy: 0.94, pop: 0.9 } },
+    { t: "AIM / ACTIVE", d: "ring = time left", o: null },
+    { t: "COOLDOWN", d: "70 % left", o: { state: "cooldown", cd: 0.7 } },
+    { t: "COOLDOWN", d: "15 % left", o: { state: "cooldown", cd: 0.15 } },
+    { t: "UNAVAILABLE", d: "ready, but can't use", o: { state: "unavailable" } },
+  ];
+  const rows = ["TongueGrab", "Hustle", "DeepFreeze", "OrderRush"];
+  const cd = { TongueGrab: 8, Hustle: 15, DeepFreeze: 20, OrderRush: 25 };
+  const activeFor = {
+    TongueGrab: { state: "aim", ring: 0.62, iconRot: -8, d: "aiming: hold limit 3 s" },
+    Hustle: { state: "active", ring: 0.45, iconDy: -0.03, glow: "rgba(255,240,180,.9)", d: "Hustle 5 s" },
+    DeepFreeze: { state: "active", ring: 0.7, iconRot: 30, glow: "rgba(220,245,255,.95)", d: "frost circle 6 s" },
+    OrderRush: { state: "active", ring: 0.3, glow: "rgba(240,225,255,.95)", d: "chain ~1.5-8 s" },
+  };
+  const badgeFor = { TongueGrab: "hands", Hustle: null, DeepFreeze: null, OrderRush: "nobody" };
+  const unavailNote = { TongueGrab: "hands full", Hustle: "busy (mid-action)", DeepFreeze: "busy (mid-action)", OrderRush: "no one to serve" };
+  let h = `<h1>SUPERSKILL BUTTON: STATES</h1><div class="sub">Desktop button at 104 px design size (720 px screen). Colors per character; the icon is one white PNG tinted by code, its shadow is the same PNG in the dark color.</div>`;
+  h += `<div class="grid" style="grid-template-columns: 170px repeat(7, 160px); margin-top: 18px">`;
+  h += `<div></div>` + cols.map(c => `<div class="colhead">${c.t}<small>${c.d}</small></div>`).join("");
+  for (const sk of rows) {
+    const S = SKILLS[sk];
+    h += `<div class="rowhead cell"><b>${S.who.toUpperCase()}</b><span>${S.name}</span><span><i class="sw" style="background:${S.base}"></i><i class="sw" style="background:${S.dark}"></i><i class="sw" style="background:${S.light}"></i></span><span>${S.shape}, cd ${cd[sk]} s</span></div>`;
+    cols.forEach((c, i) => {
+      let o, lbl = "";
+      if (i === 3) { o = Object.assign({}, activeFor[sk]); lbl = activeFor[sk].d; }
+      else o = Object.assign({}, c.o);
+      if (o.state === "cooldown") { o.secs = Math.ceil(o.cd * cd[sk]); o.wavePhase = i * 0.37; }
+      if (o.state === "unavailable") { o.badge = badgeFor[sk]; lbl = unavailNote[sk]; }
+      if (sk === "TongueGrab" && o.state === "aim" && o.ring < 0.3) o.ringColor = "#e2483d";
+      h += `<div class="cell">${button(Object.assign({ skill: sk, size: 104, x: 28, y: 22, key: "Q" }, o))}<div class="lbl">${lbl}</div></div>`;
+    });
+  }
+  h += `</div>`;
+  h += `<h2>FUTURE ROSTER (DESIGN DRAFTS): ICON + COLOR RESERVED</h2><div style="display:flex; gap: 10px;">`;
+  for (const sk of ["Phase", "Showtime", "FireBreath", "MultiArm"]) {
+    const S = SKILLS[sk];
+    h += `<div class="cell" style="width: 300px; height: 150px">${button({ skill: sk, size: 104, x: 18, y: 18, key: "Q", state: "ready" })}
+      <div style="position:absolute; left: 150px; top: 36px"><b style="font-family:Jersey;font-weight:normal;font-size:26px">${S.who.toUpperCase()}</b><br><span class="note">${S.name}</span><br><span><i class="sw" style="background:${S.base}"></i><i class="sw" style="background:${S.dark}"></i><i class="sw" style="background:${S.light}"></i></span></div></div>`;
+  }
+  h += `</div>`;
+  h += `<h2>AIM RING TURNS RED IN THE LAST 25 % (GECKO)</h2><div style="display:flex; gap: 10px;">`;
+  [0.9, 0.5, 0.24, 0.08].forEach((r, i) => {
+    h += `<div class="cell" style="width:160px;height:150px">${button({ skill: "TongueGrab", size: 104, x: 28, y: 18, key: "Q", state: "aim", ring: r, ringColor: r < 0.25 ? "#e2483d" : SKILLS.TongueGrab.light, iconRot: [-8, 6, -6, 8][i], dx: r < 0.25 ? [0, 0, 0.02, -0.025][i] : 0 })}<div class="lbl">${(r * 3).toFixed(1)} s left</div></div>`;
+  });
+  h += `</div>`;
+  document.getElementById("statesSheet").innerHTML = h;
+}
+
+// ===================== #anim =====================
+function buildAnim() {
+  let h = `<h1>SUPERSKILL BUTTON: MOTION</h1><div class="sub">Frames sampled from the curves in the design doc (Penguin shown). Times in seconds from the trigger.</div>`;
+  const strip = (title, note, frames) => {
+    let s = `<h2>${title}</h2><div class="note">${note}</div><div style="display:flex; gap: 0; margin-top: 4px">`;
+    for (const f of frames) s += `<div class="cell" style="width:150px;height:160px">${button(Object.assign({ skill: "DeepFreeze", size: 96, x: 27, y: 22, key: "Q" }, f.o))}<div class="lbl">${f.l}</div></div>`;
+    return s + `</div>`;
+  };
+  // 1. cooldown -> ready
+  h += strip("1. COOLDOWN DRAINS, THEN JUST READY", "Grey fill = Cooldown frame, Y scale = time left / cooldown. Wave scrolls along its top edge. Seconds counter in Jersey 15. At 0: pop, white flash, shock ring, 6 \"+\" sparks, glint, key cap hop, chime.",
+    [{ l: "5 s", o: { state: "cooldown", cd: 0.25, secs: 5 } }, { l: "2 s", o: { state: "cooldown", cd: 0.1, secs: 2, wavePhase: .3 } }, { l: "0.4 s", o: { state: "cooldown", cd: 0.02, secs: 1, wavePhase: .6 } }]
+      .concat([0, 0.04, 0.07, 0.13, 0.19, 0.27, 0.36, 0.5].map(t => ({ l: `+${t.toFixed(2)}`, o: Object.assign({ state: "ready" }, readyPop(t)) }))));
+  // 2. press / release
+  h += strip("2. PRESS AND RELEASE (INSTANT SUPERSKILL)", "Down: squash in 0.06 s (Quad Out). Up: spring back in 0.22 s (Back Out). Key cap sinks while held. Hustle, Deep Freeze and Order Rush then go to ACTIVE.",
+    [0, 0.03, 0.06].map(t => ({ l: `down ${t.toFixed(2)}`, o: Object.assign({ state: "pressed" }, pressAt(t)) }))
+      .concat([0.04, 0.09, 0.14, 0.22].map(t => ({ l: `up ${t.toFixed(2)}`, o: Object.assign({ state: "ready" }, releaseAt(t)) })))
+      .concat([{ l: "active 6 s", o: { state: "active", ring: 1, glow: "rgba(220,245,255,.95)" } }, { l: "active 3 s", o: { state: "active", ring: 0.5, iconRot: 45, glow: "rgba(220,245,255,.95)" } }, { l: "ends: cooldown", o: { state: "cooldown", cd: 1, secs: 20 } }]));
+  // 3. refused
+  h += strip("3. PRESS REFUSED (UNAVAILABLE)", "Decaying side shake, 3 cycles in 0.25 s, small bonk, reason badge pulses. Same for a press during cooldown (no badge, the counter shakes). Plus a dull 'bonk' sound.",
+    [0, 0.03, 0.06, 0.1, 0.14, 0.19, 0.25].map(t => { const r = refuseAt(t); return { l: `+${t.toFixed(2)}`, o: { state: "unavailable", dx: r.dx, pop: r.pop, badge: "hands", badgeScale: r.badge } }; }));
+  document.getElementById("animSheet").innerHTML = h;
+}
+
+// ===================== mock HUD pieces =====================
+// GameInfo.InfoFrame at its design size (400 x 91 px at 720), drawn approximately.
+function infoFrame(x, y, k) {
+  const c = (l, t, w, hh) => `<div class="hudshadow" style="left:${x + l * k}px;top:${y + (t + 6) * k}px;width:${w * k}px;height:${hh * k}px"></div><div class="hudcard" style="left:${x + l * k}px;top:${y + t * k}px;width:${w * k}px;height:${hh * k}px"></div>`;
+  let h = c(0, 8, 170, 77) + c(182, 0, 218, 85);
+  h += `<div class="hudtext" style="left:${x + 62 * k}px;top:${y + 22 * k}px;font-size:${54 * k}px">2:41</div>`;
+  h += `<svg style="position:absolute;left:${x + 14 * k}px;top:${y + 24 * k}px;width:${42 * k}px;height:${42 * k}px" viewBox="0 0 100 100"><circle cx="50" cy="54" r="40" fill="#fff" stroke="#1d1b26" stroke-width="10"/><path d="M50 54 V30 M50 54 L66 62" stroke="#1d1b26" stroke-width="10" stroke-linecap="round"/></svg>`;
+  h += `<div style="position:absolute;left:${x + 196 * k}px;top:${y + 14 * k}px;width:${45 * k}px;height:${56 * k}px;border-radius:50%;background:#f5c542;border:${5 * k}px solid #b07a12"></div>`;
+  h += `<div class="hudtext" style="left:${x + 252 * k}px;top:${y + 16 * k}px;font-size:${56 * k}px">1,250</div>`;
+  h += `<div style="position:absolute;left:${x + 360 * k}px;top:${y - 14 * k}px;width:${54 * k}px;height:${36 * k}px;border-radius:${10 * k}px;background:#ffce2e;box-shadow:0 ${4 * k}px 0 #1d1b26;transform:rotate(8deg);font-family:Jersey;font-size:${30 * k}px;color:#4a2600;display:flex;align-items:center;justify-content:center;line-height:1">x2</div>`;
+  return h;
+}
+function orders(x, y, k, n) {
+  let h = "";
+  for (let i = 0; i < n; i++) {
+    const px = x - i * 118 * k;
+    h += `<div class="plate" style="left:${px}px;top:${y}px;width:${86 * k}px;height:${86 * k}px;border-color:${["#6fb83a", "#d9b62e", "#6fb83a"][i % 3]}"></div>`;
+    h += `<div class="tray" style="left:${px - 4 * k}px;top:${y + 96 * k}px;width:${94 * k}px;height:${34 * k}px"></div>`;
+  }
+  return h;
+}
+function kitchen(w, hh, k) {
+  let h = "";
+  h += `<div class="counter top" style="left:${60 * k}px;top:${90 * k}px;width:${520 * k}px;height:${70 * k}px"></div>`;
+  h += `<div class="counter" style="left:${60 * k}px;top:${160 * k}px;width:${70 * k}px;height:${300 * k}px"></div>`;
+  h += `<div class="counter" style="left:${360 * k}px;top:${330 * k}px;width:${360 * k}px;height:${70 * k}px"></div>`;
+  h += `<div class="counter top" style="left:${820 * k}px;top:${200 * k}px;width:${70 * k}px;height:${260 * k}px"></div>`;
+  h += `<div class="char" style="left:${300 * k}px;top:${220 * k}px;width:${56 * k}px;height:${56 * k}px;background:#3fa9f5"></div>`;
+  h += `<div class="char" style="left:${560 * k}px;top:${470 * k}px;width:${56 * k}px;height:${56 * k}px;background:#5fbf3a"></div>`;
+  h += `<div class="char" style="left:${700 * k}px;top:${250 * k}px;width:${56 * k}px;height:${56 * k}px;background:#ff8f1f"></div>`;
+  return h;
+}
+
+// ===================== #desktop =====================
+function buildDesktop() {
+  const W = 1280, H = 720, k = 0.85; // Config.UI.Hud.DesktopScale at a 720 px tall window
+  const ifW = 400 * k, ifH = 91 * k;
+  const ifX = W - 20 - ifW, ifY = H - 19 - ifH;
+  const sbS = 104 * k, gap = 22 * k;
+  const sbX = ifX - gap - sbS, sbY = H - 19 - sbS - 14 * k;
+  let h = `<div class="game" style="width:${W}px;height:${H}px">`;
+  h += kitchen(W, H, 1);
+  h += orders(W - 20 - 86 * 0.8, 20, 0.8, 3);
+  h += infoFrame(ifX, ifY, k);
+  h += button({ skill: "DeepFreeze", size: sbS, x: sbX, y: sbY, key: "Q", state: "ready", glint: 0.4 });
+  // dimension marks
+  h += `<div class="dim" style="left:${sbX}px;top:${sbY - 30}px;width:${sbS}px;height:0"></div><div class="dimlbl" style="left:${sbX + 4}px;top:${sbY - 48}px">104 px design (88 at 720p)</div>`;
+  h += `<div class="callout" style="left:${sbX - 330}px;top:${sbY - 30}px;width:300px">Superskill button sits left of the coin and timer cards, bottom-aligned with them, inside the same UIScale. The key cap (Q) hangs off its bottom-left; the aim/active ring wraps it.</div>`;
+  h += `<div class="callout" style="left:24px;top:${H - 70}px">Desktop, 1280 x 720 (mock kitchen; HUD cards drawn approximately)</div>`;
+  h += `</div>`;
+  document.getElementById("v-desktop").innerHTML = h;
+}
+
+// ===================== #mobile =====================
+function buildMobile() {
+  const W = 844, H = 390, k = H / 720 * 1.2; // TouchScale 1.2
+  let h = `<div class="game" style="width:${W}px;height:${H}px;background-size:40px 40px">`;
+  h += kitchen(W, H, 0.62);
+  h += orders(W - 14 - 86 * 0.5, 10, 0.5, 3);
+  const ifW = 400 * k, ifH = 91 * k;
+  h += infoFrame(W / 2 - ifW / 2, H - 12 * (H / 720) - ifH, k);
+  // joystick (Roblox default thumbstick area)
+  h += `<div class="stick" style="left:44px;top:${H - 150}px;width:120px;height:120px"></div>`;
+  // existing MobileControls (style unknown here: neutral stand-ins)
+  const mk = (l, t, d, txt, fs) => `<div class="mbtn" style="left:${l}px;top:${t}px;width:${d}px;height:${d}px;font-size:${fs}px">${txt}</div>`;
+  const R = W - 24, B = H - 22;
+  h += mk(R - 92, B - 92, 92, "GRAB", 26);           // Interact
+  h += mk(R - 92 - 76, B - 64, 64, "USE", 22);       // Use
+  h += mk(R - 64, B - 92 - 74, 64, "DASH", 20);     // Dash
+  h += mk(R - 92 - 66, B - 92 - 52, 60, "THROW", 16); // Throw
+  // superskill: bigger, on the arc above-left, never under the thumb's resting spot
+  const sS = 132 * k * 0.62 / 0.62 * 0.62; // 132 design px * k
+  const sDiam = 132 * k;
+  h += button({ skill: "OrderRush", size: sDiam, x: R - 92 - 66 - sDiam - 6, y: B - 92 - 52 - sDiam * 0.62, state: "ready", glint: 0.35 });
+  h += `<div class="callout" style="left:${R - 470}px;top:56px;width:250px;font-size:12px">Touch: the Skill button is the biggest after GRAB, on the outer arc of the right-thumb cluster. Hold to aim (Gecko), tap for the rest. No key cap.</div>`;
+  h += `</div>`;
+  document.getElementById("v-mobile").innerHTML = `<div style="padding:30px;background:#2a2733;display:inline-block;border-radius:48px;margin:20px"><div style="border-radius:22px;overflow:hidden">${h}</div></div>`;
+}
+
+// ===================== #live =====================
+function buildLive() {
+  const el = document.getElementById("liveSheet");
+  el.innerHTML = `<h1>SUPERSKILL BUTTON: LIVE</h1><div class="sub">Loops: ready, press, active or aim, cooldown, just ready. Click a button to replay.</div><div id="liveRow" style="position:relative;height:200px;margin-top:20px"></div>`;
+  const row = document.getElementById("liveRow");
+  const skills = ["TongueGrab", "Hustle", "DeepFreeze", "OrderRush"];
+  const plan = { TongueGrab: { act: 2.2, cd: 4 }, Hustle: { act: 2.5, cd: 4 }, DeepFreeze: { act: 3, cd: 4 }, OrderRush: { act: 1.8, cd: 4 } };
+  const t0 = performance.now();
+  function frame() {
+    const now = (performance.now() - t0) / 1000;
+    let h = "";
+    skills.forEach((sk, i) => {
+      const p = plan[sk];
+      const loop = 1.2 + 0.3 + p.act + p.cd + 1.2;
+      const t = (now + i * 0.6) % loop;
+      let o = { skill: sk, size: 120, x: 40 + i * 220, y: 30, key: "Q" };
+      if (t < 1.2) Object.assign(o, { state: "ready", glint: t > 0.4 ? clamp01((t - 0.4) / 0.35) : -1 });
+      else if (t < 1.5) Object.assign(o, t < 1.26 ? Object.assign({ state: "pressed" }, pressAt(t - 1.2)) : Object.assign({ state: sk === "TongueGrab" ? "aim" : "active" }, sk === "TongueGrab" ? pressAt(1) : releaseAt(t - 1.26)));
+      else if (t < 1.5 + p.act) {
+        const u = (t - 1.5) / p.act;
+        Object.assign(o, { state: sk === "TongueGrab" ? "aim" : "active", ring: 1 - u, glow: sk === "TongueGrab" ? null : "rgba(255,255,255,.8)",
+          iconRot: sk === "DeepFreeze" ? u * 180 : sk === "TongueGrab" ? 7 * Math.sin(now * 2 * Math.PI * 6) : 0,
+          iconDy: sk === "Hustle" ? -0.04 * Math.abs(Math.sin(now * Math.PI * 4)) : 0 });
+        if (sk === "TongueGrab" && 1 - u < 0.25) o.ringColor = "#e2483d";
+        if (sk === "TongueGrab") { o.pop = 0.92; }
+      } else if (t < 1.5 + p.act + p.cd) {
+        const u = (t - 1.5 - p.act) / p.cd;
+        Object.assign(o, { state: "cooldown", cd: 1 - u, secs: Math.ceil((1 - u) * p.cd), wavePhase: now * 0.8 });
+      } else Object.assign(o, { state: "ready" }, readyPop(t - 1.5 - p.act - p.cd));
+      h += button(o) + `<div style="position:absolute;left:${40 + i * 220}px;top:170px;width:120px;text-align:center;font-family:Jersey;font-size:22px">${SKILLS[sk].who.toUpperCase()}</div>`;
+    });
+    row.innerHTML = h;
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ===================== router =====================
+const view = (location.hash || "#live").slice(1);
+document.fonts.load('20px "Jersey"').then(() => {
+  ({ states: buildStates, desktop: buildDesktop, mobile: buildMobile, anim: buildAnim, live: buildLive }[view] || buildLive)();
+  document.getElementById("v-" + view).classList.add("on");
+  document.body.setAttribute("data-ready", "1");
+});
+</script>
+</body>
+</html>

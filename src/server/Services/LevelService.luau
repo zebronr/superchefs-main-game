@@ -56,14 +56,37 @@ local function placeDefaultObject(station: Instance, defaultObject: ObjectValue,
 		warn(`Could not place default object on {station:GetFullName()}`)
 		return
 	end
-	if not stationObject.Slot:Place(item) then
+	if not stationObject:PlaceDefault(item) then
 		warn(`Default object {target:GetFullName()} does not fit on {station:GetFullName()}`)
+		return
+	end
+	stationObject:Preloaded(item)
+end
+
+-- Before START there is no map: characters are held in place (anchored) so they don't fall out of the world.
+local function setHeld(character: Model, held: boolean): ()
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root == nil or not root:IsA("BasePart") then
+		return
+	end
+	if held then
+		root.Anchored = true
+		character:SetAttribute("HeldForMap", true)
+	elseif character:GetAttribute("HeldForMap") == true then
+		root.Anchored = false
+		character:SetAttribute("HeldForMap", nil)
 	end
 end
 
 local function moveToSpawn(player: Player, character: Model): ()
+	if not TeamService.IsActive(player) then
+		return
+	end
 	local currentMap = map
 	if currentMap == nil then
+		if character:WaitForChild("HumanoidRootPart", 5) ~= nil and map == nil and player.Character == character then
+			setHeld(character, true)
+		end
 		return
 	end
 	local spawnPoints = currentMap:WaitForChild("SpawnPoints")
@@ -76,9 +99,10 @@ local function moveToSpawn(player: Player, character: Model): ()
 	end
 	-- CharacterService swaps the default avatar for a custom model; skip the one it replaced.
 	local root = character:WaitForChild("HumanoidRootPart", 5)
-	if root == nil or player.Character ~= character or map ~= currentMap then
+	if root == nil or player.Character ~= character or map ~= currentMap or not TeamService.IsActive(player) then
 		return
 	end
+	setHeld(character, false)
 	character:MoveTo(spawnPoint.Position)
 end
 
@@ -88,7 +112,7 @@ local function trackPlayer(player: Player): ()
 	end)
 	player:GetAttributeChangedSignal("Team"):Connect(function(): ()
 		local character = player.Character
-		if character ~= nil then
+		if TeamService.IsActive(player) and character ~= nil then
 			task.spawn(moveToSpawn, player, character)
 		end
 	end)
@@ -109,9 +133,11 @@ local function cloneMap(): ()
 	map = newMap
 	local objects = newMap:WaitForChild("Objects")
 	for _, station in objects:GetChildren() do
-		local defaultObject = station:FindFirstChild("DefObjectOnTop")
-		if defaultObject and defaultObject:IsA("ObjectValue") then
-			task.spawn(placeDefaultObject, station, defaultObject, mapGeneration)
+		-- A plate table can hold several (one ObjectValue per plate in the stack).
+		for _, defaultObject in station:GetChildren() do
+			if defaultObject.Name == "DefObjectOnTop" and defaultObject:IsA("ObjectValue") then
+				task.spawn(placeDefaultObject, station, defaultObject, mapGeneration)
+			end
 		end
 	end
 end
@@ -137,10 +163,10 @@ function LevelService.MoveAllToSpawns(): ()
 	end
 end
 
-function LevelService.ResetMap(): ()
+local function clearMap(): boolean
 	local target = container
 	if target == nil then
-		return
+		return false
 	end
 	mapGeneration += 1
 	InteractionService.StopAllUse()
@@ -158,7 +184,27 @@ function LevelService.ResetMap(): ()
 	for _, snapshot in initialChildren do
 		snapshot:Clone().Parent = target
 	end
-	cloneMap()
+	return true
+end
+
+-- Swaps the round's map for a fresh copy.
+function LevelService.ResetMap(): ()
+	if clearMap() then
+		cloneMap()
+	end
+end
+
+-- Loads the map if there is none yet (START) and sends everyone to their spawns.
+function LevelService.LoadMap(): ()
+	if map == nil then
+		cloneMap()
+	end
+	LevelService.MoveAllToSpawns()
+end
+
+-- Back to the empty place (the server emptied out): the next START loads the map again.
+function LevelService.UnloadMap(): ()
+	clearMap()
 end
 
 function LevelService.Start(_self: typeof(LevelService)): ()
@@ -180,7 +226,7 @@ function LevelService.Start(_self: typeof(LevelService)): ()
 	for _, child in (container :: Instance):GetChildren() do
 		table.insert(initialChildren, child:Clone())
 	end
-	cloneMap()
+	-- No map until START (RoundService): players wait in an empty place behind the loading screen.
 	Players.PlayerAdded:Connect(trackPlayer)
 	for _, player in Players:GetPlayers() do
 		trackPlayer(player)

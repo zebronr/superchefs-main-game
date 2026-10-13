@@ -4,12 +4,88 @@ Versions are git tags (`vMAJOR.MINOR.PATCH`). The rules are in `docs/VERSIONING.
 
 ## Unreleased
 
+## 0.6.0: Superskills and the demo kitchen (2026-10-13)
+
+- New loading screen: the level's order ticket swings in with today's menu and any new mechanic, a chef list shows who is ready and chef tips rotate. The game waits on a gray Roblox-style screen with the START button until the host presses it; the logo spins for 2 seconds, then the loading screen slides in, the map loads with a smooth burger-stack progress bar, and the round starts by itself once every chef has loaded, with the bar filling to 100% before the screen slides away. The HUD stays hidden until then.
+- The Bear can dash again (its extra weight was holding the dash back), and it stays upright when a dash runs it into a counter or sink.
+- The Gecko's tongue now outlines the pan when aiming at it (the outline was drawn on the pan's invisible base).
+- The Ghost's superskill card shows its pale blue ring.
+- On touch screens the superskill button is round like the other buttons and sits on the button arc.
+- On touch screens the big interact button says what it will do: GRAB, DROP, PLACE, ADD, SWAP, SERVE, ORDER, COLLECT, TRASH, EMPTY, WASH or CATCH.
+- When more orders come in than fit across the top, the newest ones wait in a queue strip at the left end instead of running off screen or under Roblox's buttons: one dish icon per recipe with how many are waiting (x3), so you can prep ahead.
+- New order on the demo level: the burger (bun and patty), next to the cheese burger (the old "burger"), shown on the loading screen menu too.
+- Taking an order is juicier: the customer squashes and springs, a ring of cartoon puffs bursts out, the order bubble pops back in, and a paper ticket flies from the table up to the new order card (or its dish in the queue strip), which pops in as the ticket lands.
+- The city buildings outside the restaurant are darker and warmer (terracotta, ochre, sage, mauve, sand) to match the restaurant.
+- Dine-and-dashers run a little faster.
+- Customers walk smoothly along their paths instead of stopping at every turn, and leaving customers and runners no longer stutter when a player is near them.
+- Ghost walls (GhostBarrier) only let a Ghost through while it's phasing, and food (thrown or dropped) now passes through them, so they work over the centre counters.
+- Seated customers no longer block players, so dashing into one (especially as the Bear) no longer flings you or drops you through the floor.
+- /cinecam no longer resets the game when the filmer was the only chef; the server only resets once everyone has left.
+- Demo: pick your chef on the start screen, and the host can type /resetgame to put the server back to the start screen.
+- The hand-off from the loading screen to the intro is calmer: the screen slides away slower, the black holds longer, and the iris pop, zoom and camera move are slower.
+- Chefs can't walk or dash until the round starts (through the loading and the intro).
+- The run animation no longer keeps playing in place after a chef is teleported (e.g. to their spawn).
+- Only the host can start the demo round (the START button is on the loading screen).
+- New mobile controls: a big GRAB button under the right thumb, with Use, Throw, Dash and the superskill card in an arc around it. Buttons sink when pressed.
+- Cinematic free camera: Space flies up and Left Shift down, Left Alt slows looking as well as movement, and T pauses or resumes the round clock while customers, orders, and cooking continue.
+- The Bear wears a bear head with sunglasses (Chill Bear Head), and the Ghost has a new face (Silly Fun head), red hair (Cinnamon Hair) and pale white skin, all under their chef hats.
+- The Penguin and the Alien wear a penguin head (Roblox catalog item, a stand-in) under their chef hats.
+- The Ghost can pick up, put down and use stations while phasing (throwing still waits until Phase ends).
+- Level 2 seats up to 10 customers at once (was 3).
+- The opening wide shot sits closer and frames the restaurant higher, showing more of the street in front.
+- New ghost-only walls: the Ghost walks through them, other players, customers, items and thrown food can't.
+- Level 2 has a fire extinguisher by the stoves.
+- New recipe on the test maps, the burger: chop raw meat into a patty and fry it in the new pan (stand-in model) on a stove, chop a cheese wedge into a slice, and stack both on a bun in either order, on a plate, a counter or in your hands. A raw patty can't go on a bun and a cheese slice or patty can't go on an empty plate. The order shows the bun, the meat with a pan badge and the cheese. The bun is lightly toasted, the cheese slice has holes, and the pan is a proper frying pan.
+- Things put down on a food crate sit on its lid instead of sinking into it.
+- A map's plate table can start with a stack of clean plates (the new demo map starts with 10).
+- The intro's wide shot frames the restaurant itself (the map edge), not the streets and buildings around it.
+- Each level can set which side the camera watches from; the demo map (Level 2) is watched from the street side, the other way round from Level 1.
+- The demo map (Level 2) sits in a small city block: streets, sidewalks, trees, a row of colourful buildings, street lamps and benches.
+- The demo map (Level 2) is now the level played in manual serve mode, and its customers order burgers.
+- Food you put in a pot or pan keeps its ingredient icon, so a burger shows the meat icon and a sandwich shows its spread.
+- The bun, meat and cheese icons over the food now fit inside their white circles, and the cheese icon is centred.
+- Trying to serve food without a plate now says "NEEDS PLATE!" at a customer's table too, and at the serving counter for every food (it used to work only for chopped foods).
+- New character, the Bear (stand-in model). Its superskill Bear Toss: hold Q next to a free teammate to lift them overhead, slide the white landing ring with the movement keys for up to 4 s (a dashed guide like the Gecko's follows the arc and faces the camera from any side), and let go to throw them in a high arc over counters and stations (walls still block it). The teammate dangles and flies as a floppy ragdoll, slams down with a dust ring, gets up a moment later and keeps whatever they hold. With no teammate in reach, it grabs a running dine-and-dasher on the spot and flings them far. Its passive, Sturdy: thrown items don't break its aim, the Penguin's ice doesn't slide it, and nobody can push it.
+- Bill's Hustle has new effects: he squashes and springs up with a puff of steam, speed lines and sweat fly off while he runs, his chopping and washing animate faster, and he lets out a breath when it ends. You can tell how long is left at a glance: his speed lines and trail thin out as it runs down, sputter in the last second and a half, and he blinks white three times right before it ends.
+- Sandwiches can be made without a plate: ladle jam or peanut butter onto bread on a counter or in your hands. Salads still need a plate.
+- A burning pot's smoke now rises above the flames as a lighter plume that shoots up and spreads out, instead of covering them or piling into a dark ball.
+- New character, the Ghost (stand-in model). Its superskill Phase lasts 4 seconds: it shrinks in and bursts out with a ring of puffs, then floats see-through in a soft pale blue haze that lights up the floor around it, bobbing and leaning into its movement, and walks through walls, counters and stations, carrying whatever it holds, but can't interact or throw until it pops back to solid. Inside a wall or counter its glowing outline shows through it. Its body squashes like jelly going into a wall and stretches coming out, with a ring of puffs on the wall; running fast leaves fading echoes of its body behind. In the last second it flickers toward solid, faster and faster. Ending inside something spits it out to the nearest open floor. Thrown items fly through a phasing Ghost, and other players and customers never block it.
+- Anything on fire can't be picked up until it's put out: a burning pot stays on the stove and the extinguisher has to deal with it first.
+- Particles (stove flames, superskill effects, customer sweat) look the same on low graphics settings.
+- Grabbing clean plates from the sink is easier: with no dirty plates in hand, you don't have to stand right at the drain board. Holding dirty plates works the other way: they drop in the water from most of the sink.
+- Catching a dine-and-dasher is now a baseball-bat swing: the catch only counts if the bonk lands while they're still in reach, and caught runners go flying as a ragdoll.
+- Fewer dine-and-dashers: 15% of customers run instead of 25%.
+- Sandwiches (test maps): chop a loaf for a bread slice, cook chopped strawberries into jam and chopped peanuts into peanut butter, and ladle them from the pot onto a plate with bread on it for a jam, peanut butter or PB&J sandwich. A cooked pot now plates its content (hold the plate or the pot), and the trash empties a pot.
+- Chefs now hold a cleaver while chopping. It pops into the hand the moment you start, for you and everyone watching, and the chop animation starts at once instead of after a network round trip.
+- New order row along the top-right: each order is a plate ringed by its timer (green to yellow to red), with a tray per recipe step showing its ingredients and a pot or pan badge for cooked steps. Customer orders show their table number. The oldest order is drawn bigger.
+- Orders are animated: plates drop in with speed lines and a squash and stretch while their ring sweeps in and the trays pop up one by one; running-late plates rock, glow red and sweat; served plates stamp a sparkling check, shrink into a coin that flies to your coins, and the coin card squashes as the number rolls up; expired plates shake and shrink away.
+- Combos (Chapter 1 Level 2): serve orders within 20 seconds of each other to build a team combo that multiplies your coins (up to x2). The coin card shows an `x` badge, then sparks, then the coin bursts into a flickering fire of glowing embers that turns blue and bigger at x5; a missed order chokes the fire into smoke, turns the badge grey and knocks it off the card spinning, shakes the card and stamps a red "COMBO LOST!". The badge colors were changed for readable contrast (dark text on the yellow x2).
+- Combo rules: only fresh serves build the combo (plate ring green); a yellow serve keeps it, a red one resets it ("TOO LATE!"). The plate ring now switches between clear green, yellow and red bands. A ring around the combo badge counts down the time to the next serve, and the badge shakes and throbs as it runs out.
+- Test maps also have "oldest first" (serving any order but the oldest resets the combo: "WRONG ORDER!") and Fever: reach x6 for 10 seconds of triple coins where nothing breaks the combo, with a pink fire, a FEVER! banner and softly glowing screen edges.
+- Fever now ends with a payoff: the badge swells, shakes and pops into a burst of pink embers, and "FEVER OVER!" pops up in pink.
+- The combo badge now sits on the coin card's top-right corner, leaning like a sticker, instead of between the timer and the coins.
+- Fixed the combo badge's countdown ring filling back up while the badge shook (most visible during Fever).
+- The "+N" coin text now flies off at a random angle instead of always straight up.
+- When orders pay on serve, the served plate turns into a spinning coin that hops out and flies to the coin card for everyone. When customers pay at the table, collecting the cash (or catching a dine-and-dasher) sends a coin flying from that spot to your coin card, on your screen only. New orders drop in without flashing in place first.
+- The combo badge shakes, harder each tier, and the coin fire is bigger and sways like a flame.
+- The coin fire wraps around the coin: some see-through embers lick up over its edges instead of all burning behind it, and every ember has its own transparency.
+- New coins and timer cards in the order-row style, at the bottom-right on PC (bottom-centre on phones and tablets), scaled to the screen.
+- The ingredient crates in the test kitchens give food again.
+- The HUD, round results, START button and pop-up messages now use the chunky Jersey 15 pixel font.
+- New progress bar over chopping, cooking and washing: a blue slab that fills green, pops a check when the food is cooked, then turns orange and drains with a "!" badge, a red glow and a growing shake as the food is about to burn. It replaces the old bar and the separate done and warning pop-ups.
+- Cooking pots now steam gently, and a pot about to burn smokes: round grey puffs that grow and darken as the burn nears, with thick dark smoke while it's on fire.
+- The Gecko's tongue can grab items a little closer (2 studs instead of 4).
+- Pots that start on a stove in the test kitchen cook right away instead of only after being picked up and put back.
+- The spinning coin fills and centres in its slot on the coin card, and the floating "+N" is yellow.
+- Pressing START plays an opening shot: the screen goes black, the Superchefs icon opens as a peephole onto the kitchen and zooms past the screen, then the camera swoops down from a view of the whole map to your chef before Ready-Set-Go.
+- Dine-and-dashers give themselves away: customers who are about to run sweat nervously at the table, so a sharp-eyed chef can be ready to catch them.
+- Table customers sit down on their chair while they wait and eat, instead of standing at the table.
 - The round waits for a START button, so it begins only once you have loaded. Ready-Set-Go now actually shows: READY?, SET and GO! as crisp Jersey 15 pixel words on red, orange and green banners, each word popping in and shrinking away.
 - Recipe icons and the Ready-Set-Go font now preload with the first assets, so they no longer pop in the first time they show.
 - Frozen customer bubbles have one snowflake badge instead of five snowflakes.
 - Table customers now leave their payment as a pile of coins and cash beside the plate; picking up the plate (or the table, once the plate is gone) collects the coins too. The cash pops onto the table and flies to whoever grabs it.
 - Some customers dine and dash: they sprint for the door with a red outline and a "CATCH!" bubble. Chase them down and press interact to make them pay before they get away; caught runners burst into cash.
-- Table cash and dine-and-dashers are level settings, on in the test tables level only, so later levels can introduce them one at a time.
+- Table cash and dine-and-dashers are level settings, on only in Chapter 1 Level 2 (the table-service level), so later levels can introduce them one at a time.
 - Nothing you carry can snag on a wall and pin you in place anymore: a stack of dirty plates and every part of a held item (like the fire extinguisher's nozzle) pass through walls like the item in your hands.
 
 - New customer bubble design, matching the order tickets: a soft blue card with a tail, the dish in a white slot and a flat patience bar. Frozen customers get an icy rim and a snowflake badge; dine-and-dashers get a red "CATCH!" card.
@@ -45,9 +121,9 @@ Versions are git tags (`vMAJOR.MINOR.PATCH`). The rules are in `docs/VERSIONING.
 - Your "you" ring stays flat on the floor, even when jumping.
 - Every player now sees the same serving-window NPCs walking the same routes.
 - Meshes, textures and sounds now download in the background, your own superskill's effects first, so they no longer pop in the first time they appear.
-- The superskill HUD button is hidden for now (`Config.UI.ShowSkillHud`); the superskill key and mobile button still work.
+- New superskill card on the HUD, left of the timer and in the same style: the superskill's icon in its color, a ring that drains through the cooldown with the seconds left, a Q keycap, a squash on press and a pop when it's ready again. It greys out while the superskill can't be used. The mobile superskill button uses the same card and moved up, clear of Dash.
 - Order tickets and customer patience bars turn ice blue while frozen.
-- Customer tables only highlight when there is something to do there (taking an order, serving, or a dirty plate), not while customers walk up, eat or leave.
+- Customer seats only highlight when there is something to do there (taking an order, serving, or a dirty plate), not while customers walk up, eat or leave. The highlight picks out the customer's chair, not the whole table.
 - The Gecko's tongue is now textured and wobbling with a sticky tip, effects for firing, sticking, missing a wall and catching, and a trail on the grabbed item.
 - Tap once to chop food or wash a whole stack of plates; move or dash to stop early.
 - Gecko's Tongue Grab now snaps toward nearby items, spins to lock onto reachable items, shows a striped aim guide, and fires a smoother tongue immediately on release; holding until the limit cancels without firing, and every lock switch restarts that limit.

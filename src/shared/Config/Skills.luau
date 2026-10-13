@@ -48,6 +48,82 @@ export type HustleTuning = {
 		StartCount: number,
 		EndCount: number,
 		TrailWidth: number,
+		SpringTime: number,
+		SpringDip: number,
+		SpringWobble: number,
+		LineMinSpeed: number,
+		SweatInterval: { number },
+		SweatCount: number,
+		ExhaleForward: number,
+		SteamForward: number,
+		FuelMin: number,
+		SputterTime: number,
+		SputterRate: number,
+		SputterOn: number,
+		BlinkAt: { number },
+		BlinkLength: number,
+		BlinkColor: Color3,
+		BlinkTransparency: number,
+	},
+}
+
+export type PhaseTuning = {
+	Duration: number,
+	Cooldown: number,
+	CanInteract: boolean,
+	PushOutRadius: number,
+	PushOutStep: number,
+	PushOutAngles: number,
+	PushOutFloorDrop: number,
+	Visuals: {
+		Transparency: number,
+		FadeTime: number,
+		TintColor: Color3,
+		TintTransparency: number,
+		InsideTintTransparency: number,
+		GlowBrightness: number,
+		GlowRange: number,
+		AuraRate: number,
+		StartTime: number,
+		StartShrink: number,
+		StartSnap: number,
+		StartWobble: number,
+		StartCount: number,
+		RingCount: number,
+		RingRadius: number,
+		FloatHeight: number,
+		FloatBob: number,
+		FloatPeriod: number,
+		LeanPerSpeed: number,
+		LeanMax: number,
+		LeanStiffness: number,
+		LeanDamping: number,
+		WispMinSpeed: number,
+		EchoMinSpeed: number,
+		EchoInterval: number,
+		EchoTime: number,
+		EchoTransparency: number,
+		EchoShrink: number,
+		EchoRise: number,
+		EchoCollisionGroup: string,
+		FlickerTime: number,
+		FlickerRateStart: number,
+		FlickerRateEnd: number,
+		FlickerSolid: number,
+		PopCount: number,
+		PopTime: number,
+		PopStretch: number,
+		WarpTime: number,
+		WarpSquash: number,
+		WarpStretch: number,
+		WarpWobble: number,
+		WarpGap: number,
+		WarpProbe: number,
+		SplashCount: number,
+		SplashRadius: number,
+		SpitJump: number,
+		SpitWindow: number,
+		SpitCount: number,
 	},
 }
 
@@ -175,6 +251,62 @@ export type OrderRushTuning = {
 	},
 }
 
+export type BearTossTuning = {
+	GrabReach: number,
+	GrabAngle: number,
+	GrabMargin: number,
+	HoldLimit: number,
+	HoldLimitMargin: number,
+	MinRange: number,
+	MaxRange: number,
+	RangeMargin: number,
+	StartDistance: number,
+	RingSpeed: number,
+	LandingSearchRadius: number,
+	LandingSearchStep: number,
+	LandingFloorDrop: number,
+	FlightTime: number,
+	GetUpTime: number,
+	ArcHeight: number,
+	ArcSamples: number,
+	LiftHeight: number,
+	LiftTime: number,
+	DropDistance: number,
+	ThrowTime: number,
+	Cooldown: number,
+	CancelCooldown: number,
+	RunnerCooldown: number,
+	RunnerFling: number,
+	RunnerLift: number,
+	CameraAimShare: number,
+	CameraEaseSpeed: number,
+	Visuals: {
+		RingColor: Color3,
+		GuideColor: Color3,
+		GuideDash: number,
+		GuideGap: number,
+		GuideSpeed: number,
+		BlockedColor: Color3,
+		RingPulse: number,
+		RingPulseSpeed: number,
+		AimSmoothing: number,
+		HeldTilt: number,
+		HeldWiggle: number,
+		HeldWiggleSpeed: number,
+		TumbleSpeed: number,
+		LandSpin: number,
+		LandCarry: number,
+		GetUpFade: number,
+		LiftDip: number,
+		ThrowDip: number,
+		DipTime: number,
+		DipWobble: number,
+		DustCount: number,
+		DustRingCount: number,
+		DustRingRadius: number,
+	},
+}
+
 local Skills = {
 	-- Character model name -> skill module name (server `Skills/` and client `Skills/`).
 	-- "Alien" is a working name: rename the key together with the character model.
@@ -183,16 +315,12 @@ local Skills = {
 		Bill = "Hustle",
 		Penguin = "DeepFreeze",
 		Alien = "OrderRush",
+		Ghost = "Phase",
+		Bear = "BearToss",
 	} :: { [string]: string },
 
-	-- TEMPORARY test mode, Studio only (ignored on live servers): KeyCode name -> skill. These keys use
-	-- that skill on any character, and no skill has a cooldown. Set nil to turn it off.
-	StudioTestKeys = {
-		R = "TongueGrab",
-		T = "Hustle",
-		Y = "DeepFreeze",
-		U = "OrderRush",
-	} :: { [string]: string }?,
+	-- Studio only: no superskill has a cooldown (for spamming skills while testing). Off shows the real cooldown.
+	StudioNoCooldown = false,
 
 	-- Seconds of client-to-server delay compensated when an instant skill starts (half the ping, at most this).
 	MaxLagCompensation = 0.2,
@@ -219,6 +347,8 @@ local Skills = {
 		GrabByUserId = "GrabByUserId",
 		-- Bill: server time Hustle ends.
 		HustleUntil = "HustleUntil",
+		-- Ghost: server time Phase ends.
+		PhaseUntil = "PhaseUntil",
 		-- Penguin: the frost circle's centre and its start and end (server time).
 		FreezeCenter = "FreezeCenter",
 		FreezeStartedAt = "FreezeStartedAt",
@@ -229,13 +359,21 @@ local Skills = {
 		RushStartedAt = "RushStartedAt",
 		RushOrigin = "RushOrigin",
 		RushStops = "RushStops",
+		-- Bear: on the player being thrown. TossHeldBy is the Bear's UserId while it holds them overhead; the flight
+		-- is TossStartedAt (server time), TossFrom and TossTo (root positions).
+		TossHeldBy = "TossHeldBy",
+		TossStartedAt = "TossStartedAt",
+		TossFrom = "TossFrom",
+		TossTo = "TossTo",
+		-- Customers: a runner the Bear caught (its ragdoll flies further).
+		CaughtByToss = "CaughtByToss",
 	},
 
 	TongueGrab = {
 		-- Studs the tongue reaches from the mouth.
 		Range = 25,
 		-- Studs: items closer than this (along the aim line) are ignored. That is Interact range.
-		DeadZone = 4,
+		DeadZone = 2,
 		-- Studs: how far to the side of the aim line an item can be and still be targeted.
 		LineRadius = 1.5,
 		-- Studs: largest height difference between the mouth and a target.
@@ -302,11 +440,116 @@ local Skills = {
 		-- Seconds of cooldown, counted from when Hustle ends.
 		Cooldown = 15,
 		Visuals = {
-			StartCount = 10, -- steam puff particles when Hustle starts
-			EndCount = 8, -- exhale puff particles when it ends
+			StartCount = 10, -- steam puff particles from the head when Hustle starts
+			EndCount = 8, -- exhale puff particles in front of the face when it ends
 			TrailWidth = 1.2, -- studs between the speed trail's attachments
+			-- Start: Bill squashes down and springs up (the root joint dips, then overshoots with a wobble).
+			SpringTime = 0.45, -- seconds
+			SpringDip = 0.55, -- studs down at the deepest
+			SpringWobble = 0.35, -- overshoot of the spring back up
+			-- Speed lines (Assets.Skills.Hustle.SpeedLines, rate on the template) stream only while moving faster than this.
+			LineMinSpeed = 4, -- studs per second
+			SweatInterval = { 0.5, 0.9 }, -- seconds between sweat flicks (min, max)
+			SweatCount = 2, -- drops per flick
+			ExhaleForward = 1.6, -- studs in front of the head's centre where the exhale puff starts
+			SteamForward = 1.6, -- studs in front of the head's centre where the start steam puffs up
+			-- Time left, without a bar: the speed lines and trail run out like fuel, sputter near the end, and Bill
+			-- blinks white just before it's over.
+			FuelMin = 0.25, -- speed line rate and trail width at the very end, as a fraction of full
+			SputterTime = 1.5, -- seconds left when the trail and lines start cutting out
+			SputterRate = 6, -- cuts per second while sputtering
+			SputterOn = 0.55, -- fraction of each cut the trail stays on
+			BlinkAt = { 1, 0.55, 0.25 }, -- seconds left at each white blink (closer together: speeding up)
+			BlinkLength = 0.09, -- seconds each blink stays white
+			BlinkColor = Color3.new(1, 1, 1),
+			BlinkTransparency = 0.25, -- fill transparency at a blink
 		},
 	} :: HustleTuning,
+
+	-- Ghost. See docs/design/characters/ghost-phase.md.
+	Phase = {
+		-- Seconds the Ghost walks through walls, counters and stations.
+		Duration = 4,
+		-- Seconds of cooldown, counted from when Phase ends.
+		Cooldown = 12,
+		-- The Ghost can pick up, put down and use stations while phased, also through walls. Throwing stays blocked
+		-- (a throw from inside a wall would start inside it).
+		CanInteract = true,
+		-- Ending inside something: the Ghost pops out to the nearest open floor within this many studs (flat),
+		-- searching rings PushOutStep apart with PushOutAngles spots each. Nothing open: back where Phase started.
+		PushOutRadius = 10,
+		PushOutStep = 0.75,
+		PushOutAngles = 16,
+		-- Studs below the feet a spot's floor may be (a spot over a hole doesn't count).
+		PushOutFloorDrop = 3,
+		Visuals = {
+			Transparency = 0.6, -- how see-through the Ghost (and what it carries) gets
+			FadeTime = 0.25, -- seconds to fade in and out (the float and lean blend in and out with it)
+			-- The ghostly glow: a faint pale fill on the character's player-color Highlight, a soft haze around the body
+			-- (Assets.Skills.Phase.Aura) and a pale light on what's around it (Assets.Skills.Phase.Glow). Inside a wall
+			-- or counter the fill gets stronger and draws through it, so the Ghost always sees where it is.
+			TintColor = Color3.fromRGB(170, 215, 255),
+			TintTransparency = 0.85, -- fill transparency at full strength, in the open
+			InsideTintTransparency = 0.45, -- fill transparency at full strength, inside a wall (the silhouette)
+			GlowBrightness = 1.5, -- light brightness at full strength
+			GlowRange = 10, -- studs the light reaches
+			AuraRate = 14, -- haze particles per second
+			-- Start: the body shrinks in, then bursts out bigger and wobbles back like jelly, with a puff and a ring of
+			-- puffs on the floor at the burst.
+			StartTime = 0.55, -- seconds
+			StartShrink = 0.12, -- fraction the body shrinks at the smallest
+			StartSnap = 0.25, -- fraction of StartTime spent shrinking in (the burst is at the end of it)
+			StartWobble = 2, -- how fast the burst's wobble dies out (lower: bigger and longer)
+			StartCount = 12, -- puff particles at the burst
+			RingCount = 10, -- puffs in the floor ring at the burst
+			RingRadius = 2.2, -- studs
+			-- Float: lifted off the floor with a slow bob (timed from the server's start, so every client bobs in step),
+			-- leaning into its movement on a spring so it sways back when it stops.
+			FloatHeight = 0.6, -- studs
+			FloatBob = 0.2, -- studs up and down
+			FloatPeriod = 1.4, -- seconds per bob
+			LeanPerSpeed = 0.025, -- radians of lean per stud per second
+			LeanMax = 0.35, -- radians
+			LeanStiffness = 90, -- lean spring pull
+			LeanDamping = 9, -- lean spring damping (lower sways more)
+			WispMinSpeed = 4, -- studs per second: wisps (Assets.Skills.Phase.Wisps, rate on the template) trail only when moving
+			-- Echoes: tinted copies of the body peel off behind while moving fast, shrinking, rising and fading.
+			EchoMinSpeed = 10, -- studs per second
+			EchoInterval = 0.08, -- seconds between echoes
+			EchoTime = 0.35, -- seconds an echo lasts
+			EchoTransparency = 0.5, -- transparency at the start
+			EchoShrink = 0.3, -- fraction an echo shrinks by the end
+			EchoRise = 0.6, -- studs an echo floats up by the end
+			EchoCollisionGroup = "Afterimage", -- registered in Studio; collides with nothing
+			-- Ending soon: in the last FlickerTime seconds it flickers toward solid, faster and faster, so the player
+			-- gets out of walls before the pop. Timed from the time left, so every client flickers in step.
+			FlickerTime = 1.2, -- seconds
+			FlickerRateStart = 3, -- flickers per second at the start of the warning
+			FlickerRateEnd = 12, -- flickers per second at the end
+			FlickerSolid = 0.25, -- see-through and glow while flickered solid, as a fraction of full
+			PopCount = 10, -- pop particles when Phase ends
+			-- End: a quick lift up and back, the "pop" back to solid.
+			PopTime = 0.35, -- seconds
+			PopStretch = 0.45, -- studs up at the highest
+			-- Through a wall: the body warps like jelly. Going in it squashes flat along its heading (bulging out to the
+			-- sides), coming out it stretches long (thinning), then it wobbles back. A ring of puffs splashes on the wall
+			-- face at each crossing.
+			WarpTime = 0.5, -- seconds from the hit to settled
+			WarpSquash = 0.12, -- going in: fraction the body shortens along its heading at the deepest (0 turns it off)
+			WarpStretch = 0.15, -- coming out (and spat out): fraction the body lengthens along its heading (0 turns it off)
+			WarpWobble = 2.5, -- how fast the spring-back wobble dies out (lower: bigger and longer)
+			WarpGap = 0.2, -- seconds before another wall crossing can restart the warp
+			WarpProbe = 4, -- studs along the Ghost's heading to look for the wall face it crossed (for the splash)
+			SplashCount = 8, -- puffs in the ring on the wall face
+			SplashRadius = 1.5, -- studs
+			-- Pushed out of a wall at the end: spat out, stretching toward where it was pushed, with a puff left at the
+			-- old spot. Seen on every client as the character jumping more than SpitJump studs in one frame within
+			-- SpitWindow seconds of the end.
+			SpitJump = 1.5, -- studs
+			SpitWindow = 0.3, -- seconds
+			SpitCount = 8, -- puff particles at the old spot
+		},
+	} :: PhaseTuning,
 
 	-- Penguin. See docs/design/characters/penguin-deep-freeze.md.
 	DeepFreeze = {
@@ -454,6 +697,80 @@ local Skills = {
 			ImageGlitchRate = 20, -- stepped glitches per second; 0 disables
 		},
 	} :: OrderRushTuning,
+
+	-- Bear. See docs/design/characters/bear-toss.md.
+	BearToss = {
+		-- Grab: the nearest free teammate in front of the Bear, at most GrabReach studs (flat) and GrabAngle degrees
+		-- off its facing. The server allows GrabMargin extra studs (lag).
+		GrabReach = 5,
+		GrabAngle = 70,
+		GrabMargin = 2,
+		-- Seconds the Bear can hold someone overhead before it throws at the current ring.
+		HoldLimit = 4,
+		HoldLimitMargin = 0.5,
+		-- Studs (flat) from the Bear to the landing spot; the server allows RangeMargin extra.
+		MinRange = 6,
+		MaxRange = 30,
+		RangeMargin = 2,
+		-- Where the landing ring starts (studs in front), and how fast the movement keys or stick slide it.
+		StartDistance = 15,
+		RingSpeed = 30,
+		-- A ring that lands on a counter or in a wall snaps to the nearest open floor this close (flat studs).
+		LandingSearchRadius = 4,
+		LandingSearchStep = 1,
+		-- Studs below the feet the landing spot looks for the floor.
+		LandingFloorDrop = 3,
+		-- The flight: seconds in the air and studs the arc rises above the straight line at its middle.
+		FlightTime = 0.9,
+		-- Seconds the thrown player lies as a ragdoll after landing before getting up (can't act meanwhile).
+		GetUpTime = 0.6,
+		ArcHeight = 9,
+		-- Segments the arc is checked in for walls.
+		ArcSamples = 12,
+		-- Studs above the Bear's root the lifted teammate's root sits, and seconds to get there.
+		LiftHeight = 4.5,
+		LiftTime = 0.2,
+		-- Studs in front of the Bear a teammate is put down when the toss is cancelled.
+		DropDistance = 3,
+		-- Seconds the Bear stays rooted after the throw.
+		ThrowTime = 0.3,
+		-- Seconds of cooldown, counted from the landing.
+		Cooldown = 14,
+		-- Cooldown when the Bear puts the teammate down (cancelled, timed out or no valid landing).
+		CancelCooldown = 1,
+		-- Catching a dine-and-dasher: the cooldown, and how hard its ragdoll flies (studs per second).
+		RunnerCooldown = 8,
+		RunnerFling = 55,
+		RunnerLift = 45,
+		-- The camera eases this share of the way toward the ring while aiming.
+		CameraAimShare = 0.35,
+		CameraEaseSpeed = 8,
+		Visuals = {
+			RingColor = Color3.new(1, 1, 1), -- landing ring Decal tint on a valid spot
+			GuideColor = Color3.new(1, 1, 1), -- the dashed arc guide on a valid spot (white, like the Gecko's guide)
+			GuideDash = 0.8, -- studs per dash of the arc guide (the Gecko guide's dashes)
+			GuideGap = 0.5, -- studs between dashes
+			GuideSpeed = 1.5, -- studs per second the dashes march toward the landing
+			BlockedColor = Color3.fromRGB(235, 80, 70), -- no valid landing near the ring
+			RingPulse = 0.12, -- fraction the ring grows and shrinks
+			RingPulseSpeed = 8, -- radians per second
+			AimSmoothing = 18, -- how fast the drawn ring and arc glide to the landing (per second)
+			HeldTilt = 80, -- degrees the held teammate's body tips back, lying across the Bear's raised arms
+			HeldWiggle = 12, -- degrees the held teammate squirms side to side
+			HeldWiggleSpeed = 9, -- radians per second
+			TumbleSpeed = 10, -- radians per second a thrown ragdoll spins head over heels
+			LandSpin = 6, -- radians per second the ragdoll keeps rolling with after landing
+			LandCarry = 0.3, -- share of the flight's sideways speed the ragdoll keeps (low, so the get-up spot stays close)
+			GetUpFade = 0.15, -- seconds the ragdoll fades out as the player stands back up
+			LiftDip = 0.5, -- studs the Bear squats when it lifts
+			ThrowDip = 0.7, -- studs the Bear squats into the throw
+			DipTime = 0.35, -- seconds for a dip to wobble back
+			DipWobble = 2, -- jelly overshoot of the dip
+			DustCount = 8, -- puffs at the landing (Assets.Skills.BearToss.Dust)
+			DustRingCount = 10, -- puffs in the floor ring at the landing
+			DustRingRadius = 2,
+		},
+	} :: BearTossTuning,
 }
 
 return Skills

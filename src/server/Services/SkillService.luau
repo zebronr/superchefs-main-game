@@ -7,10 +7,13 @@ local RunService = game:GetService("RunService")
 local DeepFreeze = require(script.Parent.Parent.Skills.DeepFreeze)
 local Hustle = require(script.Parent.Parent.Skills.Hustle)
 local OrderRush = require(script.Parent.Parent.Skills.OrderRush)
+local BearToss = require(script.Parent.Parent.Skills.BearToss)
+local Phase = require(script.Parent.Parent.Skills.Phase)
 local TongueGrab = require(script.Parent.Parent.Skills.TongueGrab)
 local Types = require(script.Parent.Parent.Skills.Types)
 local CarryService = require(script.Parent.CarryService)
 local InteractionService = require(script.Parent.InteractionService)
+local TeamService = require(script.Parent.TeamService)
 local ThrowService = require(script.Parent.ThrowService)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -18,6 +21,9 @@ local Config = require(Shared:WaitForChild("Config"))
 local SkillsConfig = Config.Skills
 local Attribute = SkillsConfig.Attribute
 local Net = require(Shared:WaitForChild("Net"))
+local Util = Shared:WaitForChild("Util")
+local SkillEffects = require(Util:WaitForChild("SkillEffects"))
+local TossPath = require(Util:WaitForChild("TossPath"))
 
 -- Owns the "Skill" remote and every player's super-skill state. The skills themselves live in
 -- `Skills/`; to add one, write the module, register it here and map a character to it in Config.Skills.ByCharacter.
@@ -26,6 +32,7 @@ local SkillService = {}
 -- Skill modules by the names used in Config.Skills.ByCharacter.
 local skills: { [string]: Types.Skill } = {
 	TongueGrab = TongueGrab,
+	BearToss = BearToss,
 }
 
 -- Press-once skills, used through the "Use" action.
@@ -33,6 +40,7 @@ local instantSkills: { [string]: Types.InstantSkill } = {
 	Hustle = Hustle,
 	DeepFreeze = DeepFreeze,
 	OrderRush = OrderRush,
+	Phase = Phase,
 }
 
 -- Runtimes hold a Skill; an instant skill runs behind this stand-in, which only forwards Cancel.
@@ -65,8 +73,7 @@ type Runtime = {
 }
 
 local runtimes: { [Player]: Runtime } = {}
--- Studio test mode (Config.Skills.StudioTestKeys): the client names the skill, and there are no cooldowns.
-local testMode = RunService:IsStudio() and SkillsConfig.StudioTestKeys ~= nil
+local noCooldown = RunService:IsStudio() and SkillsConfig.StudioNoCooldown
 local requestWindows: { [Player]: { Start: number, Count: number } } = {}
 
 local function consumeRequest(player: Player): boolean
@@ -83,22 +90,19 @@ local function consumeRequest(player: Player): boolean
 	return true
 end
 
--- `requested` is the skill the client named; only test mode honours it.
-local function skillName(character: Model, requested: unknown): string?
-	if testMode and typeof(requested) == "string" then
-		return requested
-	end
+-- The character's own superskill.
+local function skillName(character: Model): string?
 	local model = character:GetAttribute(Attribute.CharacterModel)
 	return if typeof(model) == "string" then SkillsConfig.ByCharacter[model] else nil
 end
 
-local function skillFor(character: Model, requested: unknown): Types.Skill?
-	local name = skillName(character, requested)
+local function skillFor(character: Model): Types.Skill?
+	local name = skillName(character)
 	return if name ~= nil then skills[name] else nil
 end
 
-local function instantFor(character: Model, requested: unknown): Types.InstantSkill?
-	local name = skillName(character, requested)
+local function instantFor(character: Model): Types.InstantSkill?
+	local name = skillName(character)
 	return if name ~= nil then instantSkills[name] else nil
 end
 
@@ -142,7 +146,7 @@ local function finish(runtime: Runtime, cooldown: number): ()
 	runtimes[runtime.Player] = nil
 	runtime.Ended = true
 	cancelTimer(runtime)
-	if testMode then
+	if noCooldown then
 		cooldown = 0
 	end
 	local character = runtime.Ctx.Character
@@ -169,6 +173,10 @@ end
 local function interrupt(player: Player): ()
 	local runtime = runtimes[player]
 	if runtime == nil or runtime.State ~= "Aiming" then
+		return
+	end
+	-- Sturdy characters (the Bear) aren't staggered by thrown items.
+	if SkillEffects.Sturdy(runtime.Ctx.Character) then
 		return
 	end
 	teardown(runtime, runtime.Skill.Interrupt)
@@ -215,7 +223,7 @@ local function restartHold(runtime: Runtime): ()
 	end)
 end
 
-local function aim(player: Player, requested: unknown): ()
+local function aim(player: Player): ()
 	local character = player.Character
 	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
 	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
@@ -228,7 +236,7 @@ local function aim(player: Player, requested: unknown): ()
 	then
 		return
 	end
-	local skill = skillFor(character, requested)
+	local skill = skillFor(character)
 	local readyAt = character:GetAttribute(Attribute.ReadyAt)
 	local ready = typeof(readyAt) ~= "number" or workspace:GetServerTimeNow() >= readyAt
 	if runtimes[player] ~= nil then
@@ -239,6 +247,7 @@ local function aim(player: Player, requested: unknown): ()
 		or not ready
 		or CarryService.GetHeld(player) ~= nil
 		or InteractionService.IsUsing(player)
+		or TossPath.Busy(character)
 	then
 		-- The client is already aiming locally; tell it to stop.
 		Net.Event("Skill"):FireClient(player, "Interrupted")
@@ -263,7 +272,7 @@ local function aim(player: Player, requested: unknown): ()
 end
 
 -- An instant skill. The client already plays it locally, so every refusal tells it to roll back.
-local function use(player: Player, requested: unknown): ()
+local function use(player: Player): ()
 	local character = player.Character
 	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
 	if
@@ -276,7 +285,7 @@ local function use(player: Player, requested: unknown): ()
 		Net.Event("Skill"):FireClient(player, "Interrupted")
 		return
 	end
-	local instant = instantFor(character, requested)
+	local instant = instantFor(character)
 	local now = workspace:GetServerTimeNow()
 	local readyAt = character:GetAttribute(Attribute.ReadyAt)
 	local ready = typeof(readyAt) ~= "number" or now >= readyAt
@@ -286,6 +295,7 @@ local function use(player: Player, requested: unknown): ()
 		or not ready
 		or (instant.RequiresEmptyHands and CarryService.GetHeld(player) ~= nil)
 		or (not instant.AllowedWhileUsing and InteractionService.IsUsing(player))
+		or TossPath.Busy(character)
 	then
 		Net.Event("Skill"):FireClient(player, "Interrupted")
 		return
@@ -312,14 +322,17 @@ local function use(player: Player, requested: unknown): ()
 end
 
 local function onRequest(player: Player, action: unknown, payload: unknown, hint: unknown): ()
+	if not TeamService.IsActive(player) then
+		return
+	end
 	if not consumeRequest(player) then
 		return
 	end
 	if action == "Aim" then
-		aim(player, payload)
+		aim(player)
 		return
 	elseif action == "Use" then
-		use(player, payload)
+		use(player)
 		return
 	end
 	local runtime = runtimes[player]
